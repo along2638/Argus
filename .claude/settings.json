@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(timeout 10 uvicorn app.main:app --host 0.0.0.0 --port 8000)",
+      "Bash(timeout 6 uvicorn app.main:app --host 0.0.0.0 --port 8000)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8000)",
+      "Bash(findstr LISTENING)",
+      "Bash(taskkill //F //PID 25676)",
+      "Bash(uvicorn app.main:app --host 0.0.0.0 --port 8000)",
+      "Bash(curl -s http://localhost:8000/)",
+      "Bash(python -c \"from pathlib import Path; p = Path\\('app/main.py'\\).parent / 'static' / 'index.html'; print\\(p.exists\\(\\), p\\)\")",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(curl -s http://localhost:8000/api/v1/stream/list)",
+      "Bash(python -m json.tool)",
+      "Bash(python -c ' *)",
+      "Bash(curl -X POST http://localhost:8000/api/v1/stream/stop -H \"Content-Type: application/json\" -d '{\"stream_id\": \"camera-001\"}')",
+      "Bash(curl -X POST http://localhost:8000/api/v1/stream/stop -H \"Content-Type: application/json\" -d '{\"stream_id\": \"camera-002\"}')",
+      "Bash(curl -X POST http://localhost:8000/api/v1/stream/start -H 'Content-Type: application/json' -d '{\"stream_id\": \"camera-001\", \"stream_url\": \"rtsp://admin:yangwang%401@192.168.212.11\"}')",
+      "Bash(python -c \"import supervision as sv; print\\(sv.__version__\\); help\\(sv.ByteTrack.__init__\\)\")",
+      "Bash(curl -X POST http://localhost:8000/api/v1/stream/start -H 'Content-Type: application/json' -d '{\"stream_id\": \"debug\", \"stream_url\": \"rtsp://admin:yangwang%401@192.168.212.14\", \"validate\": true, \"alarm_types\": [\"animal\"]}')",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(curl -X DELETE \"http://localhost:8000/api/v1/stream/alarms/999\")",
+      "Bash(python -c \"from app.main import app; print\\('import ok'\\)\")",
+      "Bash(kill %1)",
+      "Bash(wait)"
+    ]
+  }
+}

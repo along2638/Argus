@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Argus — 智能监控告警系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f0eb;
+            --bg-card: rgba(255,255,255,0.55);
+            --bg-card-solid: #fff;
+            --bg-input: rgba(0,0,0,0.03);
+            --border: rgba(0,0,0,0.06);
+            --border-focus: rgba(26,26,26,0.25);
+            --ink: #1a1a1a;
+            --ink-light: #3d3d3d;
+            --ink-muted: #8a8580;
+            --ink-faint: #c4bfb8;
+            --accent: #1a1a1a;
+            --accent-soft: rgba(26,26,26,0.06);
+            --success: #2d7a4f;
+            --success-bg: rgba(45,122,79,0.08);
+            --danger: #b33a3a;
+            --danger-bg: rgba(179,58,58,0.08);
+            --warning: #a67c00;
+            --warning-bg: rgba(166,124,0,0.08);
+            --radius: 999px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.06);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --transition: 0.2s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            color: var(--ink);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 30%, rgba(180,170,155,0.08) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 40% at 75% 60%, rgba(160,150,135,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse 90% 60% at 50% 80%, rgba(170,160,145,0.05) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.18); }
+
+        .app {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 32px 60px;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 28px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 36px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 12px; }
+
+        .header-logo {
+            width: 34px; height: 34px;
+            background: var(--ink);
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--bg);
+            font-size: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        .header-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 14px;
+            background: var(--success-bg);
+            color: var(--success);
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: var(--radius);
+        }
+
+        .header-badge .dot {
+            width: 6px; height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .header-link {
+            color: var(--ink-muted);
+            font-size: 0.8rem;
+            text-decoration: none;
+            padding: 6px 14px;
+            border-radius: var(--radius);
+            transition: var(--transition);
+            border: 1px solid transparent;
+        }
+        .header-link:hover { color: var(--ink); border-color: var(--border); }
+
+        /* ── Grid ── */
+        .grid-top {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .grid-bottom {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .card-title .icon {
+            width: 18px; height: 18px;
+            opacity: 0.5;
+            flex-shrink: 0;
+        }
+
+        .card-body { padding: 20px; }
+        .card-body.no-pad { padding: 0; }
+
+        /* ── Icon Button ── */
+        .icon-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--ink-muted);
+            cursor: pointer;
+            width: 30px; height: 30px;
+            border-radius: var(--radius);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem;
+            transition: var(--transition);
+        }
+        .icon-btn:hover { color: var(--ink); border-color: var(--ink-faint); background: rgba(0,0,0,0.02); }
+
+        /* ── Status Grid ── */
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            transition: var(--transition);
+        }
+        .stat-card:hover { border-color: rgba(0,0,0,0.1); }
+
+        .stat-label {
+            font-size: 0.68rem;
+            font-weight: 500;
+            color: var(--ink-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--ink);
+            font-variant-numeric: tabular-nums;
+        }
+        .stat-value.ok { color: var(--success); }
+        .stat-value.error { color: var(--danger); }
+        .stat-value.warning { color: var(--warning); }
+
+        /* ── Form ── */
+        .form-group { margin-bottom: 14px; }
+
+        .form-label {
+            display: block;
+            font-size: 0.76rem;
+            font-weight: 500;
+            color: var(--ink-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--ink);
+            font-size: 0.84rem;
+            font-family: 'JetBrains Mono', monospace;
+            transition: var(--transition);
+            outline: none;
+        }
+        .form-input::placeholder { color: var(--ink-faint); }
+        .form-input:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(26,26,26,0.04); }
+
+        /* ── Checkbox ── */
+        .check-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .check-item {
+            display: flex; align-items: center; gap: 6px;
+            padding: 7px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.78rem;
+            color: var(--ink-muted);
+            transition: var(--transition);
+            user-select: none;
+            white-space: nowrap;
+        }
+        .check-item:hover { border-color: var(--ink-faint); }
+        .check-item:has(input:checked) { border-color: var(--ink); background: var(--accent-soft); color: var(--ink); }
+
+        .check-item input[type="checkbox"] {
+            -webkit-appearance: none; appearance: none;
+            width: 15px; height: 15px;
+            border: 1.5px solid var(--ink-faint);
+            border-radius: 4px;
+            background: var(--bg-input);
+            cursor: pointer;
+            position: relative;
+            flex-shrink: 0;
+            transition: var(--transition);
+        }
+        .check-item input[type="checkbox"]:checked {
+            background: var(--ink);
+            border-color: var(--ink);
+        }
+        .check-item input[type="checkbox"]:checked::after {
+            content: '';
+            position: absolute;
+            left: 4px; top: 1px;
+            width: 5px; height: 8px;
+            border: solid var(--bg);
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        .check-inline {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.78rem;
+            color: var(--ink-muted);
+            cursor: pointer;
+        }
+        .check-inline input { accent-color: var(--ink); cursor: pointer; }
+
+        /* ── Buttons ── */
+        .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+
+        .btn {
+            padding: 10px 22px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 500;
+            font-family: inherit;
+            transition: var(--transition);
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-primary {
+            background: var(--ink);
+            color: var(--bg);
+        }
+        .btn-primary:hover:not(:disabled) { background: #333; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--ink-muted);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { border-color: var(--ink-faint); color: var(--ink); }
+
+        .btn-danger-ghost {
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger-bg);
+        }
+        .btn-danger-ghost:hover { background: var(--danger-bg); }
+
+        .btn-sm { padding: 5px 12px; font-size: 0.73rem; }
+
+        /* ── Stream List ── */
+        .stream-scroll { max-height: 300px; overflow-y: auto; }
+
+        .stream-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 13px 20px;
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .stream-item:last-child { border-bottom: none; }
+        .stream-item:hover { background: rgba(0,0,0,0.015); }
+
+        .stream-info { flex: 1; min-width: 0; }
+
+        .stream-row {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+
+        .stream-id {
+            font-weight: 600; font-size: 0.84rem;
+            color: var(--ink);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stream-status {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px;
+            border-radius: var(--radius);
+            font-size: 0.68rem;
+            font-weight: 600;
+        }
+        .stream-status.running { background: var(--success-bg); color: var(--success); }
+        .stream-status.reconnecting { background: var(--warning-bg); color: var(--warning); }
+        .stream-status.error { background: var(--danger-bg); color: var(--danger); }
+        .stream-status.stopped { background: var(--accent-soft); color: var(--ink-muted); }
+
+        .stream-type-tag {
+            padding: 2px 8px;
+            background: var(--accent-soft);
+            color: var(--ink-muted);
+            border-radius: var(--radius);
+            font-size: 0.68rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ── Alarm List ── */
+        .alarm-scroll { max-height: 520px; overflow-y: auto; }
+
+        .alarm-item {
+            display: flex;
+            gap: 14px;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+            cursor: pointer;
+            align-items: flex-start;
+        }
+        .alarm-item:last-child { border-bottom: none; }
+        .alarm-item:hover { background: rgba(0,0,0,0.015); }
+
+        .alarm-thumb {
+            width: 72px; height: 54px;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: var(--bg-input);
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border);
+        }
+        .alarm-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .alarm-thumb .no-img { font-size: 1.1rem; opacity: 0.25; }
+
+        .alarm-body { flex: 1; min-width: 0; }
+
+        .alarm-top {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+        }
+
+        .alarm-type-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px;
+            border-radius: var(--radius);
+            font-size: 0.73rem;
+            font-weight: 500;
+            color: var(--ink-light);
+            background: var(--accent-soft);
+        }
+
+        .alarm-stream-tag {
+            padding: 1px 6px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.66rem;
+            color: var(--ink-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .alarm-info {
+            display: flex; align-items: center; gap: 12px;
+            font-size: 0.72rem;
+            color: var(--ink-muted);
+        }
+
+        .alarm-conf {
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .alarm-conf-bar {
+            width: 36px; height: 3px;
+            background: var(--bg-input);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .alarm-conf-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        .alarm-conf-fill.low { background: var(--danger); }
+        .alarm-conf-fill.mid { background: var(--warning); }
+        .alarm-conf-fill.high { background: var(--success); }
+
+        .alarm-right {
+            display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0;
+        }
+
+        .alarm-time {
+            font-size: 0.68rem;
+            color: var(--ink-faint);
+            white-space: nowrap;
+        }
+
+        .alarm-actions { display: flex; gap: 4px; }
+        .alarm-actions span {
+            font-size: 0.68rem;
+            color: var(--ink-muted);
+            cursor: pointer;
+            padding: 3px 6px;
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+        .alarm-actions span:hover { color: var(--ink); background: var(--accent-soft); }
+        .alarm-actions span.del:hover { color: var(--danger); background: var(--danger-bg); }
+
+        .alarm-count-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 18px; height: 18px;
+            padding: 0 5px;
+            background: var(--danger);
+            color: #fff;
+            border-radius: var(--radius);
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+
+        /* ── Alarm Filter ── */
+        .alarm-filter-bar {
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        }
+        .alarm-filter-bar select {
+            padding: 4px 8px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--ink);
+            font-size: 0.73rem;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+        }
+        .alarm-filter-bar select:focus { border-color: var(--border-focus); }
+
+        /* ── Pager ── */
+        .alarm-pager {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 18px;
+            border-top: 1px solid var(--border);
+            font-size: 0.72rem;
+            color: var(--ink-muted);
+        }
+        .alarm-pager-btns { display: flex; gap: 3px; }
+        .alarm-pager-btns button {
+            padding: 4px 10px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--ink-muted);
+            font-size: 0.7rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .alarm-pager-btns button:hover:not(:disabled) { border-color: var(--ink-faint); color: var(--ink); }
+        .alarm-pager-btns button:disabled { opacity: 0.3; cursor: not-allowed; }
+        .alarm-pager-btns button.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+        /* ── Log ── */
+        .log-scroll {
+            max-height: 280px;
+            overflow-y: auto;
+            padding: 14px 20px;
+        }
+
+        .log-line {
+            display: flex; align-items: baseline; gap: 8px;
+            padding: 4px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.73rem;
+            line-height: 1.6;
+        }
+
+        .log-time { color: var(--ink-faint); flex-shrink: 0; }
+
+        .log-tag {
+            padding: 1px 6px;
+            border-radius: var(--radius);
+            font-size: 0.64rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+        .log-tag.info { background: var(--accent-soft); color: var(--ink-muted); }
+        .log-tag.success { background: var(--success-bg); color: var(--success); }
+        .log-tag.error { background: var(--danger-bg); color: var(--danger); }
+        .log-tag.warning { background: var(--warning-bg); color: var(--warning); }
+
+        .log-msg { color: var(--ink-muted); }
+
+        /* ── Empty ── */
+        .empty {
+            text-align: center;
+            padding: 36px 20px;
+            color: var(--ink-faint);
+            font-size: 0.84rem;
+        }
+        .empty-icon {
+            margin-bottom: 8px;
+            opacity: 0.3;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            top: 20px; right: 20px;
+            padding: 10px 18px;
+            border-radius: var(--radius);
+            font-size: 0.8rem;
+            font-weight: 500;
+            z-index: 1000;
+            animation: toastIn 0.25s ease;
+            box-shadow: var(--shadow);
+            display: flex; align-items: center; gap: 8px;
+            font-family: inherit;
+        }
+        .toast.success { background: var(--bg-card-solid); color: var(--success); border: 1px solid var(--success-bg); }
+        .toast.error { background: var(--bg-card-solid); color: var(--danger); border: 1px solid var(--danger-bg); }
+        .toast.info { background: var(--bg-card-solid); color: var(--ink); border: 1px solid var(--border); }
+
+        @keyframes toastIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* ── Spinner ── */
+        .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: var(--ink);
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px);
+            z-index: 2000;
+            justify-content: center; align-items: center;
+            flex-direction: column;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-overlay img {
+            max-width: 90%; max-height: 78%;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 24px; right: 24px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            font-size: 1.2rem;
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: var(--transition);
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.25); }
+
+        .modal-info {
+            color: rgba(255,255,255,0.7);
+            margin-top: 14px;
+            font-size: 0.82rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .modal-info strong { color: #fff; }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 40px 0 0;
+            color: var(--ink-faint);
+            font-size: 0.73rem;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .grid-top { grid-template-columns: 1fr; }
+            .grid-bottom { grid-template-columns: 1fr; }
+            .check-grid { grid-template-columns: 1fr; }
+            .header { flex-direction: column; gap: 12px; text-align: center; }
+            .header-right { justify-content: center; }
+        }
+        @media (max-width: 480px) {
+            .app { padding: 0 16px 32px; }
+            .status-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="header-left">
+                <div class="header-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+                <h1>Argus 智能监控</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-badge" id="headerStatus">
+                    <span class="dot"></span>
+                    <span>检测中</span>
+                </div>
+                <a href="/docs" target="_blank" class="header-link">API Docs</a>
+                <a href="/redoc" target="_blank" class="header-link">ReDoc</a>
+                <a href="/static/annotate.html" target="_blank" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">手动标注</a>
+            </div>
+        </header>
+
+        <div class="grid-top">
+            <div class="card">
+                <div class="card-head">
+                    <span class="card-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> 系统状态</span>
+                    <button class="icon-btn" onclick="refreshHealth()" title="刷新">↻</button>
+                </div>
+                <div class="card-body">
+                    <div class="status-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">系统状态</div>
+                            <div class="stat-value" id="status">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">活跃流</div>
+                            <div class="stat-value" id="activeStreams">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">队列深度</div>
+                            <div class="stat-value" id="queueDepth">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">GPU</div>
+                            <div class="stat-value" id="gpuStatus">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <span class="card-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg> 启动流处理</span>
+                </div>
+                <div class="card-body">
+                    <form id="startForm" onsubmit="startStream(event)">
+                        <div class="form-group">
+                            <label class="form-label">流标识符</label>
+                            <input type="text" id="streamId" class="form-input" placeholder="camera-001" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">监控流地址</label>
+                            <input type="text" id="streamUrl" class="form-input" placeholder="rtsp://admin:pass@192.168.1.100:554/stream1" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">检测类型</label>
+                            <div class="check-grid">
+                                <label class="check-item"><input type="checkbox" name="alarmType" value="helmet"> 安全帽</label>
+                                <label class="check-item"><input type="checkbox" name="alarmType" value="fire"> 火灾</label>
+                                <label class="check-item"><input type="checkbox" name="alarmType" value="intrusion"> 入侵检测</label>
+                            </div>
+                        </div>
+                        <label class="check-inline" style="margin-bottom:4px;">
+                            <input type="checkbox" id="validateStream" checked> 启动前验证流可用性
+                        </label>
+                        <div class="btn-row">
+                            <button type="submit" class="btn btn-primary" id="startBtn">启动检测</button>
+                            <button type="button" class="btn btn-ghost" onclick="fillExample()">填入示例</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-bottom">
+            <div class="card">
+                <div class="card-head">
+                    <span class="card-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg> 活跃流</span>
+                    <button class="icon-btn" onclick="refreshStreams()" title="刷新">↻</button>
+                </div>
+                <div class="card-body no-pad">
+                    <div id="streamList" class="stream-scroll">
+                        <div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>暂无活跃流</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <span class="card-title">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> 告警记录
+                        <span class="alarm-count-badge" id="alarmCountBadge" style="display:none;">0</span>
+                    </span>
+                    <div class="alarm-filter-bar">
+                        <select id="alarmTypeFilter">
+                            <option value="">全部类型</option>
+                            <option value="helmet">安全帽</option>
+                            <option value="fire">火灾</option>
+                            <option value="intrusion">入侵检测</option>
+                        </select>
+                        <select id="alarmStreamFilter"><option value="">全部流</option></select>
+                        <button class="btn btn-ghost btn-sm" onclick="refreshAlarms()">查询</button>
+                        <button class="btn btn-danger-ghost btn-sm" onclick="deleteAllAlarms()">清空</button>
+                    </div>
+                </div>
+                <div class="card-body no-pad">
+                    <div id="alarmList" class="alarm-scroll">
+                        <div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>暂无告警记录</div>
+                    </div>
+                    <div id="alarmPager" class="alarm-pager" style="display:none;">
+                        <span id="alarmPagerInfo"></span>
+                        <div class="alarm-pager-btns" id="alarmPagerBtns"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <div class="card-head">
+                <span class="card-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> 操作日志</span>
+                <button class="icon-btn" onclick="clearLogs()" title="清空"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
+            </div>
+            <div id="logContainer" class="log-scroll">
+                <div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></div>暂无日志</div>
+            </div>
+        </div>
+
+        <footer class="footer">Argus 智能监控告警系统 v0.1.0</footer>
+    </div>
+
+    <div id="notification" class="toast" style="display:none;"></div>
+
+    <div id="imageModal" class="modal-overlay" onclick="closeImageModal()">
+        <button class="modal-close" onclick="closeImageModal()">&times;</button>
+        <img id="modalImage" src="" alt="告警图片">
+        <div id="modalInfo" class="modal-info"></div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        let logs = [];
+        let alarmPage = 1;
+        const ALARM_PAGE_SIZE = 20;
+
+        function addLog(message, level = 'info') {
+            const now = new Date();
+            logs.unshift({ time: now.toLocaleTimeString('zh-CN', { hour12: false }), message, level });
+            if (logs.length > 50) logs.length = 50;
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const c = document.getElementById('logContainer');
+            if (!logs.length) { c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></div>暂无日志</div>'; return; }
+            c.innerHTML = logs.map(l => `<div class="log-line"><span class="log-time">${l.time}</span><span class="log-tag ${l.level}">${l.level}</span><span class="log-msg">${l.message}</span></div>`).join('');
+        }
+
+        function clearLogs() { logs = []; renderLogs(); showNotification('日志已清空', 'info'); }
+
+        function showNotification(message, type = 'info') {
+            const el = document.getElementById('notification');
+            const icons = { success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>', error: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>', info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' };
+            el.innerHTML = `<span>${icons[type] || ''}</span> ${message}`;
+            el.className = `toast ${type}`;
+            el.style.display = 'flex';
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
+        async function refreshHealth() {
+            try {
+                const res = await fetch(`${API_BASE}/health`);
+                const d = await res.json();
+                document.getElementById('status').textContent = d.status;
+                document.getElementById('status').className = `stat-value ${d.status === '正常' ? 'ok' : 'error'}`;
+                document.getElementById('activeStreams').textContent = d.active_streams;
+                document.getElementById('queueDepth').textContent = d.queue_depth;
+                document.getElementById('queueDepth').className = `stat-value ${d.queue_depth > 100 ? 'warning' : ''}`;
+                document.getElementById('gpuStatus').textContent = d.gpu_available ? '可用' : '不可用';
+                document.getElementById('gpuStatus').className = `stat-value ${d.gpu_available ? 'ok' : 'error'}`;
+                addLog('系统状态已刷新', 'success');
+            } catch (e) {
+                document.getElementById('status').textContent = '错误';
+                document.getElementById('status').className = 'stat-value error';
+                addLog(`获取系统状态失败: ${e.message}`, 'error');
+            }
+        }
+
+        const statusLabels = { 'running': '运行中', 'reconnecting': '重连中', 'error': '异常', 'stopped': '已停止', 'idle': '空闲' };
+        const alarmTypeIcons = {
+            'helmet': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18h20M4 18v-4a8 8 0 0116 0v4"/></svg>',
+            'animal': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>',
+            'fire': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c1.5 4-2 8-2 12a6 6 0 0012 0c0-4-3.5-8-2-12-1 2.5-3 4-5 4s-3-1.5-3-4z"/></svg>',
+            'intrusion': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+        };
+        const alarmTypeNamesShort = { 'helmet': '安全帽', 'fire': '火灾', 'intrusion': '入侵检测' };
+
+        async function refreshStreams() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/stream/list`);
+                const data = await res.json();
+                const c = document.getElementById('streamList');
+                if (data.streams?.length) {
+                    c.innerHTML = data.streams.map(s => {
+                        const tags = (s.alarm_types || []).map(t => `<span class="stream-type-tag">${alarmTypeIcons[t] || ''} ${alarmTypeNamesShort[t] || t}</span>`).join('');
+                        const st = statusLabels[s.status] || s.status;
+                        const err = (s.status === 'error' || s.status === 'reconnecting') && s.error_message ? `<span style="font-size:0.66rem;color:var(--ink-faint);margin-left:4px;" title="${s.error_message}">⚠</span>` : '';
+                        return `<div class="stream-item"><div class="stream-info"><div class="stream-row"><span class="stream-id">${s.stream_id}</span><span class="stream-status ${s.status}">${st}${err}</span>${tags}</div></div><button class="btn btn-danger-ghost btn-sm" onclick="stopStream('${s.stream_id}')">停止</button></div>`;
+                    }).join('');
+                } else {
+                    c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>暂无活跃流</div>';
+                }
+                addLog(`流列表已刷新，${data.active_streams} 个活跃流`, 'info');
+            } catch (e) { addLog(`获取流列表失败: ${e.message}`, 'error'); }
+        }
+
+        const alarmTypeNames = {
+            'helmet': '安全帽', 'fire': '火灾',
+            'intrusion': '入侵检测', 'no-helmet': '未戴安全帽',
+            'person': '人', 'bird': '鸟', 'cat': '猫', 'dog': '狗',
+            'horse': '马', 'sheep': '羊', 'cow': '牛',
+            'elephant': '大象', 'bear': '熊', 'zebra': '斑马',
+            'giraffe': '长颈鹿', 'fire-smoke': '火灾烟雾',
+        };
+
+        function timeAgo(dateStr) {
+            const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+            if (diff < 60) return `${diff}秒前`;
+            if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+            return `${Math.floor(diff / 86400)}天前`;
+        }
+
+        function confLevel(c) { return c >= 0.7 ? 'high' : c >= 0.3 ? 'mid' : 'low'; }
+
+        async function refreshAlarmStreams() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/stream/alarms?limit=200`);
+                const data = await res.json();
+                const sel = document.getElementById('alarmStreamFilter');
+                const cur = sel.value;
+                const streams = [...new Set((data.alarms || []).map(a => a.stream_id).filter(Boolean))];
+                sel.innerHTML = '<option value="">全部流</option>' + streams.map(s => `<option value="${s}" ${s === cur ? 'selected' : ''}>${s}</option>`).join('');
+            } catch (e) {}
+        }
+
+        async function refreshAlarms() {
+            const alarmType = document.getElementById('alarmTypeFilter').value;
+            const streamFilter = document.getElementById('alarmStreamFilter').value;
+            try {
+                let url = `${API_BASE}/api/v1/stream/alarms?limit=200`;
+                if (alarmType) url += `&alarm_type=${alarmType}`;
+                if (streamFilter) url += `&stream_id=${streamFilter}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const c = document.getElementById('alarmList');
+                const all = data.alarms || [];
+                const total = all.length;
+                const badge = document.getElementById('alarmCountBadge');
+                if (total > 0) { badge.textContent = total; badge.style.display = 'inline-flex'; } else { badge.style.display = 'none'; }
+                const tp = Math.ceil(total / ALARM_PAGE_SIZE);
+                if (alarmPage > tp) alarmPage = tp || 1;
+                const start = (alarmPage - 1) * ALARM_PAGE_SIZE;
+                const page = all.slice(start, start + ALARM_PAGE_SIZE);
+                if (page.length) {
+                    c.innerHTML = page.map(a => {
+                        const tn = alarmTypeNames[a.alarm_type] || a.alarm_type;
+                        const cn = a.class_name ? ` · ${alarmTypeNames[a.class_name] || a.class_name}` : '';
+                        const t = timeAgo(a.detected_by);
+                        const ft = new Date(a.detected_by).toLocaleString('zh-CN');
+                        const conf = (a.confidence * 100).toFixed(1);
+                        const img = a.image_path ? `${API_BASE}/api/v1/stream/image/${a.image_path}` : '';
+                        const cl = confLevel(a.confidence);
+                        return `<div class="alarm-item" onclick="showImage('${img}','${tn.replace(/'/g,"\\'")}','${ft}','${conf}%','${a.stream_id}')"><div class="alarm-thumb">${img ? `<img src="${img}" loading="lazy">` : '<span class="no-img"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg></span>'}</div><div class="alarm-body"><div class="alarm-top"><span class="alarm-type-badge ${a.alarm_type}">${tn}${cn}</span><span class="alarm-stream-tag">${a.stream_id}</span></div><div class="alarm-info"><span class="alarm-conf"><span class="alarm-conf-bar"><span class="alarm-conf-fill ${cl}" style="width:${Math.min(a.confidence*100,100)}%"></span></span>${conf}%</span><span>${ft}</span></div></div><div class="alarm-right"><span class="alarm-time">${t}</span><div class="alarm-actions"><span onclick="event.stopPropagation();showImage('${img}','${tn.replace(/'/g,"\\'")}','${ft}','${conf}%','${a.stream_id}')">查看</span><span class="del" onclick="event.stopPropagation();deleteAlarm(${a.id})">删除</span></div></div></div>`;
+                    }).join('');
+                } else {
+                    c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>暂无告警记录</div>';
+                }
+                const pager = document.getElementById('alarmPager');
+                const pInfo = document.getElementById('alarmPagerInfo');
+                const pBtns = document.getElementById('alarmPagerBtns');
+                if (tp > 1) {
+                    pager.style.display = 'flex';
+                    pInfo.textContent = `共 ${total} 条，第 ${alarmPage}/${tp} 页`;
+                    let btns = `<button ${alarmPage<=1?'disabled':''} onclick="alarmPage--;refreshAlarms()">‹</button>`;
+                    for (let p = 1; p <= tp; p++) {
+                        if (tp > 7 && p > 2 && p < tp-1 && Math.abs(p-alarmPage)>1) { if (p===3||p===tp-2) btns+='<button disabled>…</button>'; continue; }
+                        btns += `<button class="${p===alarmPage?'active':''}" onclick="alarmPage=${p};refreshAlarms()">${p}</button>`;
+                    }
+                    btns += `<button ${alarmPage>=tp?'disabled':''} onclick="alarmPage++;refreshAlarms()">›</button>`;
+                    pBtns.innerHTML = btns;
+                } else { pager.style.display = 'none'; }
+                addLog(`告警列表已刷新，共 ${total} 条`, 'info');
+            } catch (e) { addLog(`获取告警列表失败: ${e.message}`, 'error'); }
+        }
+
+        function showImage(u, tn, t, c, s) {
+            if (!u) { showNotification('暂无图片', 'error'); return; }
+            document.getElementById('modalImage').src = u;
+            document.getElementById('modalInfo').innerHTML = `<strong>${tn}</strong><span>·</span>流 ${s}<span>·</span>${c}<span>·</span>${t}`;
+            document.getElementById('imageModal').classList.add('active');
+        }
+        function closeImageModal() { document.getElementById('imageModal').classList.remove('active'); }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImageModal(); });
+
+        async function deleteAlarm(id) {
+            if (!confirm('确定删除这条告警？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/stream/alarms/${id}`, { method: 'DELETE' });
+                const d = await res.json();
+                if (res.ok) { showNotification('已删除', 'success'); refreshAlarms(); } else { showNotification(d.detail || '删除失败', 'error'); }
+            } catch (e) { showNotification('删除失败', 'error'); }
+        }
+
+        async function deleteAllAlarms() {
+            if (!confirm('确定清空所有告警？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/stream/alarms`, { method: 'DELETE' });
+                const d = await res.json();
+                if (res.ok) { showNotification(d.message, 'success'); refreshAlarms(); } else { showNotification(d.detail || '清空失败', 'error'); }
+            } catch (e) { showNotification('清空失败', 'error'); }
+        }
+
+        async function startStream(event) {
+            event.preventDefault();
+            const sid = document.getElementById('streamId').value;
+            const url = document.getElementById('streamUrl').value;
+            const validate = document.getElementById('validateStream').checked;
+            const btn = document.getElementById('startBtn');
+            const at = Array.from(document.querySelectorAll('input[name="alarmType"]:checked')).map(cb => cb.value);
+            if (!at.length) { showNotification('请至少选择一种检测类型', 'error'); return; }
+            btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 启动中…';
+            if (validate) addLog(`正在验证流 ${sid}…`, 'info');
+            const tl = { helmet:'安全帽', fire:'火灾', intrusion:'入侵检测' };
+            addLog(`检测类型: ${at.map(t=>tl[t]||t).join(', ')}`, 'info');
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/stream/start`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stream_id: sid, stream_url: url, validate, alarm_types: at }),
+                });
+                const d = await res.json();
+                if (res.ok) { showNotification(`流 ${sid} 已启动`, 'success');                     document.getElementById('startForm').reset();
+                    document.getElementById('validateStream').checked = true; refreshStreams(); refreshHealth(); }
+                else { showNotification(d.detail || '启动失败', 'error'); }
+            } catch (e) { showNotification('请求失败', 'error'); }
+            finally { btn.disabled = false; btn.innerHTML = '启动检测'; }
+        }
+
+        async function stopStream(sid) {
+            if (!confirm(`确定停止流 ${sid}？`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/stream/stop`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stream_id: sid }) });
+                const d = await res.json();
+                if (res.ok) { showNotification(`流 ${sid} 已停止`, 'success'); refreshStreams(); refreshHealth(); }
+                else { showNotification(d.detail || '停止失败', 'error'); }
+            } catch (e) { showNotification('请求失败', 'error'); }
+        }
+
+        function fillExample() {
+            document.getElementById('streamId').value = 'camera-001';
+            document.getElementById('streamUrl').value = 'rtsp://admin:password@192.168.1.100:554/stream1';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshHealth(); refreshStreams(); refreshAlarmStreams(); refreshAlarms();
+            addLog('调试面板已加载', 'info');
+            setInterval(() => { refreshHealth(); refreshStreams(); refreshAlarmStreams(); refreshAlarms(); }, 30000);
+        });
+    </script>
+</body>
+</html>

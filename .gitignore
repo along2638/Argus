@@ -1,0 +1,83 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+.venv311/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Models (large files)
+models/*.onnx
+models/*.pt
+models/*.engine
+
+# Root-level model files
+/*.pt
+/*.onnx
+/*.engine
+
+# Root-level large binary files
+/*.whl
+/*.mp4
+/*.jpg
+
+# Training data & runs
+runs/
+fire_smoke_data/
+fire_yolo/
+Fire&smoke-detection-*/
+Fire-Detection-v2-1/
+
+# Root-level training/prep scripts
+/_*.py
+/_train_*
+
+# mimocode
+.mimocode/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/

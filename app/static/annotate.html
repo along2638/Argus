@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>火灾图片标注工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; }
+        .header { background: #16213e; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 18px; color: #e94560; }
+        .container { display: flex; height: calc(100vh - 60px); }
+        .sidebar { width: 250px; background: #16213e; padding: 15px; overflow-y: auto; }
+        .sidebar h3 { margin-bottom: 10px; color: #e94560; font-size: 14px; }
+        .file-list { list-style: none; }
+        .file-list li { padding: 8px; cursor: pointer; border-radius: 5px; margin-bottom: 5px; font-size: 13px; }
+        .file-list li:hover { background: #0f3460; }
+        .file-list li.active { background: #e94560; }
+        .file-list li.done { color: #4ecca3; }
+        .main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .canvas-container { position: relative; border: 2px solid #0f3460; cursor: crosshair; max-width: 100%; overflow: auto; }
+        canvas { display: block; max-width: 100%; }
+        .toolbar { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .toolbar button { padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; }
+        .btn-save { background: #4ecca3; color: #1a1a2e; font-weight: bold; }
+        .btn-next { background: #e94560; color: white; }
+        .btn-prev { background: #0f3460; color: white; }
+        .btn-delete { background: #c0392b; color: white; }
+        .info { margin-top: 10px; font-size: 13px; color: #aaa; }
+        .status { padding: 10px 20px; background: #0f3460; text-align: center; font-size: 14px; min-height: 40px; line-height: 40px; }
+        .status.success { background: #4ecca3; color: #1a1a2e; }
+        .status.error { background: #c0392b; color: white; }
+        #toast { position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 8px; font-size: 14px; z-index: 1000; display: none; }
+        #toast.show { display: block; animation: fadeIn 0.3s; }
+        #toast.success { background: #4ecca3; color: #1a1a2e; }
+        #toast.error { background: #c0392b; color: white; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div id="toast"></div>
+    <div class="header">
+        <h1>火灾图片标注工具</h1>
+        <span id="progress">0/0</span>
+    </div>
+    <div class="container">
+        <div class="sidebar">
+            <h3>待标注图片</h3>
+            <ul class="file-list" id="fileList"></ul>
+        </div>
+        <div class="main">
+            <div class="toolbar">
+                <button class="btn-prev" onclick="prevImage()">上一张</button>
+                <button class="btn-next" onclick="nextImage()">下一张</button>
+                <button class="btn-save" onclick="saveAnnotation()">保存标注 (Ctrl+S)</button>
+                <button class="btn-delete" onclick="deleteLastBox()">删除最后一个框</button>
+            </div>
+            <div class="canvas-container">
+                <canvas id="canvas" width="800" height="600"></canvas>
+            </div>
+            <div class="info">
+                <p>操作说明：</p>
+                <p>1. 在图片上拖拽绘制火灾/烟雾区域的边界框</p>
+                <p>2. 按 Ctrl+S 保存标注</p>
+                <p>3. 按 → 下一张，← 上一张</p>
+                <p>4. 按 Delete 删除最后一个框</p>
+            </div>
+        </div>
+    </div>
+    <div class="status" id="status">就绪</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const fileList = document.getElementById('fileList');
+        const progress = document.getElementById('progress');
+        const status = document.getElementById('status');
+        const toast = document.getElementById('toast');
+
+        let images = [];
+        let currentIndex = 0;
+        let boxes = [];
+        let isDrawing = false;
+        let startX, startY;
+        let currentBox = null;
+        let img = null;
+
+        // 显示提示
+        function showToast(msg, type) {
+            toast.textContent = msg;
+            toast.className = 'show ' + type;
+            setTimeout(() => { toast.className = ''; }, 2000);
+        }
+
+        // 加载文件列表
+        async function loadFiles() {
+            const response = await fetch('/api/annotations/files');
+            const data = await response.json();
+            images = data.files;
+            updateProgress();
+            renderFileList();
+            if (images.length > 0) loadImage(0);
+        }
+
+        // 渲染文件列表
+        function renderFileList() {
+            fileList.innerHTML = '';
+            images.forEach((file, i) => {
+                const li = document.createElement('li');
+                li.textContent = file.name;
+                li.className = i === currentIndex ? 'active' : (file.annotated ? 'done' : '');
+                li.onclick = () => { saveAnnotation(); loadImage(i); };
+                fileList.appendChild(li);
+            });
+        }
+
+        // 加载图片
+        function loadImage(index) {
+            if (index < 0 || index >= images.length) return;
+            currentIndex = index;
+            boxes = [];
+            img = new Image();
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                loadBoxes();
+                renderFileList();
+                updateProgress();
+                status.textContent = `当前: ${images[currentIndex].name} (${index+1}/${images.length})`;
+            };
+            img.src = '/api/annotations/image/' + encodeURIComponent(images[currentIndex].name);
+        }
+
+        // 加载已有标注
+        async function loadBoxes() {
+            boxes = [];
+            try {
+                const url = '/api/annotations/box/' + encodeURIComponent(images[currentIndex].name);
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.boxes && data.boxes.length > 0) {
+                    // 转换 YOLO 格式为像素坐标
+                    const imgW = img.width;
+                    const imgH = img.height;
+                    boxes = data.boxes.map(b => ({
+                        x: (b.cx - b.w / 2) * imgW,
+                        y: (b.cy - b.h / 2) * imgH,
+                        w: b.w * imgW,
+                        h: b.h * imgH
+                    }));
+                    showToast(`已加载 ${boxes.length} 个标注框`, 'success');
+                }
+            } catch (e) {
+                console.error('Load boxes error:', e);
+            }
+            renderBoxes();
+        }
+
+        // 渲染边界框
+        function renderBoxes() {
+            ctx.drawImage(img, 0, 0);
+            boxes.forEach((box, i) => {
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(box.x, box.y, box.w, box.h);
+                ctx.fillStyle = '#e94560';
+                ctx.font = '14px Arial';
+                ctx.fillText(`fire ${i+1}`, box.x + 5, box.y - 5);
+            });
+        }
+
+        // 鼠标事件
+        canvas.onmousedown = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            startX = (e.clientX - rect.left) * scaleX;
+            startY = (e.clientY - rect.top) * scaleY;
+            isDrawing = true;
+            currentBox = { x: startX, y: startY, w: 0, h: 0 };
+        };
+
+        canvas.onmousemove = (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            currentBox.w = x - startX;
+            currentBox.h = y - startY;
+            renderBoxes();
+            ctx.strokeStyle = '#4ecca3';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(
+                Math.min(startX, x), Math.min(startY, y),
+                Math.abs(currentBox.w), Math.abs(currentBox.h)
+            );
+        };
+
+        canvas.onmouseup = (e) => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            if (Math.abs(currentBox.w) > 5 && Math.abs(currentBox.h) > 5) {
+                if (currentBox.w < 0) { currentBox.x += currentBox.w; currentBox.w = -currentBox.w; }
+                if (currentBox.h < 0) { currentBox.y += currentBox.h; currentBox.h = -currentBox.h; }
+                boxes.push(currentBox);
+                showToast(`已添加框 ${boxes.length}`, 'success');
+            }
+            currentBox = null;
+            renderBoxes();
+        };
+
+        // 键盘事件
+        document.onkeydown = (e) => {
+            if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveAnnotation(); }
+            else if (e.key === 'ArrowRight') nextImage();
+            else if (e.key === 'ArrowLeft') prevImage();
+            else if (e.key === 'Delete') deleteLastBox();
+        };
+
+        function nextImage() { saveAnnotation(); loadImage(currentIndex + 1); }
+        function prevImage() { saveAnnotation(); loadImage(currentIndex - 1); }
+        function deleteLastBox() {
+            if (boxes.length > 0) {
+                boxes.pop();
+                renderBoxes();
+                showToast(`已删除，剩余 ${boxes.length} 个框`, 'success');
+            }
+        }
+
+        // 保存标注
+        async function saveAnnotation() {
+            if (!images[currentIndex]) return;
+            const imgW = img.width;
+            const imgH = img.height;
+            const yoloLines = boxes.map(box => {
+                const cx = (box.x + box.w / 2) / imgW;
+                const cy = (box.y + box.h / 2) / imgH;
+                const w = box.w / imgW;
+                const h = box.h / imgH;
+                return `0 ${cx.toFixed(6)} ${cy.toFixed(6)} ${w.toFixed(6)} ${h.toFixed(6)}`;
+            });
+
+            try {
+                const response = await fetch('/api/annotations/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: images[currentIndex].name,
+                        content: yoloLines.join('\n')
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    images[currentIndex].annotated = boxes.length > 0;
+                    renderFileList();
+                    updateProgress();
+                    showToast(`已保存: ${images[currentIndex].name} (${boxes.length} 个框)`, 'success');
+                    status.textContent = `已保存: ${images[currentIndex].name}`;
+                } else {
+                    showToast('保存失败!', 'error');
+                }
+            } catch (e) {
+                showToast('保存失败: ' + e.message, 'error');
+            }
+        }
+
+        function updateProgress() {
+            const done = images.filter(f => f.annotated).length;
+            progress.textContent = `${done}/${images.length} 已标注`;
+        }
+
+        loadFiles();
+    </script>
+</body>
+</html>

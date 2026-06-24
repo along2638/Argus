@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[project]
+name = "yolo-stream-alarm"
+version = "0.1.0"
+description = "Lightweight monitoring stream real-time slicing and multi-object alarm system"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    # Web Framework
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    # YOLO & Computer Vision
+    "onnxruntime-gpu>=1.17.0",
+    "supervision>=0.19.0",
+    # Stream Processing
+    "av>=12.0.0",
+    "scenedetect>=0.6.3",
+    # Database & Storage
+    "asyncpg>=0.29.0",
+    "minio>=7.2.0",
+    "redis>=5.0.0",
+    # Task Queue
+    "arq>=0.26.0",
+    # Configuration
+    "pydantic-settings>=2.2.0",
+    "python-dotenv>=1.0.0",
+    # Image Processing
+    "opencv-python-headless>=4.9.0",
+    "numpy>=1.26.0",
+    # Logging
+    "structlog>=24.1.0",
+    # Utils
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

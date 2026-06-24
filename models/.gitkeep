@@ -1,0 +1,3 @@
+# This directory contains YOLO model files
+# Place your yolov11n_fp16.onnx model here
+# Model files are not tracked in git
