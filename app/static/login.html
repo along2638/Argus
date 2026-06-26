@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Argus — 登录</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f0eb;
+            --bg-card: rgba(255,255,255,0.55);
+            --bg-card-solid: #fff;
+            --bg-input: rgba(0,0,0,0.03);
+            --border: rgba(0,0,0,0.06);
+            --border-focus: rgba(26,26,26,0.25);
+            --ink: #1a1a1a;
+            --ink-light: #3d3d3d;
+            --ink-muted: #8a8580;
+            --ink-faint: #c4bfb8;
+            --accent: #1a1a1a;
+            --accent-soft: rgba(26,26,26,0.06);
+            --success: #2d7a4f;
+            --success-bg: rgba(45,122,79,0.08);
+            --danger: #b33a3a;
+            --danger-bg: rgba(179,58,58,0.08);
+            --radius: 999px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.06);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --transition: 0.2s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            color: var(--ink);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 30%, rgba(180,170,155,0.08) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 40% at 75% 60%, rgba(160,150,135,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse 90% 60% at 50% 80%, rgba(170,160,145,0.05) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 400px;
+            padding: 0 24px;
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            backdrop-filter: blur(20px);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .login-header {
+            padding: 32px 32px 0;
+            text-align: center;
+        }
+
+        .login-logo {
+            width: 48px; height: 48px;
+            background: var(--ink);
+            border-radius: 14px;
+            display: inline-flex; align-items: center; justify-content: center;
+            color: var(--bg);
+            font-size: 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            margin-bottom: 16px;
+        }
+
+        .login-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--ink);
+            margin-bottom: 4px;
+        }
+
+        .login-subtitle {
+            font-size: 0.84rem;
+            color: var(--ink-muted);
+        }
+
+        .login-body {
+            padding: 28px 32px 32px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.76rem;
+            font-weight: 500;
+            color: var(--ink-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 11px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--ink);
+            font-size: 0.88rem;
+            font-family: inherit;
+            transition: var(--transition);
+            outline: none;
+        }
+        .form-input::placeholder { color: var(--ink-faint); }
+        .form-input:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(26,26,26,0.04); }
+
+        .btn {
+            width: 100%;
+            padding: 11px 22px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.88rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-primary {
+            background: var(--ink);
+            color: var(--bg);
+        }
+        .btn-primary:hover:not(:disabled) { background: #333; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--ink-muted);
+            border: 1px solid var(--border);
+            margin-top: 10px;
+        }
+        .btn-ghost:hover { border-color: var(--ink-faint); color: var(--ink); }
+
+        .error-msg {
+            display: none;
+            padding: 10px 14px;
+            background: var(--danger-bg);
+            color: var(--danger);
+            border-radius: var(--radius-md);
+            font-size: 0.8rem;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .error-msg.show { display: block; }
+
+        .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            color: var(--ink-faint);
+            font-size: 0.73rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+                <div class="login-title">Argus 智能监控</div>
+                <div class="login-subtitle" id="formSubtitle">登录账号以继续</div>
+            </div>
+            <div class="login-body">
+                <div class="error-msg" id="errorMsg"></div>
+
+                <!-- Login Form -->
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label class="form-label">用户名</label>
+                        <input type="text" class="form-input" id="loginUsername" placeholder="请输入用户名" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码</label>
+                        <input type="password" class="form-input" id="loginPassword" placeholder="请输入密码" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="loginBtn">登录</button>
+                    <button type="button" class="btn btn-ghost" onclick="showRegister()">注册新账号</button>
+                </form>
+
+                <!-- Register Form -->
+                <form id="registerForm" style="display:none;" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label class="form-label">用户名</label>
+                        <input type="text" class="form-input" id="regUsername" placeholder="2-64 个字符" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">显示名称</label>
+                        <input type="text" class="form-input" id="regDisplayName" placeholder="可选" autocomplete="name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码</label>
+                        <input type="password" class="form-input" id="regPassword" placeholder="至少 6 个字符" required autocomplete="new-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="regBtn">注册</button>
+                    <button type="button" class="btn btn-ghost" onclick="showLogin()">返回登录</button>
+                </form>
+            </div>
+        </div>
+        <div class="footer">Argus 智能监控告警系统 v0.1.0</div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const errorMsg = document.getElementById('errorMsg');
+        const formSubtitle = document.getElementById('formSubtitle');
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.add('show');
+        }
+        function hideError() { errorMsg.classList.remove('show'); }
+
+        function showLogin() {
+            loginForm.style.display = 'block';
+            registerForm.style.display = 'none';
+            formSubtitle.textContent = '登录账号以继续';
+            hideError();
+        }
+
+        function showRegister() {
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'block';
+            formSubtitle.textContent = '创建新账号';
+            hideError();
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            hideError();
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+
+            try {
+                const resp = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('loginUsername').value,
+                        password: document.getElementById('loginPassword').value,
+                    }),
+                });
+                const data = await resp.json();
+                if (resp.ok && data.success) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/';
+                } else {
+                    showError(data.detail || data.message || '登录失败');
+                }
+            } catch (err) {
+                showError('网络错误: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '登录';
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            hideError();
+            const btn = document.getElementById('regBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+
+            const password = document.getElementById('regPassword').value;
+            if (password.length < 6) {
+                showError('密码至少 6 个字符');
+                btn.disabled = false;
+                btn.textContent = '注册';
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/v1/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('regUsername').value,
+                        password: password,
+                        display_name: document.getElementById('regDisplayName').value || null,
+                    }),
+                });
+                const data = await resp.json();
+                if (resp.ok && data.success) {
+                    showLogin();
+                    showError('');
+                    errorMsg.className = 'error-msg';
+                    errorMsg.style.display = 'block';
+                    errorMsg.style.background = 'var(--success-bg)';
+                    errorMsg.style.color = 'var(--success)';
+                    errorMsg.textContent = '注册成功，请登录';
+                } else {
+                    showError(data.detail || data.message || '注册失败');
+                }
+            } catch (err) {
+                showError('网络错误: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '注册';
+            }
+        }
+
+    </script>
+</body>
+</html>

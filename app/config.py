@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = "Mxminio@2024"
     MINIO_SECURE: bool = False
 
-    # PostgreSQL Configuration
-    PG_DSN: str = "postgresql://system:mx%401232025@192.168.2.65:54321/yolo_alarm"
+    # MySQL Configuration
+    MYSQL_DSN: str = "mysql+aiomysql://root:3er4%23ER%24@192.168.6.227:3306/yolo_alarm"
 
     # Redis Configuration
     REDIS_URL: str = "redis://:Redis%40dev2025@192.168.2.100:16377/0"
@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     # ARQ Worker Configuration
     ARQ_MAX_JOBS: int = 20
     ARQ_QUEUE_WARNING_THRESHOLD: int = 100
+
+    # JWT Configuration
+    JWT_SECRET: str = "argus-jwt-secret-key-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
     # Class Mapping: model class ID -> business alarm type
     # 通用模型类别（COCO 数据集）

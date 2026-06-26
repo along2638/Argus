@@ -23,7 +23,8 @@ dependencies = [
     "av>=12.0.0",
     "scenedetect>=0.6.3",
     # Database & Storage
-    "asyncpg>=0.29.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "aiomysql>=0.2.0",
     "minio>=7.2.0",
     "redis>=5.0.0",
     # Task Queue
@@ -31,6 +32,8 @@ dependencies = [
     # Configuration
     "pydantic-settings>=2.2.0",
     "python-dotenv>=1.0.0",
+    # Auth
+    "PyJWT>=2.8.0",
     # Image Processing
     "opencv-python-headless>=4.9.0",
     "numpy>=1.26.0",
@@ -47,6 +50,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "ruff>=0.3.0",
     "mypy>=1.9.0",
+    "alembic>=1.13.0",
 ]
 
 [tool.ruff]

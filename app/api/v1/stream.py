@@ -1,12 +1,11 @@
 import asyncio
 import io
 from typing import List, Optional
-from urllib.request import urlopen, Request
 
 import cv2
 import httpx
 import numpy as np
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -244,6 +243,9 @@ async def delete_all_alarms():
 
 # ── 调试接口 ──
 
+from fastapi import UploadFile, File
+
+
 class DetectRequest(BaseModel):
     image_url: str = Field(..., description="图片地址（支持 HTTP/HTTPS 直链）")
     model: str = Field("general", description="模型名称: general / fire_smoke / helmet")
@@ -324,3 +326,237 @@ async def detect_image(request: DetectRequest):
     except Exception as e:
         logger.error("detect_error", error=str(e))
         raise HTTPException(status_code=500, detail=f"检测失败: {str(e)}")
+
+
+@router.post("/detect/upload", summary="上传图片检测", description="上传图片文件进行检测，返回识别结果")
+async def detect_upload(
+    file: UploadFile = File(..., description="图片文件"),
+    model: str = "general",
+    confidence: float = 0.3,
+    request: Request = None,
+):
+    """上传图片检测接口。
+
+    支持 jpg/png/bmp 格式，返回检测框、类别和置信度。检测结果自动存入数据库。
+    """
+    try:
+        # 读取上传的图片
+        img_bytes = await file.read()
+        img_array = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+
+        if frame is None:
+            raise HTTPException(status_code=400, detail="无法读取图片，请确保是有效的图片文件")
+
+        # 选择模型
+        if model not in ("general", "helmet", "fire_smoke"):
+            raise HTTPException(status_code=400, detail=f"不支持的模型: {model}")
+
+        # 执行检测
+        detections, inference_time = await detector.detect_with_model(
+            frame, model, confidence_threshold=confidence
+        )
+
+        # 格式化结果
+        results = []
+        for i in range(len(detections)):
+            class_id = int(detections.class_id[i])
+            conf = float(detections.confidence[i])
+            bbox = detections.xyxy[i].tolist()
+            class_name = detector.get_class_name(model, class_id)
+
+            results.append({
+                "class_id": class_id,
+                "class_name": class_name,
+                "confidence": round(conf, 4),
+                "bbox": [round(x, 1) for x in bbox],
+                "bbox_format": "x1_y1_x2_y2",
+            })
+
+        # 上传图片到 MinIO
+        image_path = None
+        try:
+            from app.services.minio_client import minio_service
+            image_path = await minio_service.upload_image(img_bytes, stream_id="detect")
+        except Exception as e:
+            logger.warning("detect_image_upload_failed", error=str(e))
+
+        # 获取当前用户
+        user_id = None
+        username = None
+        if request and hasattr(request.state, "user"):
+            user_id = request.state.user.get("id")
+            username = request.state.user.get("username")
+
+        # 存入数据库 (SQLAlchemy ORM)
+        from app.db import async_session
+        from app.models.detection_result import DetectionResult
+        from app.models.detection_box import DetectionBox
+
+        async with async_session() as session:
+            det_result = DetectionResult(
+                filename=file.filename,
+                image_path=image_path,
+                model_name=model,
+                confidence_threshold=confidence,
+                inference_time_ms=round(inference_time, 1),
+                image_width=frame.shape[1],
+                image_height=frame.shape[0],
+                detections_count=len(results),
+                user_id=user_id,
+                create_by=username,
+            )
+            session.add(det_result)
+            await session.flush()
+
+            for r in results:
+                session.add(DetectionBox(
+                    result_id=det_result.id,
+                    class_id=r["class_id"],
+                    class_name=r["class_name"],
+                    confidence=r["confidence"],
+                    bbox_x1=r["bbox"][0],
+                    bbox_y1=r["bbox"][1],
+                    bbox_x2=r["bbox"][2],
+                    bbox_y2=r["bbox"][3],
+                    create_by=username,
+                ))
+            await session.commit()
+            result_id = det_result.id
+
+        logger.info("detection_saved", result_id=result_id, model=model, count=len(results))
+
+        return {
+            "success": True,
+            "result_id": result_id,
+            "model": model,
+            "inference_time_ms": round(inference_time, 1),
+            "image_size": {"width": frame.shape[1], "height": frame.shape[0]},
+            "detections_count": len(results),
+            "detections": results,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("detect_upload_error", error=str(e))
+        raise HTTPException(status_code=500, detail=f"检测失败: {str(e)}")
+
+
+@router.get("/detect/history", summary="检测历史列表")
+async def detect_history(limit: int = 50, offset: int = 0):
+    from app.db import async_session
+    from app.models.detection_result import DetectionResult
+    from app.models.detection_box import DetectionBox
+    from sqlalchemy import select, func
+
+    async with async_session() as session:
+        total = await session.scalar(select(func.count(DetectionResult.id)))
+        result = await session.execute(
+            select(DetectionResult)
+            .order_by(DetectionResult.detected_at.desc())
+            .limit(limit).offset(offset)
+        )
+        items = []
+        for r in result.scalars().all():
+            # 查询该结果的检测类别
+            boxes_result = await session.execute(
+                select(DetectionBox.class_name, func.count(DetectionBox.id))
+                .where(DetectionBox.result_id == r.id)
+                .group_by(DetectionBox.class_name)
+            )
+            class_summary = [f"{cn}({cnt})" for cn, cnt in boxes_result.all()]
+
+            items.append({
+                "id": r.id,
+                "filename": r.filename,
+                "image_path": r.image_path,
+                "model_name": r.model_name,
+                "confidence_threshold": r.confidence_threshold,
+                "inference_time_ms": r.inference_time_ms,
+                "image_width": r.image_width,
+                "image_height": r.image_height,
+                "detections_count": r.detections_count,
+                "class_summary": class_summary,
+                "create_by": r.create_by,
+                "detected_at": str(r.detected_at) if r.detected_at else None,
+            })
+    return {"total": total, "items": items}
+
+
+@router.get("/detect/{result_id}", summary="检测详情")
+async def detect_detail(result_id: int):
+    from app.db import async_session
+    from app.models.detection_result import DetectionResult
+    from app.models.detection_box import DetectionBox
+    from sqlalchemy import select
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(DetectionResult).where(DetectionResult.id == result_id)
+        )
+        det = result.scalar_one_or_none()
+        if not det:
+            raise HTTPException(status_code=404, detail="记录不存在")
+
+        boxes_result = await session.execute(
+            select(DetectionBox)
+            .where(DetectionBox.result_id == result_id)
+            .order_by(DetectionBox.id)
+        )
+        boxes = [
+            {
+                "class_id": b.class_id,
+                "class_name": b.class_name,
+                "confidence": b.confidence,
+                "bbox": [b.bbox_x1, b.bbox_y1, b.bbox_x2, b.bbox_y2],
+            }
+            for b in boxes_result.scalars().all()
+        ]
+
+    return {
+        "id": det.id,
+        "filename": det.filename,
+        "image_path": det.image_path,
+        "model_name": det.model_name,
+        "confidence_threshold": det.confidence_threshold,
+        "inference_time_ms": det.inference_time_ms,
+        "image_width": det.image_width,
+        "image_height": det.image_height,
+        "detections_count": det.detections_count,
+        "detected_at": str(det.detected_at) if det.detected_at else None,
+        "detections": boxes,
+    }
+
+
+@router.delete("/detect/{result_id}", summary="删除检测记录")
+async def detect_delete(result_id: int):
+    from app.db import async_session
+    from app.models.detection_result import DetectionResult
+    from app.models.detection_box import DetectionBox
+    from sqlalchemy import select, delete as sa_delete
+
+    async with async_session() as session:
+        result = await session.execute(select(DetectionResult).where(DetectionResult.id == result_id))
+        det = result.scalar_one_or_none()
+        if not det:
+            raise HTTPException(status_code=404, detail="记录不存在")
+        await session.execute(sa_delete(DetectionBox).where(DetectionBox.result_id == result_id))
+        await session.delete(det)
+        await session.commit()
+    return {"success": True, "message": "已删除"}
+
+
+@router.delete("/detect", summary="清空检测记录")
+async def detect_delete_all():
+    from app.db import async_session
+    from app.models.detection_result import DetectionResult
+    from app.models.detection_box import DetectionBox
+    from sqlalchemy import delete as sa_delete, func, select
+
+    async with async_session() as session:
+        total = await session.scalar(select(func.count(DetectionResult.id)))
+        await session.execute(sa_delete(DetectionBox))
+        await session.execute(sa_delete(DetectionResult))
+        await session.commit()
+    return {"success": True, "message": f"已删除 {total} 条记录"}

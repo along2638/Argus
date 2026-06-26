@@ -15,12 +15,16 @@ for sub in ["cublas/bin", "cudnn/bin", "cufft/bin", "cusolver/bin", "cusparse/bi
         _cuda_dirs.append(str(p))
 os.environ["PATH"] = ";".join(_cuda_dirs) + ";" + os.environ.get("PATH", "")
 
+# 抑制 ONNX Runtime C++ 层的 CUDA 错误输出
+os.environ["ONNXRUNTIME_LOG_LEVEL"] = "3"
+
 import onnxruntime as ort
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.stream import router as stream_router
+from app.api.v1.auth import router as auth_router
 from app.config import settings
 from app.core.alarm_dedup import alarm_dedup
 from app.core.detector import detector
@@ -28,6 +32,7 @@ from app.core.stream_processor import stream_manager
 from app.services.database import db_service
 from app.services.minio_client import minio_service
 from app.services.worker_tasks import WorkerSettings, close_arq_pool
+from app.services.auth_service import get_current_user, create_default_admin
 from app.utils.logger import get_logger, setup_logging, print_status
 
 logger = get_logger(__name__)
@@ -78,7 +83,11 @@ async def lifespan(app: FastAPI):
     # Initialize services
     print_status("正在初始化数据库连接...", "info")
     await db_service.init_db()
-    print_status("[OK] PostgreSQL 连接成功", "success")
+    print_status("[OK] MySQL 连接成功 (SQLAlchemy + aiomysql)", "success")
+
+    print_status("正在创建默认管理员账号...", "info")
+    await create_default_admin()
+    print_status("[OK] 默认管理员: admin / admin123", "success")
 
     print_status("正在初始化 MinIO 存储...", "info")
     await minio_service.ensure_bucket()
@@ -144,11 +153,47 @@ app = FastAPI(
 
 # Include routers
 app.include_router(stream_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 # Mount static files
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# Public paths (no auth required)
+PUBLIC_PATHS = {"/login", "/static/login.html", "/health", "/docs", "/redoc", "/openapi.json"}
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
+    # Allow public paths, API auth endpoints, and static assets
+    if (path in PUBLIC_PATHS
+        or path.startswith("/api/v1/auth/")
+        or path.startswith("/static/")
+        or path.startswith("/api/annotations/")
+        or path.startswith("/docs")
+        or path.startswith("/redoc")
+        or path.startswith("/openapi")):
+        return await call_next(request)
+
+    # JWT: check Authorization header or cookie
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    if not token:
+        token = request.cookies.get("token")
+
+    user = await get_current_user(token)
+    if not user:
+        logger.debug("auth_blocked", path=path, has_cookie=bool(request.cookies.get("token")))
+        if path.startswith("/api/"):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=401, content={"detail": "未登录或 token 已过期"})
+        return RedirectResponse(url="/login", status_code=302)
+
+    request.state.user = user
+    return await call_next(request)
 
 # === 标注工具 API ===
 ANNOTATE_DIR = Path(__file__).parent.parent / "fire_smoke_data" / "to_annotate"
@@ -156,14 +201,37 @@ LABELS_DIR = Path(__file__).parent.parent / "fire_yolo" / "train"
 
 @app.get("/api/annotations/files")
 async def list_annotate_files():
-    """列出待标注的图片文件"""
+    """列出待标注的图片文件（优先从数据库读取）"""
     files = []
+
+    # 从数据库读取已记录的图片
+    try:
+        from app.db import async_session
+        from app.models.annotation_image import AnnotationImage
+        from sqlalchemy import select
+
+        async with async_session() as session:
+            result = await session.execute(
+                select(AnnotationImage.filename, AnnotationImage.is_annotated, AnnotationImage.box_count)
+                .order_by(AnnotationImage.id)
+            )
+            db_files = {r[0]: {"is_annotated": r[1], "box_count": r[2]} for r in result.all()}
+    except Exception:
+        db_files = {}
+
+    # 扫描目录
     if ANNOTATE_DIR.exists():
         for f in sorted(ANNOTATE_DIR.iterdir()):
             if f.suffix.lower() in ('.jpg', '.jpeg', '.png'):
-                lbl_name = f.stem + ".txt"
-                lbl_path = LABELS_DIR / "labels" / lbl_name
-                files.append({"name": f.name, "annotated": lbl_path.exists()})
+                name = f.name
+                if name in db_files:
+                    files.append({"name": name, "annotated": db_files[name]["is_annotated"], "box_count": db_files[name]["box_count"]})
+                else:
+                    # Fallback: check label file
+                    lbl_name = f.stem + ".txt"
+                    lbl_path = LABELS_DIR / "labels" / lbl_name
+                    files.append({"name": name, "annotated": lbl_path.exists(), "box_count": 0})
+
     return {"files": files}
 
 @app.get("/api/annotations/image/{filename}")
@@ -176,10 +244,36 @@ async def get_annotate_image(filename: str):
 
 @app.get("/api/annotations/box/{filename}")
 async def get_annotate_boxes(filename: str):
-    """获取已有的标注"""
+    """获取已有的标注（优先从数据库读取）"""
+    boxes = []
+
+    # Try database first
+    try:
+        from app.db import async_session
+        from app.models.annotation_image import AnnotationImage
+        from app.models.annotation_box import AnnotationBox
+        from sqlalchemy import select
+
+        async with async_session() as session:
+            result = await session.execute(
+                select(AnnotationImage.id).where(AnnotationImage.filename == filename)
+            )
+            image_id = result.scalar_one_or_none()
+            if image_id:
+                result = await session.execute(
+                    select(AnnotationBox.class_id, AnnotationBox.cx, AnnotationBox.cy, AnnotationBox.bw, AnnotationBox.bh)
+                    .where(AnnotationBox.image_id == image_id)
+                    .order_by(AnnotationBox.id)
+                )
+                for r in result.all():
+                    boxes.append({"class": r[0], "cx": r[1], "cy": r[2], "w": r[3], "h": r[4]})
+                return {"boxes": boxes}
+    except Exception:
+        pass
+
+    # Fallback to file
     lbl_name = Path(filename).stem + ".txt"
     lbl_path = LABELS_DIR / "labels" / lbl_name
-    boxes = []
     if lbl_path.exists():
         with open(lbl_path) as f:
             for line in f:
@@ -190,25 +284,98 @@ async def get_annotate_boxes(filename: str):
     return {"boxes": boxes}
 
 @app.post("/api/annotations/save")
-async def save_annotation(data: dict):
-    """保存标注"""
+async def save_annotation(data: dict, request: Request = None):
+    """保存标注（文件 + 数据库）"""
     filename = data.get("filename", "")
     content = data.get("content", "")
-    
+    dataset_name = data.get("dataset_name", "default")
+
     # 保存到训练集标注目录
     lbl_name = Path(filename).stem + ".txt"
     lbl_path = LABELS_DIR / "labels" / lbl_name
     lbl_path.parent.mkdir(parents=True, exist_ok=True)
     with open(lbl_path, "w") as f:
         f.write(content)
-    
+
     # 复制图片到训练集
     src_img = ANNOTATE_DIR / filename
     dst_img = LABELS_DIR / "images" / filename
     dst_img.parent.mkdir(parents=True, exist_ok=True)
     if src_img.exists() and not dst_img.exists():
         shutil.copy2(src_img, dst_img)
-    
+
+    # ── 入库 (SQLAlchemy ORM) ──
+    try:
+        import cv2
+        from app.db import async_session
+        from app.models.annotation_image import AnnotationImage
+        from app.models.annotation_box import AnnotationBox
+        from sqlalchemy import select
+
+        img_w, img_h = 0, 0
+        if src_img.exists():
+            frame = await asyncio.to_thread(cv2.imread, str(src_img))
+            if frame is not None:
+                img_h, img_w = frame.shape[:2]
+
+        file_size = src_img.stat().st_size if src_img.exists() else 0
+        file_path = str(dst_img.relative_to(Path(__file__).parent.parent)) if dst_img.exists() else str(src_img)
+
+        username = None
+        if request and hasattr(request.state, "user"):
+            username = request.state.user.get("username")
+
+        box_count = len(content.strip().splitlines()) if content.strip() else 0
+
+        async with async_session() as session:
+            result = await session.execute(
+                select(AnnotationImage).where(AnnotationImage.filename == filename)
+            )
+            image = result.scalar_one_or_none()
+
+            if image:
+                image.file_path = file_path
+                image.file_size = file_size
+                image.width = img_w
+                image.height = img_h
+                image.dataset_name = dataset_name
+                image.is_annotated = True
+                image.box_count = box_count
+                image.update_by = username
+                image_id = image.id
+            else:
+                image = AnnotationImage(
+                    filename=filename, file_path=file_path, file_size=file_size,
+                    width=img_w, height=img_h, dataset_name=dataset_name,
+                    is_annotated=True, box_count=box_count, create_by=username,
+                )
+                session.add(image)
+                await session.flush()
+                image_id = image.id
+
+            await session.execute(
+                select(AnnotationBox).where(AnnotationBox.image_id == image_id).delete()
+            )
+
+            if content.strip():
+                class_map = {0: "fire", 1: "smoke"}
+                for line in content.strip().splitlines():
+                    parts = line.strip().split()
+                    if len(parts) >= 5:
+                        cls_id = int(parts[0])
+                        cx, cy, bw, bh = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
+                        cls_name = class_map.get(cls_id, f"class_{cls_id}")
+                        session.add(AnnotationBox(
+                            image_id=image_id, class_id=cls_id, class_name=cls_name,
+                            cx=cx, cy=cy, bw=bw, bh=bh, create_by=username,
+                        ))
+
+            await session.commit()
+            logger.info("annotation_saved", filename=filename, image_id=image_id, boxes=box_count)
+
+    except Exception as e:
+        logger.error("annotation_db_save_error", filename=filename, error=str(e))
+
     return {"success": True, "message": f"Saved {filename}"}
 
 
@@ -253,6 +420,15 @@ async def root():
         "dashboard": "/static/index.html",
         "annotate": "/static/annotate.html",
     }
+
+
+@app.get("/login", response_class=HTMLResponse, include_in_schema=False)
+async def login_page():
+    """登录页面。"""
+    login_file = Path(__file__).parent / "static" / "login.html"
+    if login_file.exists():
+        return FileResponse(str(login_file), media_type="text/html")
+    return HTMLResponse("<h1>login.html not found</h1>", status_code=404)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Argus — 图片检测</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f0eb; --bg-card: rgba(255,255,255,0.55); --bg-card-solid: #fff;
+            --bg-input: rgba(0,0,0,0.03); --border: rgba(0,0,0,0.06);
+            --border-focus: rgba(26,26,26,0.25); --ink: #1a1a1a; --ink-light: #3d3d3d;
+            --ink-muted: #8a8580; --ink-faint: #c4bfb8; --accent: #1a1a1a;
+            --accent-soft: rgba(26,26,26,0.06); --success: #2d7a4f;
+            --success-bg: rgba(45,122,79,0.08); --danger: #b33a3a;
+            --danger-bg: rgba(179,58,58,0.08); --warning: #a67c00;
+            --radius: 999px; --radius-md: 12px; --radius-lg: 16px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.06);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04); --transition: 0.2s ease;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg); min-height:100vh; color:var(--ink); line-height:1.5; -webkit-font-smoothing:antialiased; }
+        body::before { content:''; position:fixed; inset:0; background:radial-gradient(ellipse 80% 50% at 20% 30%,rgba(180,170,155,0.08) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 75% 60%,rgba(160,150,135,0.06) 0%,transparent 60%); pointer-events:none; z-index:0; }
+        ::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.1); border-radius:3px; }
+
+        .header { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--border); background:var(--bg-card); backdrop-filter:blur(20px); }
+        .header-left { display:flex; align-items:center; gap:12px; }
+        .header-logo { width:34px; height:34px; background:var(--ink); border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--bg); box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+        .header h1 { font-size:1.15rem; font-weight:600; letter-spacing:-0.02em; }
+        .header-right { display:flex; align-items:center; gap:10px; }
+        .header-link { color:var(--ink-muted); font-size:0.8rem; text-decoration:none; padding:6px 14px; border-radius:var(--radius); transition:var(--transition); border:1px solid transparent; }
+        .header-link:hover { color:var(--ink); border-color:var(--border); }
+
+        .main-layout { position:relative; z-index:1; display:flex; height:calc(100vh - 61px); overflow:hidden; }
+
+        /* ── Left Sidebar ── */
+        .sidebar { width:320px; background:var(--bg-card); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+        .sidebar-section { border-bottom:1px solid var(--border); }
+        .sidebar-head { padding:14px 18px; display:flex; align-items:center; justify-content:space-between; }
+        .sidebar-title { font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:6px; }
+        .sidebar-title .icon { width:15px; height:15px; opacity:0.5; }
+        .sidebar-body { padding:0 18px 14px; }
+        .upload-zone { border:2px dashed var(--ink-faint); border-radius:var(--radius-md); padding:20px; text-align:center; cursor:pointer; transition:var(--transition); background:var(--bg-input); }
+        .upload-zone:hover, .upload-zone.dragover { border-color:var(--ink-muted); background:rgba(0,0,0,0.04); }
+        .upload-zone-text { font-size:0.82rem; color:var(--ink-muted); margin-top:6px; }
+        .upload-zone-hint { font-size:0.7rem; color:var(--ink-faint); margin-top:4px; }
+
+        .settings-row { display:flex; gap:10px; padding:12px 18px; border-bottom:1px solid var(--border); align-items:flex-end; }
+        .settings-group { flex:1; min-width:0; }
+        .form-label { display:block; font-size:0.7rem; font-weight:500; color:var(--ink-muted); margin-bottom:4px; }
+        .custom-select { position:relative; }
+        .custom-select-trigger { padding:7px 24px 7px 10px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--ink); font-size:0.78rem; cursor:pointer; display:flex; align-items:center; justify-content:space-between; transition:var(--transition); user-select:none; white-space:nowrap; overflow:hidden; }
+        .custom-select-trigger:hover { border-color:var(--ink-faint); }
+        .custom-select.open .custom-select-trigger { border-color:var(--border-focus); }
+        .custom-select-trigger .arrow { width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:4px solid var(--ink-muted); transition:transform 0.2s; }
+        .custom-select.open .custom-select-trigger .arrow { transform:rotate(180deg); }
+        .custom-select-options { position:absolute; top:calc(100% + 4px); left:0; min-width:120px; background:var(--bg-card-solid); border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:0 8px 24px rgba(0,0,0,0.1); z-index:100; display:none; overflow:hidden; animation:dropIn 0.15s ease; }
+        .custom-select.open .custom-select-options { display:block; }
+        @keyframes dropIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+        .custom-option { padding:7px 12px; font-size:0.75rem; color:var(--ink-light); cursor:pointer; transition:var(--transition); display:flex; align-items:center; gap:6px; }
+        .custom-option:hover { background:var(--accent-soft); color:var(--ink); }
+        .custom-option.selected { background:var(--accent-soft); color:var(--ink); font-weight:600; }
+        .custom-option.selected::after { content:''; width:5px; height:5px; background:var(--success); border-radius:50%; margin-left:auto; }
+
+        .btn-detect { padding:8px 18px; background:var(--ink); color:var(--bg); border:none; border-radius:var(--radius); font-size:0.78rem; font-weight:600; cursor:pointer; transition:var(--transition); white-space:nowrap; }
+        .btn-detect:hover:not(:disabled) { background:#333; transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.12); }
+        .btn-detect:disabled { opacity:0.4; cursor:not-allowed; }
+
+        /* ── History List ── */
+        .history-scroll { flex:1; overflow-y:auto; padding:6px 10px; }
+        .history-item { display:flex; gap:10px; padding:10px; border-radius:var(--radius-md); cursor:pointer; transition:var(--transition); margin-bottom:2px; align-items:center; }
+        .history-item:hover { background:var(--accent-soft); }
+        .history-item.active { background:var(--ink); color:var(--bg); }
+        .history-item.active .history-meta { color:rgba(255,255,255,0.6); }
+        .history-thumb { width:48px; height:36px; border-radius:6px; overflow:hidden; flex-shrink:0; background:var(--bg-input); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
+        .history-item.active .history-thumb { border-color:rgba(255,255,255,0.2); }
+        .history-thumb img { width:100%; height:100%; object-fit:cover; }
+        .history-info { flex:1; min-width:0; }
+        .history-name { font-size:0.75rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .history-meta { font-size:0.66rem; color:var(--ink-faint); display:flex; gap:8px; margin-top:2px; }
+        .history-count { font-size:0.66rem; padding:1px 6px; background:var(--accent-soft); border-radius:var(--radius); font-weight:500; flex-shrink:0; }
+        .history-item.active .history-count { background:rgba(255,255,255,0.2); color:#fff; }
+
+        /* ── Right Panel ── */
+        .right-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+        .image-area { flex:1; display:flex; align-items:center; justify-content:center; padding:20px; background:var(--bg-input); position:relative; overflow:hidden; }
+        .image-area img { max-width:100%; max-height:100%; object-fit:contain; display:none; }
+        .image-area canvas { display:none; }
+        .image-empty { text-align:center; color:var(--ink-faint); }
+        .image-empty svg { opacity:0.15; margin-bottom:8px; }
+
+        .result-panel { height:260px; background:var(--bg-card); border-top:1px solid var(--border); display:flex; flex-direction:column; }
+        .result-head { padding:10px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+        .result-title { font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:6px; }
+        .result-stats { display:flex; gap:12px; font-size:0.72rem; color:var(--ink-muted); }
+        .result-scroll { flex:1; overflow-y:auto; padding:8px 18px; }
+
+        .detection-item { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); align-items:center; }
+        .detection-item:last-child { border-bottom:none; }
+        .detection-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+        .detection-dot.person { background:var(--success); }
+        .detection-dot.animal { background:var(--warning); }
+        .detection-dot.fire { background:var(--danger); }
+        .detection-dot.smoke { background:var(--ink-faint); }
+        .detection-dot.helmet { background:#0891b2; }
+        .detection-dot.no-helmet { background:#ea580c; }
+        .detection-dot.cat { background:var(--warning); }
+        .detection-dot.dog { background:var(--warning); }
+        .detection-name { font-size:0.8rem; font-weight:500; flex:1; }
+        .detection-conf { font-size:0.72rem; color:var(--ink-muted); font-family:'JetBrains Mono',monospace; }
+        .detection-bar { width:50px; height:3px; background:var(--bg-input); border-radius:2px; overflow:hidden; flex-shrink:0; }
+        .detection-bar-fill { height:100%; border-radius:2px; }
+        .detection-bar-fill.high { background:var(--success); }
+        .detection-bar-fill.mid { background:var(--warning); }
+        .detection-bar-fill.low { background:var(--danger); }
+
+        .loading-overlay { display:none; position:absolute; inset:0; background:rgba(245,240,235,0.85); z-index:10; align-items:center; justify-content:center; }
+        .loading-overlay.show { display:flex; }
+        .spinner { width:28px; height:28px; border:2.5px solid rgba(0,0,0,0.08); border-radius:50%; border-top-color:var(--ink); animation:spin 0.7s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        .toast { position:fixed; top:20px; right:20px; padding:10px 18px; border-radius:var(--radius); font-size:0.8rem; font-weight:500; z-index:1000; animation:toastIn 0.25s ease; box-shadow:var(--shadow); display:flex; align-items:center; gap:8px; font-family:inherit; }
+        .toast.success { background:var(--bg-card-solid); color:var(--success); border:1px solid var(--success-bg); }
+        .toast.error { background:var(--bg-card-solid); color:var(--danger); border:1px solid var(--danger-bg); }
+        @keyframes toastIn { from { transform:translateX(120%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+
+        @media (max-width:768px) { .main-layout { flex-direction:column; } .sidebar { width:100%; height:auto; max-height:200px; } }
+    </style>
+</head>
+<body>
+    <div id="notification" class="toast" style="display:none;"></div>
+
+    <header class="header">
+        <div class="header-left">
+            <div class="header-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <h1>Argus 智能监控</h1>
+        </div>
+        <div class="header-right">
+            <a href="/" class="header-link">返回主页</a>
+            <a href="/static/annotate.html" class="header-link">手动标注</a>
+            <button class="header-link" onclick="doLogout()" style="background:var(--accent-soft);color:var(--ink);font-weight:500;cursor:pointer;border:none;font-family:inherit;">退出登录</button>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-head">
+                    <span class="sidebar-title">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+                        上传图片
+                    </span>
+                </div>
+                <div class="sidebar-body">
+                    <div class="upload-zone" id="uploadZone">
+                        <div style="opacity:0.2;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg></div>
+                        <div class="upload-zone-text">拖拽或点击上传</div>
+                        <div class="upload-zone-hint">JPG / PNG / BMP</div>
+                    </div>
+                    <input type="file" id="fileInput" accept="image/*" style="display:none;">
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-group">
+                    <label class="form-label">模型</label>
+                    <div class="custom-select" id="modelSelectWrap">
+                        <div class="custom-select-trigger" onclick="toggleSelect('modelSelectWrap')">
+                            <span id="modelSelectText">通用检测</span>
+                            <span class="arrow"></span>
+                        </div>
+                        <div class="custom-select-options">
+                            <div class="custom-option selected" data-value="general" onclick="selectOption('modelSelectWrap',this)">通用检测</div>
+                            <div class="custom-option" data-value="fire_smoke" onclick="selectOption('modelSelectWrap',this)">火灾烟雾</div>
+                            <div class="custom-option" data-value="helmet" onclick="selectOption('modelSelectWrap',this)">安全帽</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <label class="form-label">阈值</label>
+                    <div class="custom-select" id="confSelectWrap">
+                        <div class="custom-select-trigger" onclick="toggleSelect('confSelectWrap')">
+                            <span id="confSelectText">0.3</span>
+                            <span class="arrow"></span>
+                        </div>
+                        <div class="custom-select-options">
+                            <div class="custom-option" data-value="0.1" onclick="selectOption('confSelectWrap',this)">0.1</div>
+                            <div class="custom-option" data-value="0.25" onclick="selectOption('confSelectWrap',this)">0.25</div>
+                            <div class="custom-option selected" data-value="0.3" onclick="selectOption('confSelectWrap',this)">0.3</div>
+                            <div class="custom-option" data-value="0.5" onclick="selectOption('confSelectWrap',this)">0.5</div>
+                            <div class="custom-option" data-value="0.7" onclick="selectOption('confSelectWrap',this)">0.7</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-detect" id="detectBtn" disabled onclick="runDetect()">检测</button>
+            </div>
+
+            <div class="sidebar-head" style="border-top:1px solid var(--border);">
+                <span class="sidebar-title">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                    检测历史
+                </span>
+                <button onclick="loadHistory()" style="background:none;border:none;cursor:pointer;color:var(--ink-muted);font-size:0.75rem;">刷新</button>
+                <button onclick="clearHistory()" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.75rem;">清空</button>
+            </div>
+            <div class="history-scroll" id="historyList">
+                <div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">暂无检测记录</div>
+            </div>
+        </aside>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <div class="image-area" id="imageArea">
+                <div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+                <div class="image-empty" id="imageEmpty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+                    <div style="font-size:0.84rem;">上传图片或选择历史记录</div>
+                </div>
+                <img id="resultImage">
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <div class="result-panel">
+                <div class="result-head">
+                    <span class="result-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        检测结果
+                    </span>
+                    <div class="result-stats" id="resultStats"></div>
+                </div>
+                <div class="result-scroll" id="resultList">
+                    <div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">等待检测</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const detectBtn = document.getElementById('detectBtn');
+        const resultImage = document.getElementById('resultImage');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const imageEmpty = document.getElementById('imageEmpty');
+        const loading = document.getElementById('loading');
+        const resultList = document.getElementById('resultList');
+        const resultStats = document.getElementById('resultStats');
+        const historyList = document.getElementById('historyList');
+
+        let currentFile = null;
+        let currentResultId = null;
+        let detections = [];
+        let imageWidth = 0, imageHeight = 0;
+
+        function authFetch(url, opts = {}) {
+            const t = localStorage.getItem('token');
+            if (!opts.headers) opts.headers = {};
+            if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+            return fetch(url, opts);
+        }
+
+        function showNotification(msg, type) {
+            const el = document.getElementById('notification');
+            el.innerHTML = msg;
+            el.className = 'toast ' + type;
+            el.style.display = 'flex';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+
+        function doLogout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            authFetch('/api/v1/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        // ── Custom Select ──
+        function toggleSelect(id) {
+            const w = document.getElementById(id);
+            const wasOpen = w.classList.contains('open');
+            document.querySelectorAll('.custom-select').forEach(e => e.classList.remove('open'));
+            if (!wasOpen) w.classList.add('open');
+        }
+        function selectOption(wrapId, opt) {
+            const w = document.getElementById(wrapId);
+            w.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            w.querySelector('.custom-select-trigger span:first-child').textContent = opt.textContent.trim();
+            w.classList.remove('open');
+        }
+        function getSelectValue(id) {
+            return document.querySelector('#' + id + ' .custom-option.selected')?.dataset.value || '';
+        }
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.custom-select')) document.querySelectorAll('.custom-select').forEach(e => e.classList.remove('open'));
+        });
+
+        // ── Upload ──
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+        fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) { showNotification('请选择图片文件', 'error'); return; }
+            currentFile = file;
+            currentResultId = null;
+            const reader = new FileReader();
+            reader.onload = e => {
+                resultImage.src = e.target.result;
+                resultImage.style.display = 'block';
+                imageEmpty.style.display = 'none';
+                resultImage.onload = () => {
+                    imageWidth = resultImage.naturalWidth;
+                    imageHeight = resultImage.naturalHeight;
+                    resizeCanvas();
+                    detections = [];
+                    drawDetections();
+                    detectBtn.disabled = false;
+                    resultList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">点击「检测」开始</div>';
+                    resultStats.innerHTML = '';
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resizeCanvas() {
+            // 图片实际显示尺寸
+            const w = resultImage.clientWidth;
+            const h = resultImage.clientHeight;
+            if (w > 0 && h > 0) {
+                canvas.width = w;
+                canvas.height = h;
+                // 将 canvas 定位到图片正上方
+                canvas.style.display = 'block';
+                canvas.style.position = 'absolute';
+                canvas.style.left = resultImage.offsetLeft + 'px';
+                canvas.style.top = resultImage.offsetTop + 'px';
+                canvas.style.pointerEvents = 'none';
+            }
+        }
+
+        function drawDetections() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!detections.length || !imageWidth || !imageHeight) return;
+
+            // 获取图片实际显示尺寸（排除 padding/border）
+            const dispW = resultImage.clientWidth;
+            const dispH = resultImage.clientHeight;
+            const sx = dispW / imageWidth;
+            const sy = dispH / imageHeight;
+
+            const colors = { person:'#2d7a4f', fire:'#b33a3a', smoke:'#8a8580', helmet:'#0891b2', 'no-helmet':'#ea580c', cat:'#a67c00', dog:'#a67c00', bird:'#a67c00', horse:'#a67c00', sheep:'#a67c00', cow:'#a67c00', elephant:'#a67c00', bear:'#a67c00', zebra:'#a67c00', giraffe:'#a67c00' };
+            detections.forEach(d => {
+                const [x1,y1,x2,y2] = d.bbox;
+                const c = colors[d.class_name] || '#1a1a1a';
+                ctx.strokeStyle = c; ctx.lineWidth = 2;
+                ctx.strokeRect(x1*sx, y1*sy, (x2-x1)*sx, (y2-y1)*sy);
+                const label = d.class_name + ' ' + (d.confidence*100).toFixed(1) + '%';
+                ctx.font = '600 12px Inter,sans-serif';
+                const tw = ctx.measureText(label).width;
+                const ly = Math.max(18, y1*sy);
+                ctx.fillStyle = c;
+                ctx.beginPath(); ctx.roundRect(x1*sx, ly-20, tw+12, 18, 4); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.fillText(label, x1*sx+6, ly-6);
+            });
+        }
+        window.addEventListener('resize', () => { resizeCanvas(); drawDetections(); });
+
+        // ── Detect ──
+        async function runDetect() {
+            if (!currentFile) return;
+            loading.classList.add('show');
+            detectBtn.disabled = true;
+            setSelectDisabled('modelSelectWrap', true);
+            setSelectDisabled('confSelectWrap', true);
+
+            const fd = new FormData();
+            fd.append('file', currentFile);
+            fd.append('model', getSelectValue('modelSelectWrap'));
+            fd.append('confidence', getSelectValue('confSelectWrap'));
+
+            try {
+                const resp = await authFetch('/api/v1/stream/detect/upload', { method: 'POST', body: fd });
+                const data = await resp.json();
+                if (data.success) {
+                    detections = data.detections;
+                    currentResultId = data.result_id;
+                    drawDetections();
+                    renderResultList(data);
+                    loadHistory();
+                } else {
+                    showNotification('检测失败: ' + (data.detail || ''), 'error');
+                }
+            } catch (err) {
+                showNotification('请求失败: ' + err.message, 'error');
+            } finally {
+                loading.classList.remove('show');
+                detectBtn.disabled = false;
+                setSelectDisabled('modelSelectWrap', false);
+                setSelectDisabled('confSelectWrap', false);
+            }
+        }
+        function setSelectDisabled(id, disabled) {
+            const w = document.getElementById(id);
+            w.style.opacity = disabled ? '0.5' : '';
+            w.style.pointerEvents = disabled ? 'none' : '';
+        }
+
+        function renderResultList(data) {
+            const names = { general:'通用模型', fire_smoke:'火灾烟雾模型', helmet:'安全帽模型' };
+            resultStats.innerHTML = `<span>${data.detections_count} 个目标</span><span>${data.inference_time_ms}ms</span><span>${names[data.model]||data.model}</span>`;
+
+            if (!data.detections.length) {
+                resultList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">未检测到目标</div>';
+                return;
+            }
+
+            resultList.innerHTML = data.detections.map(d => {
+                const conf = d.confidence;
+                const cls = conf >= 0.7 ? 'high' : conf >= 0.4 ? 'mid' : 'low';
+                const dot = d.class_name.includes('fire') ? 'fire' : d.class_name.includes('smoke') ? 'smoke' : d.class_name === 'person' ? 'person' : d.class_name === 'helmet' ? 'helmet' : d.class_name === 'no-helmet' ? 'no-helmet' : 'animal';
+                return `<div class="detection-item">
+                    <div class="detection-dot ${dot}"></div>
+                    <span class="detection-name">${d.class_name}</span>
+                    <span class="detection-conf">${(conf*100).toFixed(1)}%</span>
+                    <div class="detection-bar"><div class="detection-bar-fill ${cls}" style="width:${conf*100}%"></div></div>
+                </div>`;
+            }).join('');
+        }
+
+        // ── History ──
+        async function loadHistory() {
+            try {
+                const resp = await authFetch('/api/v1/stream/detect/history?limit=50');
+                const data = await resp.json();
+                if (!data.items.length) {
+                    historyList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">暂无检测记录</div>';
+                    return;
+                }
+                historyList.innerHTML = data.items.map(item => {
+                    const active = item.id === currentResultId ? 'active' : '';
+                    const t = item.detected_at ? new Date(item.detected_at).toLocaleString('zh-CN') : '';
+                    const imgSrc = item.image_path ? `/api/v1/stream/image/${item.image_path}` : '';
+                    return `<div class="history-item ${active}" onclick="loadDetail(${item.id})">
+                        <div class="history-thumb">${imgSrc ? `<img src="${imgSrc}" loading="lazy">` : ''}</div>
+                        <div class="history-info">
+                            <div class="history-name">${item.filename || '未知'}</div>
+                            <div class="history-meta"><span>${item.model_name}</span><span>${t}</span></div>
+                            ${item.class_summary && item.class_summary.length ? `<div class="history-meta" style="margin-top:2px;"><span style="color:var(--ink-light);font-weight:500;">${item.class_summary.join(' · ')}</span></div>` : ''}
+                        </div>
+                        <span class="history-count">${item.detections_count}</span>
+                        <button onclick="event.stopPropagation();deleteHistory(${item.id})" style="background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:0.7rem;padding:4px 6px;border-radius:4px;transition:var(--transition);flex-shrink:0;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--ink-faint)'">删除</button>
+                    </div>`;
+                }).join('');
+            } catch {}
+        }
+
+        async function deleteHistory(id) {
+            if (!confirm('确定删除这条检测记录？')) return;
+            try {
+                await authFetch(`/api/v1/stream/detect/${id}`, { method: 'DELETE' });
+                showNotification('已删除', 'success');
+                if (currentResultId === id) {
+                    currentResultId = null;
+                    detections = [];
+                    resultImage.style.display = 'none';
+                    imageEmpty.style.display = '';
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    resultList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">等待检测</div>';
+                    resultStats.innerHTML = '';
+                }
+                loadHistory();
+            } catch {}
+        }
+
+        async function clearHistory() {
+            if (!confirm('确定清空所有检测记录？')) return;
+            try {
+                await authFetch('/api/v1/stream/detect', { method: 'DELETE' });
+                showNotification('已清空', 'success');
+                currentResultId = null;
+                detections = [];
+                resultImage.style.display = 'none';
+                imageEmpty.style.display = '';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                resultList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">等待检测</div>';
+                resultStats.innerHTML = '';
+                loadHistory();
+            } catch {}
+        }
+
+        async function loadDetail(id) {
+            loading.classList.add('show');
+            try {
+                const resp = await authFetch(`/api/v1/stream/detect/${id}`);
+                const data = await resp.json();
+                currentResultId = id;
+                detections = data.detections || [];
+
+                // Load image
+                if (data.image_path) {
+                    const imgSrc = `/api/v1/stream/image/${data.image_path}`;
+                    resultImage.src = imgSrc;
+                    resultImage.style.display = 'block';
+                    imageEmpty.style.display = 'none';
+                    resultImage.onload = () => {
+                        imageWidth = resultImage.naturalWidth;
+                        imageHeight = resultImage.naturalHeight;
+                        resizeCanvas();
+                        drawDetections();
+                    };
+                }
+
+                renderResultList({ detections: data.detections, detections_count: data.detections_count, inference_time_ms: data.inference_time_ms, model: data.model_name });
+                loadHistory();
+            } catch (err) {
+                showNotification('加载失败', 'error');
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        // Init
+        loadHistory();
+    </script>
+</body>
+</html>

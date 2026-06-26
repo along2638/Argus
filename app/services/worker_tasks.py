@@ -1,8 +1,9 @@
 import asyncio
 from datetime import datetime
 from typing import Optional
+import urllib.parse
 
-import asyncpg
+import aiomysql
 from arq import create_pool
 from arq.connections import RedisSettings
 from arq.jobs import Job
@@ -109,37 +110,37 @@ async def save_alarm(
     track_id: int,
     class_name: str = "",
 ) -> bool:
-    """ARQ task: Save alarm record to PostgreSQL.
+    """ARQ task: Save alarm record to MySQL.
 
     This function runs in the ARQ worker process.
     """
     # Create a new connection pool for this worker if needed
     if 'db_pool' not in ctx:
-        ctx['db_pool'] = await asyncpg.create_pool(
-            dsn=settings.PG_DSN,
-            min_size=1,
-            max_size=5,
-            command_timeout=60,
+        parsed = urllib.parse.urlparse(settings.MYSQL_DSN.replace("mysql+aiomysql://", "mysql://"))
+        password = urllib.parse.unquote(parsed.password) if parsed.password else None
+        ctx['db_pool'] = await aiomysql.create_pool(
+            host=parsed.hostname,
+            port=parsed.port or 3306,
+            user=parsed.username,
+            password=password,
+            db=parsed.path.lstrip("/"),
+            minsize=1,
+            maxsize=5,
+            charset="utf8mb4",
+            autocommit=True,
         )
 
     try:
         async with ctx['db_pool'].acquire() as conn:
-            record = await conn.fetchrow(
-                """
-                INSERT INTO alarm_records (stream_url, stream_id, alarm_type, confidence, image_path, track_id, class_name)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING id
-                """,
-                stream_url,
-                stream_id,
-                alarm_type,
-                confidence,
-                minio_key,
-                track_id,
-                class_name,
-            )
-
-            alarm_id = record["id"]
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    """
+                    INSERT INTO alarm_record (stream_url, stream_id, alarm_type, confidence, image_path, track_id, class_name)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (stream_url, stream_id, alarm_type, confidence, minio_key, track_id, class_name),
+                )
+                alarm_id = cursor.lastrowid
 
             logger.info(
                 "alarm_saved_to_db",

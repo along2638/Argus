@@ -39,10 +39,12 @@ env/
 *.swo
 *~
 
-# Models (large files)
+# Models (large files, track with DVC or Git LFS)
 models/*.onnx
 models/*.pt
 models/*.engine
+models/onnx/*.onnx
+models/pt/*.pt
 
 # Root-level model files
 /*.pt
@@ -58,15 +60,20 @@ models/*.engine
 runs/
 fire_smoke_data/
 fire_yolo/
-Fire&smoke-detection-*/
+fire_dataset/
 Fire-Detection-v2-1/
+Fire&smoke-detection-*/
 
 # Root-level training/prep scripts
 /_*.py
 /_train_*
 
-# mimocode
+# mimocode / claude
 .mimocode/
+.claude/
+
+# Database (runtime data)
+db/
 
 # Logs
 logs/
@@ -81,3 +88,6 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+
+# Alembic migrations (track with git, but ignore local dev)
+# alembic/versions/*.py  # uncomment if you don't want to track migrations

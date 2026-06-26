@@ -31,7 +31,13 @@ class ModelSession:
     def get_session(self) -> ort.InferenceSession:
         """Get or create ONNX Runtime session."""
         if self.session is None:
-            # 尝试 CUDA，失败则回退 CPU（缺少 CUDA Toolkit 时会自动降级）
+            import os
+            import sys
+
+            # 抑制 ONNX Runtime C++ 层的红色报错，改用中文提示
+            os.environ["ONNXRUNTIME_LOG_LEVEL"] = "3"  # 仅 ERROR
+
+            # 尝试 CUDA，失败则回退 CPU
             providers_to_try = []
             available = ort.get_available_providers()
             if "CUDAExecutionProvider" in available:
@@ -40,48 +46,48 @@ class ModelSession:
 
             for provider in providers_to_try:
                 try:
-                    sess = ort.InferenceSession(
-                        self.model_path,
-                        providers=[provider],
-                    )
+                    # 临时重定向 stderr 避免 C++ 错误刷屏
+                    old_stderr = sys.stderr
+                    sys.stderr = open(os.devnull, 'w')
+                    try:
+                        sess = ort.InferenceSession(
+                            self.model_path,
+                            providers=[provider],
+                        )
+                    finally:
+                        sys.stderr.close()
+                        sys.stderr = old_stderr
+
                     input_meta = sess.get_inputs()[0]
                     self.input_shape = (input_meta.shape[2], input_meta.shape[3])
 
-                    # 检查实际使用的 provider（ONNX Runtime 可能静默回退到 CPU）
                     actual = sess.get_providers()
                     used_provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in actual else "CPUExecutionProvider"
 
-                    # 用 dummy 数据测试推理，确保 GPU 真正可用
                     import numpy as np
                     dummy = np.random.randn(1, 3, self.input_shape[0], self.input_shape[1]).astype(np.float32)
+
+                    old_stderr = sys.stderr
+                    sys.stderr = open(os.devnull, 'w')
                     try:
                         sess.run(None, {input_meta.name: dummy})
-                        self.session = sess
-                        logger.info(
-                            "onnx_session_created",
-                            model_name=self.model_name,
-                            model_path=self.model_path,
-                            provider=used_provider,
-                            input_shape=self.input_shape,
-                        )
-                        break
-                    except Exception:
-                        # CUDA 创建成功但推理失败（GPU 架构不兼容），回退 CPU
-                        logger.warning(
-                            "cuda_inference_failed_fallback_cpu",
-                            model_name=self.model_name,
-                        )
-                        continue
-                except Exception as e:
-                    logger.warning(
-                        "onnx_provider_failed",
-                        model_name=self.model_name,
-                        provider=provider,
-                        error=str(e),
-                    )
-                    if provider == "CPUExecutionProvider":
-                        raise  # CPU 也失败则抛出
-                    continue
+                    finally:
+                        sys.stderr.close()
+                        sys.stderr = old_stderr
+
+                    self.session = sess
+                    if provider == "CUDAExecutionProvider" and used_provider == "CUDAExecutionProvider":
+                        logger.info("gpu_ready", model=self.model_name)
+                    else:
+                        logger.info("cpu_fallback", model=self.model_name, reason="GPU 不兼容，已切换 CPU 推理")
+                    break
+
+                except Exception:
+                    sys.stderr = sys.__stderr__
+                    if provider == "CUDAExecutionProvider":
+                        print(f"[提示] {self.model_name}: GPU 不可用，自动切换 CPU 推理")
+                    else:
+                        raise
 
         return self.session
 
@@ -274,9 +280,8 @@ class MultiModelDetector:
                 outputs = cpu_session.run(None, {input_name: blob})
             inference_time = (time.time() - start_time) * 1000  # ms
 
-            # Get number of classes from class mapping
-            class_mapping = self._class_mapping.get(model_name, {})
-            num_classes = len(class_mapping) if class_mapping else 80
+            # Get number of classes from model output
+            num_classes = outputs[0].shape[1] - 4 if outputs[0].ndim == 3 else outputs[0].shape[1] - 4
 
             # Post-process
             detections = self._postprocess(outputs[0], scale, confidence_threshold, num_classes, model_name)
