@@ -71,6 +71,8 @@ Fire&smoke-detection-*/
 # mimocode / claude
 .mimocode/
 .claude/
+CLAUDE.md
+SQLAlchemy.md
 
 # Database (runtime data)
 db/
