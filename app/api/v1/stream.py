@@ -13,6 +13,25 @@ from app.core.detector import detector
 from app.core.stream_processor import stream_manager
 from app.utils.logger import get_logger
 
+
+async def log_operation(action: str, username: str = None, detail: str = None, request: Request = None):
+    """记录操作日志到数据库"""
+    try:
+        from app.db import async_session
+        from app.models.operation_log import OperationLog
+        ip = request.client.host if request and request.client else None
+        async with async_session() as session:
+            session.add(OperationLog(
+                action=action,
+                username=username,
+                detail=detail,
+                ip_address=ip,
+                create_by=username,
+            ))
+            await session.commit()
+    except Exception:
+        pass
+
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/stream", tags=["流处理管理"])
@@ -24,19 +43,12 @@ class StreamStartRequest(BaseModel):
 
     stream_url: str = Field(..., description="监控流地址 (RTSP/RTMP)", examples=["rtsp://admin:password@192.168.1.100:554/stream1"])
     stream_id: str = Field(..., description="流唯一标识符", min_length=1, max_length=64, examples=["camera-001"])
-    validate: bool = Field(True, description="是否在启动前验证流可用性")
+    validate_stream: bool = Field(True, description="是否在启动前验证流可用性")
     alarm_types: List[str] = Field(
         default=["helmet", "fire", "intrusion"],
         description="要检测的告警类型: helmet(安全帽), fire(火灾), intrusion(入侵检测)",
         examples=[["helmet", "fire", "intrusion"]]
     )
-
-
-class DetectRequest(BaseModel):
-    """图片检测请求模型"""
-    image_url: str = Field(..., description="图片地址（HTTP/HTTPS URL 或本地路径）")
-    model: str = Field("general", description="使用哪个模型: general(通用), helmet(安全帽), fire_smoke(火灾烟雾)")
-    confidence: Optional[float] = Field(None, description="置信度阈值（可选，不传则用默认值）")
 
 
 class StreamStopRequest(BaseModel):
@@ -61,8 +73,44 @@ class StreamStatusResponse(BaseModel):
     status: str = Field(..., description="流状态")
 
 
+async def _save_stream_config(stream_id: str, stream_url: str, alarm_types: list, status: str, username: str = None):
+    """保存/更新流配置到数据库。"""
+    try:
+        from app.db import async_session
+        from app.models.stream_config import StreamConfig
+        from sqlalchemy import select
+        from datetime import datetime
+
+        async with async_session() as session:
+            result = await session.execute(select(StreamConfig).where(StreamConfig.stream_id == stream_id))
+            cfg = result.scalar_one_or_none()
+            if cfg:
+                cfg.stream_url = stream_url
+                cfg.alarm_types = alarm_types
+                cfg.status = status
+                cfg.error_message = None
+                if status == "running":
+                    cfg.started_at = datetime.now()
+                elif status in ("stopped", "idle"):
+                    cfg.stopped_at = datetime.now()
+                cfg.update_by = username
+            else:
+                cfg = StreamConfig(
+                    stream_id=stream_id,
+                    stream_url=stream_url,
+                    alarm_types=alarm_types,
+                    status=status,
+                    started_at=datetime.now() if status == "running" else None,
+                    create_by=username,
+                )
+                session.add(cfg)
+            await session.commit()
+    except Exception as e:
+        logger.error("save_stream_config_error", stream_id=stream_id, error=str(e))
+
+
 @router.post("/start", response_model=StreamResponse, summary="启动流处理", description="启动对指定监控流的实时YOLO检测处理")
-async def start_stream(request: StreamStartRequest):
+async def start_stream(request: StreamStartRequest, req: Request = None):
     """启动流处理接口。
 
     开始对指定的监控流进行实时目标检测，支持安全帽、动物、火灾烟雾、异物入侵检测。
@@ -77,15 +125,19 @@ async def start_stream(request: StreamStartRequest):
         "api_start_stream",
         stream_id=request.stream_id,
         url=request.stream_url,
-        validate=request.validate,
+        validate=request.validate_stream,
         alarm_types=request.alarm_types,
     )
+
+    username = None
+    if req and hasattr(req.state, "user"):
+        username = req.state.user.get("username")
 
     # 启动流处理
     result = await stream_manager.start_stream(
         stream_id=request.stream_id,
         stream_url=request.stream_url,
-        validate=request.validate,
+        validate=request.validate_stream,
         alarm_types=request.alarm_types,
     )
 
@@ -100,6 +152,11 @@ async def start_stream(request: StreamStartRequest):
         else:
             raise HTTPException(status_code=500, detail=result["message"])
 
+    # 持久化流配置到数据库
+    await _save_stream_config(request.stream_id, request.stream_url, request.alarm_types, "running", username)
+
+    await log_operation("start_stream", username, f"启动流 {request.stream_id}", req)
+
     return StreamResponse(
         success=True,
         stream_id=request.stream_id,
@@ -108,12 +165,16 @@ async def start_stream(request: StreamStartRequest):
 
 
 @router.post("/stop", response_model=StreamResponse, summary="停止流处理", description="优雅停止指定流的处理并释放资源")
-async def stop_stream(request: StreamStopRequest):
+async def stop_stream(request: StreamStopRequest, req: Request = None):
     """停止流处理接口。
 
     优雅停止指定流的处理器并释放相关资源。
     """
     logger.info("api_stop_stream", stream_id=request.stream_id)
+
+    username = None
+    if req and hasattr(req.state, "user"):
+        username = req.state.user.get("username")
 
     success = await stream_manager.stop_stream(request.stream_id)
 
@@ -122,6 +183,8 @@ async def stop_stream(request: StreamStopRequest):
             status_code=404,
             detail=f"流 '{request.stream_id}' 未找到",
         )
+
+    await log_operation("stop_stream", username, f"停止流 {request.stream_id}", req)
 
     return StreamResponse(
         success=True,
@@ -143,10 +206,11 @@ async def list_streams():
     }
 
 
-@router.get("/alarms", summary="查询告警列表", description="查询告警记录，支持按流ID和告警类型筛选")
+@router.get("/alarms", summary="查询告警列表", description="查询告警记录，支持按流ID、告警类型和严重级别筛选")
 async def get_alarms(
     stream_id: Optional[str] = None,
     alarm_type: Optional[str] = None,
+    severity: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
 ):
@@ -154,6 +218,7 @@ async def get_alarms(
 
     - **stream_id**: 按流ID筛选（可选）
     - **alarm_type**: 按告警类型筛选（可选）: helmet, animal, fire, intrusion
+    - **severity**: 按严重级别筛选（可选）: normal, important, critical
     - **limit**: 返回记录数（默认100）
     - **offset**: 偏移量（默认0）
     """
@@ -162,6 +227,7 @@ async def get_alarms(
     alarms = await db_service.get_alarms(
         stream_id=stream_id,
         alarm_type=alarm_type,
+        severity=severity,
         limit=limit,
         offset=offset,
     )
@@ -249,7 +315,8 @@ from fastapi import UploadFile, File
 
 
 class DetectRequest(BaseModel):
-    image_url: str = Field(..., description="图片地址（支持 HTTP/HTTPS 直链）")
+    """图片检测请求模型"""
+    image_url: str = Field(..., description="图片地址（支持 HTTP/HTTPS 直链或本地路径）")
     model: str = Field("general", description="模型名称: general / fire_smoke / helmet")
     confidence: float = Field(0.3, description="置信度阈值", ge=0.0, le=1.0)
 
@@ -465,31 +532,37 @@ async def detect_upload(
 
 
 @router.get("/detect/history", summary="检测历史列表")
-async def detect_history(limit: int = 50, offset: int = 0):
+async def detect_history(limit: int = 20, offset: int = 0, model: str = None):
     from app.db import async_session
     from app.models.detection_result import DetectionResult
     from app.models.detection_box import DetectionBox
     from sqlalchemy import select, func, text
 
     async with async_session() as session:
-        total = await session.scalar(select(func.count(DetectionResult.id)))
+        # 总数（支持模型筛选）
+        count_stmt = select(func.count(DetectionResult.id))
+        if model:
+            count_stmt = count_stmt.where(DetectionResult.model_name == model)
+        total = await session.scalar(count_stmt)
 
-        # 一次性查询所有结果的类别汇总（避免 N+1）
+        # 类别汇总（支持模型筛选）
         summary_query = text("""
-            SELECT result_id, GROUP_CONCAT(DISTINCT class_name SEPARATOR ' · ') as class_summary
-            FROM detection_box
-            GROUP BY result_id
+            SELECT dr.id, GROUP_CONCAT(DISTINCT db.class_name SEPARATOR ' · ') as class_summary
+            FROM detection_result dr
+            LEFT JOIN detection_box db ON dr.id = db.result_id
+            WHERE (:model IS NULL OR dr.model_name = :model)
+            GROUP BY dr.id
         """)
-        summary_result = await session.execute(summary_query)
+        summary_result = await session.execute(summary_query, {"model": model})
         summary_map = {row[0]: row[1] for row in summary_result.all()}
 
-        result = await session.execute(
-            select(DetectionResult)
-            .order_by(DetectionResult.detected_at.desc())
-            .limit(limit).offset(offset)
-        )
+        # 查询列表（支持模型筛选）
+        stmt = select(DetectionResult).order_by(DetectionResult.detected_at.desc())
+        if model:
+            stmt = stmt.where(DetectionResult.model_name == model)
+        stmt = stmt.limit(limit).offset(offset)
         items = []
-        for r in result.scalars().all():
+        for r in (await session.execute(stmt)).scalars().all():
             items.append({
                 "id": r.id,
                 "filename": r.filename,
@@ -587,3 +660,300 @@ async def detect_delete_all(request: Request):
         await session.execute(sa_delete(DetectionResult))
         await session.commit()
     return {"success": True, "message": f"已删除 {total} 条记录"}
+
+
+# ── Dashboard Statistics ──
+
+@router.get("/dashboard")
+async def dashboard_stats():
+    """首页统计概览"""
+    from app.db import async_session
+    from app.models.alarm_record import AlarmRecord
+    from app.models.detection_result import DetectionResult
+    from app.models.stream_config import StreamConfig
+    from sqlalchemy import select, func
+
+    async with async_session() as session:
+        # 告警总数
+        alarm_total = await session.scalar(select(func.count(AlarmRecord.id))) or 0
+        # 今日告警
+        from datetime import datetime, timedelta
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        alarm_today = await session.scalar(
+            select(func.count(AlarmRecord.id)).where(AlarmRecord.detected_at >= today)
+        ) or 0
+        # 告警类型分布
+        type_result = await session.execute(
+            select(AlarmRecord.alarm_type, func.count(AlarmRecord.id))
+            .group_by(AlarmRecord.alarm_type)
+        )
+        alarm_type_dist = {r[0]: r[1] for r in type_result.all()}
+        # 检测总数
+        detect_total = await session.scalar(select(func.count(DetectionResult.id))) or 0
+        # 活跃流数
+        stream_count = await session.scalar(
+            select(func.count(StreamConfig.id)).where(StreamConfig.status == "running")
+        ) or 0
+
+    return {
+        "success": True,
+        "alarm_total": alarm_total,
+        "alarm_today": alarm_today,
+        "alarm_type_dist": alarm_type_dist,
+        "detect_total": detect_total,
+        "stream_count": stream_count,
+    }
+
+
+@router.get("/dashboard/trend")
+async def dashboard_trend(days: int = 7):
+    """近 N 天告警趋势"""
+    from app.db import async_session
+    from app.models.alarm_record import AlarmRecord
+    from sqlalchemy import select, func, text
+    from datetime import datetime, timedelta
+
+    async with async_session() as session:
+        result = await session.execute(text("""
+            SELECT DATE(detected_at) as day, COUNT(*) as cnt
+            FROM alarm_record
+            WHERE detected_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
+            GROUP BY DATE(detected_at)
+            ORDER BY day
+        """), {"days": days})
+        trend = [{"date": str(r[0]), "count": r[1]} for r in result.all()]
+
+    return {"success": True, "trend": trend}
+
+
+@router.post("/detect/video", summary="视频帧检测")
+async def detect_video(
+    file: UploadFile = File(..., description="视频文件"),
+    model: str = "general",
+    confidence: float = 0.3,
+    frame_interval: int = 10,
+    request: Request = None,
+):
+    """上传视频逐帧检测，frame_interval 表示每隔多少帧检测一次。"""
+    try:
+        import tempfile, os
+        suffix = os.path.splitext(file.filename or "video.mp4")[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        cap = cv2.VideoCapture(tmp_path)
+        if not cap.isOpened():
+            os.unlink(tmp_path)
+            raise HTTPException(status_code=400, detail="无法打开视频文件")
+
+        fps = cap.get(cv2.CAP_PROP_FPS) or 25
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        results = []
+        frame_idx = 0
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            if frame_idx % frame_interval == 0:
+                detections, inference_time = await detector.detect_with_model(
+                    frame, model, confidence_threshold=confidence
+                )
+                if len(detections) > 0:
+                    frame_results = []
+                    for i in range(len(detections)):
+                        class_id = int(detections.class_id[i])
+                        conf = float(detections.confidence[i])
+                        bbox = detections.xyxy[i].tolist()
+                        class_name = detector.get_class_name(model, class_id)
+                        frame_results.append({
+                            "class_name": class_name, "confidence": round(conf, 4),
+                            "bbox": [round(x, 1) for x in bbox],
+                        })
+                    results.append({
+                        "frame": frame_idx,
+                        "time": round(frame_idx / fps, 2),
+                        "detections": frame_results,
+                    })
+            frame_idx += 1
+
+        cap.release()
+        os.unlink(tmp_path)
+
+        return {
+            "success": True,
+            "total_frames": total_frames,
+            "analyzed_frames": frame_idx,
+            "frame_interval": frame_interval,
+            "frames_with_detections": len(results),
+            "results": results,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("video_detect_error", error=str(e))
+        raise HTTPException(status_code=500, detail=f"视频检测失败: {str(e)}")
+
+
+@router.post("/detect/compare", summary="多模型对比检测")
+async def detect_compare(
+    file: UploadFile = File(..., description="图片文件"),
+    confidence: float = 0.3,
+):
+    """同一张图片用多个模型检测，返回对比结果。"""
+    try:
+        img_bytes = await file.read()
+        if len(img_bytes) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="文件过大，最大支持 10MB")
+        img_array = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        if frame is None:
+            raise HTTPException(status_code=400, detail="无法读取图片")
+
+        models = ["general", "fire_smoke", "helmet"]
+        results = {}
+        for m in models:
+            try:
+                detections, inference_time = await detector.detect_with_model(
+                    frame, m, confidence_threshold=confidence
+                )
+                dets = []
+                for i in range(len(detections)):
+                    class_id = int(detections.class_id[i])
+                    conf = float(detections.confidence[i])
+                    bbox = detections.xyxy[i].tolist()
+                    class_name = detector.get_class_name(m, class_id)
+                    dets.append({
+                        "class_name": class_name, "confidence": round(conf, 4),
+                        "bbox": [round(x, 1) for x in bbox],
+                    })
+                results[m] = {"detections": dets, "count": len(dets), "time_ms": round(inference_time, 1)}
+            except Exception as e:
+                results[m] = {"detections": [], "count": 0, "time_ms": 0, "error": str(e)}
+
+        return {"success": True, "results": results}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"对比检测失败: {str(e)}")
+
+
+@router.post("/detect/{result_id}/import-annotations", summary="检测结果导入标注")
+async def import_annotations_from_detect(result_id: int, request: Request = None):
+    """将检测结果的检测框导入为标注数据。"""
+    try:
+        from app.db import async_session
+        from app.models.detection_result import DetectionResult
+        from app.models.detection_box import DetectionBox
+        from app.models.annotation_image import AnnotationImage
+        from app.models.annotation_box import AnnotationBox
+        from sqlalchemy import select
+
+        user = getattr(request.state, "user", {}) if request else {}
+        username = user.get("username")
+
+        async with async_session() as session:
+            # 获取检测结果
+            det = await session.scalar(select(DetectionResult).where(DetectionResult.id == result_id))
+            if not det:
+                raise HTTPException(status_code=404, detail="检测记录不存在")
+
+            # 获取检测框
+            boxes_result = await session.execute(
+                select(DetectionBox).where(DetectionBox.result_id == result_id)
+            )
+            det_boxes = boxes_result.scalars().all()
+
+            if not det_boxes:
+                return {"success": False, "message": "无检测框可导入"}
+
+            # 查找或创建标注图片记录
+            img_result = await session.execute(
+                select(AnnotationImage).where(AnnotationImage.filename == det.filename)
+            )
+            ann_img = img_result.scalar_one_or_none()
+            if not ann_img:
+                ann_img = AnnotationImage(
+                    filename=det.filename,
+                    file_path=det.image_path or "",
+                    width=det.image_width,
+                    height=det.image_height,
+                    dataset_name="from_detect",
+                    is_annotated=True,
+                    box_count=len(det_boxes),
+                    create_by=username,
+                )
+                session.add(ann_img)
+                await session.flush()
+            else:
+                ann_img.is_annotated = True
+                ann_img.box_count = len(det_boxes)
+                ann_img.update_by = username
+
+            # 导入检测框为标注框
+            await session.execute(
+                select(AnnotationBox).where(AnnotationBox.image_id == ann_img.id).delete()
+            )
+            for db in det_boxes:
+                img_w = det.image_width or 1
+                img_h = det.image_height or 1
+                session.add(AnnotationBox(
+                    image_id=ann_img.id,
+                    class_id=db.class_id,
+                    class_name=db.class_name,
+                    cx=(db.bbox_x1 + db.bbox_x2) / 2 / img_w,
+                    cy=(db.bbox_y1 + db.bbox_y2) / 2 / img_h,
+                    bw=(db.bbox_x2 - db.bbox_x1) / img_w,
+                    bh=(db.bbox_y2 - db.bbox_y1) / img_h,
+                    confidence=db.confidence,
+                    annotator="auto_detect",
+                    create_by=username,
+                ))
+
+            await session.commit()
+
+        await log_operation("import_annotations", username, f"从检测结果 #{result_id} 导入 {len(det_boxes)} 个标注框", request)
+        return {"success": True, "message": f"已导入 {len(det_boxes)} 个标注框", "count": len(det_boxes)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"导入失败: {str(e)}")
+
+
+# ── Stream Health Trends ──
+
+@router.get("/health/trend", summary="流健康度趋势")
+async def stream_health_trend(
+    stream_id: str = None,
+    hours: int = 24,
+    limit: int = 200,
+):
+    """查询指定流在最近 N 小时内的健康度趋势（FPS、状态变化）。"""
+    from app.db import async_session
+    from app.models.stream_health import StreamHealth
+    from sqlalchemy import select, text
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.now() - timedelta(hours=hours)
+
+    async with async_session() as session:
+        stmt = select(StreamHealth).where(StreamHealth.recorded_at >= cutoff)
+        if stream_id:
+            stmt = stmt.where(StreamHealth.stream_id == stream_id)
+        stmt = stmt.order_by(StreamHealth.recorded_at.asc()).limit(limit)
+        result = await session.execute(stmt)
+        items = [
+            {
+                "stream_id": r.stream_id,
+                "status": r.status,
+                "fps": r.fps,
+                "error_message": r.error_message,
+                "recorded_at": str(r.recorded_at) if r.recorded_at else None,
+            }
+            for r in result.scalars().all()
+        ]
+
+    return {"success": True, "total": len(items), "items": items}

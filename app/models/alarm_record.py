@@ -14,6 +14,7 @@ class AlarmRecord(Base):
     image_path = Column(Text, nullable=False, comment="告警图片路径(MinIO)")
     track_id = Column(Integer, comment="目标跟踪ID")
     class_name = Column(String(64), comment="检测类别名称")
+    severity = Column(String(16), nullable=False, server_default="normal", comment="严重级别: normal/important/critical")
     detected_at = Column(DateTime, nullable=False, server_default=func.now(), comment="检测时间")
     create_by = Column(String(64), comment="创建人")
     update_by = Column(String(64), comment="更新人")

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <title>Argus — 用户管理</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="/static/theme.js"></script>
+    <script src="/static/loading.js"></script>
+    <style>
+        :root{--bg:#f5f0eb;--bg-card:rgba(255,255,255,0.55);--bg-card-solid:#fff;--bg-input:rgba(0,0,0,0.03);--border:rgba(0,0,0,0.06);--border-focus:rgba(26,26,26,0.25);--ink:#1a1a1a;--ink-light:#3d3d3d;--ink-muted:#8a8580;--ink-faint:#c4bfb8;--accent:#1a1a1a;--accent-soft:rgba(26,26,26,0.06);--success:#2d7a4f;--success-bg:rgba(45,122,79,0.08);--danger:#b33a3a;--danger-bg:rgba(179,58,58,0.08);--warning:#a67c00;--warning-bg:rgba(166,124,0,0.08);--radius:999px;--radius-md:12px;--radius-lg:16px;--shadow:0 1px 3px rgba(0,0,0,0.04),0 8px 32px rgba(0,0,0,0.06);--shadow-sm:0 1px 2px rgba(0,0,0,0.04);--transition:0.2s ease}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-height:100vh;color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 30%,rgba(180,170,155,0.08) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 75% 60%,rgba(160,150,135,0.06) 0%,transparent 60%);pointer-events:none;z-index:0}
+        ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:3px}
+        .header{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid var(--border);background:var(--bg-card);backdrop-filter:blur(20px)}
+        .header-left{display:flex;align-items:center;gap:12px}
+        .header-logo{width:34px;height:34px;background:var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--bg)}
+        .header h1{font-size:1.1rem;font-weight:600}
+        .header-right{display:flex;align-items:center;gap:8px}
+        .header-link{color:var(--ink-muted);font-size:0.78rem;text-decoration:none;padding:5px 12px;border-radius:var(--radius);transition:var(--transition);border:1px solid transparent}
+        .header-link:hover{color:var(--ink);border-color:var(--border)}
+        .main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:24px 32px 60px}
+        .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);backdrop-filter:blur(20px);overflow:hidden;box-shadow:var(--shadow-sm)}
+        .card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+        .card-title{display:flex;align-items:center;gap:8px;font-size:0.84rem;font-weight:600;white-space:nowrap}
+        .card-body{padding:0}
+        .btn{padding:8px 16px;border:none;border-radius:var(--radius);cursor:pointer;font-size:0.78rem;font-weight:500;font-family:inherit;transition:var(--transition);display:inline-flex;align-items:center;gap:5px}
+        .btn:disabled{opacity:0.4;cursor:not-allowed}
+        .btn-primary{background:var(--ink);color:var(--bg)}
+        .btn-primary:hover:not(:disabled){background:#333;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.12)}
+        .btn-ghost{background:transparent;color:var(--ink-muted);border:1px solid var(--border)}
+        .btn-ghost:hover{border-color:var(--ink-faint);color:var(--ink)}
+        .btn-danger-ghost{background:transparent;color:var(--danger);border:1px solid var(--danger-bg)}
+        .btn-danger-ghost:hover{background:var(--danger-bg)}
+        .btn-sm{padding:4px 10px;font-size:0.7rem}
+        .user-table{width:100%;border-collapse:collapse}
+        .user-table th{text-align:left;padding:12px 20px;font-size:0.7rem;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--border);background:var(--bg-input)}
+        .user-table td{padding:12px 20px;font-size:0.82rem;border-bottom:1px solid var(--border);vertical-align:middle}
+        .user-table tr:last-child td{border-bottom:none}
+        .user-table tr:hover td{background:rgba(0,0,0,0.015)}
+        .role-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:var(--radius);font-size:0.7rem;font-weight:500}
+        .role-badge.admin{background:var(--danger-bg);color:var(--danger)}
+        .role-badge.operator{background:var(--warning-bg);color:var(--warning)}
+        .role-badge.annotator{background:rgba(8,145,178,0.1);color:#0891b2}
+        .role-badge.viewer{background:var(--accent-soft);color:var(--ink-muted)}
+        .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px}
+        .status-dot.active{background:var(--success)}
+        .status-dot.inactive{background:var(--danger)}
+        .actions{display:flex;gap:4px;flex-wrap:wrap}
+        .user-count{font-size:0.78rem;color:var(--ink-muted);margin-right:8px}
+        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);z-index:9000;justify-content:center;align-items:center}
+        .modal-overlay.active{display:flex}
+        .modal{background:var(--bg-card-solid);border-radius:var(--radius-lg);padding:28px 32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);animation:slideUp 0.25s ease}
+        @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .modal h3{font-size:0.92rem;font-weight:600;margin-bottom:16px}
+        .modal .form-group{margin-bottom:14px}
+        .modal .form-label{display:block;font-size:0.76rem;font-weight:500;color:var(--ink-muted);margin-bottom:6px}
+        .modal .form-input,.modal .form-select{width:100%;padding:9px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--ink);font-size:0.84rem;font-family:inherit;transition:var(--transition);outline:none}
+        .modal .form-input:focus,.modal .form-select:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(26,26,26,0.04)}
+        .modal .btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+        .toast{position:fixed;top:20px;right:20px;padding:10px 18px;border-radius:var(--radius);font-size:0.8rem;font-weight:500;z-index:10000;animation:toastIn .25s ease;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:8px;font-family:inherit}
+        .toast.success{background:var(--bg-card-solid);color:var(--success);border:1px solid var(--success-bg)}
+        .toast.error{background:var(--bg-card-solid);color:var(--danger);border:1px solid var(--danger-bg)}
+        @keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+        .empty{text-align:center;padding:40px 16px;color:var(--ink-faint);font-size:0.84rem}
+        .footer{text-align:center;padding:40px 0 0;color:var(--ink-faint);font-size:0.73rem}
+    </style>
+</head>
+<body>
+    <div id="notification" class="toast" style="display:none;"></div>
+
+    <header class="header">
+        <div class="header-left">
+            <div class="header-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <h1>Argus 智能监控</h1>
+        </div>
+        <div class="header-right">
+            <a href="/" class="header-link">监控主页</a>
+            <a href="/static/detect.html" class="header-link">图片检测</a>
+            <a href="/static/annotate.html" class="header-link">手动标注</a>
+            <button id="themeToggle" class="header-link" onclick="toggleTheme()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">深色</button>
+            <button class="header-link" onclick="doLogout()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">退出登录</button>
+        </div>
+    </header>
+
+    <div class="main">
+        <div class="card">
+            <div class="card-head">
+                <span class="card-title">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                    用户管理
+                    <span class="user-count" id="userCount"></span>
+                </span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <button class="btn btn-ghost btn-sm" onclick="showChangePwd()">修改密码</button>
+                    <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ 新增用户</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>用户</th>
+                            <th>角色</th>
+                            <th>状态</th>
+                            <th>注册时间</th>
+                            <th>最后登录</th>
+                            <th style="text-align:right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userList">
+                        <tr><td colspan="6"><div class="empty">加载中...</div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">Argus 智能监控告警系统 v0.1.0</footer>
+
+    <!-- 新增用户弹窗 -->
+    <div id="addModal" class="modal-overlay">
+        <div class="modal">
+            <h3>新增用户</h3>
+            <div class="form-group">
+                <label class="form-label">用户名</label>
+                <input type="text" id="addUsername" class="form-input" placeholder="2-64 个字符" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">显示名称</label>
+                <input type="text" id="addDisplayName" class="form-input" placeholder="可选">
+            </div>
+            <div class="form-group">
+                <label class="form-label">密码</label>
+                <input type="password" id="addPassword" class="form-input" placeholder="至少 6 个字符" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">角色</label>
+                <select id="addRole" class="form-select">
+                    <option value="viewer">viewer — 只读</option>
+                    <option value="annotator">annotator — 标注</option>
+                    <option value="operator">operator — 操作员</option>
+                    <option value="admin">admin — 管理员</option>
+                </select>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-ghost" onclick="closeModal('addModal')">取消</button>
+                <button class="btn btn-primary" onclick="handleAddUser()">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重置密码弹窗 -->
+    <div id="resetModal" class="modal-overlay">
+        <div class="modal">
+            <h3>重置密码</h3>
+            <div class="form-group">
+                <label class="form-label">新密码</label>
+                <input type="password" id="resetPassword" class="form-input" placeholder="至少 6 个字符" required>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-ghost" onclick="closeModal('resetModal')">取消</button>
+                <button class="btn btn-primary" onclick="handleResetPassword()">确认重置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改密码弹窗 -->
+    <div id="changePwdModal" class="modal-overlay">
+        <div class="modal">
+            <h3>修改我的密码</h3>
+            <div class="form-group">
+                <label class="form-label">新密码</label>
+                <input type="password" id="changePwdInput" class="form-input" placeholder="至少 6 个字符" required>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-ghost" onclick="closeModal('changePwdModal')">取消</button>
+                <button class="btn btn-primary" onclick="handleChangePwd()">确认修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 切换角色弹窗 -->
+    <div id="roleModal" class="modal-overlay">
+        <div class="modal">
+            <h3>修改角色</h3>
+            <div class="form-group">
+                <label class="form-label">选择角色</label>
+                <select id="roleSelect" class="form-select">
+                    <option value="viewer">viewer — 只读</option>
+                    <option value="annotator">annotator — 标注</option>
+                    <option value="operator">operator — 操作员</option>
+                    <option value="admin">admin — 管理员</option>
+                </select>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-ghost" onclick="closeModal('roleModal')">取消</button>
+                <button class="btn btn-primary" onclick="handleRoleUpdate()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/confirm.js"></script>
+    <script>
+        let currentUserId = null;
+        const roleNames = {admin:'管理员',operator:'操作员',annotator:'标注员',viewer:'只读用户'};
+
+        function authFetch(url, opts = {}) {
+            const t = localStorage.getItem('token');
+            if (!opts.headers) opts.headers = {};
+            if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+            return fetch(url, opts);
+        }
+
+        function doLogout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            fetch('/api/v1/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        function showNotification(msg, type = 'info') {
+            const el = document.getElementById('notification');
+            el.innerHTML = msg;
+            el.className = 'toast ' + type;
+            el.style.display = 'flex';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        async function loadUsers() {
+            try {
+                const resp = await authFetch('/api/v1/auth/users');
+                const data = await resp.json();
+                if (!data.success) { showNotification(data.detail || '无权限', 'error'); return; }
+                const users = data.users || [];
+                document.getElementById('userCount').textContent = `共 ${users.length} 人`;
+                const tbody = document.getElementById('userList');
+                if (!users.length) {
+                    tbody.innerHTML = '<tr><td colspan="6"><div class="empty">暂无用户</div></td></tr>';
+                    return;
+                }
+                tbody.innerHTML = users.map(u => {
+                    const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('zh-CN') : '从未登录';
+                    const createTime = u.create_time ? new Date(u.create_time).toLocaleString('zh-CN') : '-';
+                    const activeDot = u.is_active ? '<span class="status-dot active"></span>启用' : '<span class="status-dot inactive"></span>禁用';
+                    return `<tr>
+                        <td>
+                            <div style="font-weight:500">${u.username}</div>
+                            <div style="font-size:0.72rem;color:var(--ink-muted)">${u.display_name || '-'}</div>
+                        </td>
+                        <td><span class="role-badge ${u.role}">${roleNames[u.role]||u.role}</span></td>
+                        <td>${activeDot}</td>
+                        <td style="font-size:0.76rem;color:var(--ink-muted)">${createTime}</td>
+                        <td style="font-size:0.76rem;color:var(--ink-muted)">${lastLogin}</td>
+                        <td style="text-align:right">
+                            <div class="actions">
+                                <button class="btn btn-ghost btn-sm" onclick="showResetPwd(${u.id})">重置密码</button>
+                                ${u.username !== 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="showRoleUpdate(${u.id},'${u.role}')">角色</button>` : ''}
+                                ${u.username !== 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="toggleActive(${u.id})">${u.is_active ? '禁用' : '启用'}</button>` : ''}
+                                ${u.username !== 'admin' ? `<button class="btn btn-danger-ghost btn-sm" onclick="deleteUser(${u.id},'${u.username}')">删除</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                showNotification('加载失败', 'error');
+            }
+        }
+
+        function showChangePwd() {
+            document.getElementById('changePwdInput').value = '';
+            openModal('changePwdModal');
+        }
+
+        async function handleChangePwd() {
+            const password = document.getElementById('changePwdInput').value;
+            if (!password || password.length < 6) { showNotification('密码至少 6 个字符', 'error'); return; }
+            try {
+                const resp = await authFetch('/api/v1/auth/change-password', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_password: password }),
+                });
+                const data = await resp.json();
+                if (resp.ok) { showNotification('密码已修改', 'success'); closeModal('changePwdModal'); }
+                else showNotification(data.detail || '修改失败', 'error');
+            } catch (e) { showNotification('请求失败', 'error'); }
+        }
+
+        function showAddUser() {
+            document.getElementById('addUsername').value = '';
+            document.getElementById('addDisplayName').value = '';
+            document.getElementById('addPassword').value = '';
+            document.getElementById('addRole').value = 'viewer';
+            openModal('addModal');
+        }
+
+        async function handleAddUser() {
+            const username = document.getElementById('addUsername').value.trim();
+            const password = document.getElementById('addPassword').value;
+            const display_name = document.getElementById('addDisplayName').value.trim();
+            const role = document.getElementById('addRole').value;
+            if (!username || username.length < 2) { showNotification('用户名至少 2 个字符', 'error'); return; }
+            if (!password || password.length < 6) { showNotification('密码至少 6 个字符', 'error'); return; }
+            try {
+                const resp = await authFetch('/api/v1/auth/register', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, display_name: display_name || null, role }),
+                });
+                const data = await resp.json();
+                if (resp.ok && data.success) { showNotification('用户创建成功', 'success'); closeModal('addModal'); loadUsers(); }
+                else showNotification(data.detail || data.message || '创建失败', 'error');
+            } catch (e) { showNotification('请求失败', 'error'); }
+        }
+
+        function showRoleUpdate(userId, currentRole) {
+            currentUserId = userId;
+            document.getElementById('roleSelect').value = currentRole;
+            openModal('roleModal');
+        }
+
+        async function handleRoleUpdate() {
+            const role = document.getElementById('roleSelect').value;
+            try {
+                const resp = await authFetch(`/api/v1/auth/users/${currentUserId}/role`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role }),
+                });
+                const data = await resp.json();
+                if (resp.ok) { showNotification(`角色已更新为 ${roleNames[role]||role}`, 'success'); closeModal('roleModal'); loadUsers(); }
+                else showNotification(data.detail || '操作失败', 'error');
+            } catch (e) { showNotification('请求失败', 'error'); }
+        }
+
+        async function toggleActive(userId) {
+            try {
+                const resp = await authFetch(`/api/v1/auth/users/${userId}/toggle`, { method: 'POST' });
+                const data = await resp.json();
+                if (resp.ok) { showNotification('状态已切换', 'success'); loadUsers(); }
+                else showNotification(data.detail || '操作失败', 'error');
+            } catch (e) { showNotification('请求失败', 'error'); }
+        }
+
+        function showResetPwd(userId) {
+            currentUserId = userId;
+            document.getElementById('resetPassword').value = '';
+            openModal('resetModal');
+        }
+
+        async function handleResetPassword() {
+            const password = document.getElementById('resetPassword').value;
+            if (!password || password.length < 6) { showNotification('密码至少 6 个字符', 'error'); return; }
+            try {
+                const resp = await authFetch(`/api/v1/auth/users/${currentUserId}/reset-password`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_password: password }),
+                });
+                const data = await resp.json();
+                if (resp.ok) { showNotification('密码已重置', 'success'); closeModal('resetModal'); }
+                else showNotification(data.detail || '操作失败', 'error');
+            } catch (e) { showNotification('请求失败', 'error'); }
+        }
+
+        async function deleteUser(userId, username) {
+            if (!await showConfirm(`确定删除用户 ${username}？`)) return;
+            try {
+                const resp = await authFetch(`/api/v1/auth/users/${userId}`, { method: 'DELETE' });
+                const data = await resp.json();
+                if (resp.ok) { showNotification('用户已删除', 'success'); loadUsers(); }
+                else showNotification(data.detail || '删除失败', 'error');
+            } catch (e) { showNotification('请求失败', 'error'); }
+        }
+
+        loadUsers();
+    </script>
+</body>
+</html>

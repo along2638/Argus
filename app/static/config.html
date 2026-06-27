@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <title>Argus — 系统配置</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="/static/theme.js"></script>
+    <script src="/static/loading.js"></script>
+    <style>
+        :root{--bg:#f5f0eb;--bg-card:rgba(255,255,255,0.55);--bg-card-solid:#fff;--bg-input:rgba(0,0,0,0.03);--border:rgba(0,0,0,0.06);--border-focus:rgba(26,26,26,0.25);--ink:#1a1a1a;--ink-light:#3d3d3d;--ink-muted:#8a8580;--ink-faint:#c4bfb8;--accent:#1a1a1a;--accent-soft:rgba(26,26,26,0.06);--success:#2d7a4f;--success-bg:rgba(45,122,79,0.08);--danger:#b33a3a;--danger-bg:rgba(179,58,58,0.08);--radius:999px;--radius-md:12px;--radius-lg:16px;--shadow:0 1px 3px rgba(0,0,0,0.04),0 8px 32px rgba(0,0,0,0.06);--shadow-sm:0 1px 2px rgba(0,0,0,0.04);--transition:0.2s ease}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-height:100vh;color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 30%,rgba(180,170,155,0.08) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 75% 60%,rgba(160,150,135,0.06) 0%,transparent 60%);pointer-events:none;z-index:0}
+        ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:3px}
+
+        .header{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid var(--border);background:var(--bg-card);backdrop-filter:blur(20px)}
+        .header-left{display:flex;align-items:center;gap:12px}
+        .header-logo{width:34px;height:34px;background:var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+        .header h1{font-size:1.1rem;font-weight:600}
+        .header-right{display:flex;align-items:center;gap:8px}
+        .header-link{color:var(--ink-muted);font-size:0.78rem;text-decoration:none;padding:5px 12px;border-radius:var(--radius);transition:var(--transition);border:1px solid transparent}
+        .header-link:hover{color:var(--ink);border-color:var(--border)}
+
+        .main{position:relative;z-index:1;max-width:700px;margin:0 auto;padding:24px 32px 60px}
+
+        .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);backdrop-filter:blur(20px);overflow:hidden;box-shadow:var(--shadow-sm)}
+        .card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+        .card-title{display:flex;align-items:center;gap:8px;font-size:0.84rem;font-weight:600}
+        .card-body{padding:20px}
+
+        .config-item{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--border)}
+        .config-item:last-child{border-bottom:none}
+        .config-info{flex:1}
+        .config-key{font-size:0.84rem;font-weight:500;font-family:'JetBrains Mono',monospace;color:var(--ink)}
+        .config-desc{font-size:0.72rem;color:var(--ink-muted);margin-top:2px}
+        .config-input{width:160px;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--ink);font-size:0.84rem;font-family:'JetBrains Mono',monospace;transition:var(--transition);outline:none;text-align:right}
+        .config-input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(26,26,26,0.04)}
+
+        .btn{padding:10px 22px;border:none;border-radius:var(--radius);cursor:pointer;font-size:0.82rem;font-weight:500;font-family:inherit;transition:var(--transition);display:inline-flex;align-items:center;gap:6px}
+        .btn:disabled{opacity:0.4;cursor:not-allowed}
+        .btn-primary{background:var(--ink);color:var(--bg)}
+        .btn-primary:hover:not(:disabled){background:#333;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.12)}
+        .btn-ghost{background:transparent;color:var(--ink-muted);border:1px solid var(--border)}
+        .btn-ghost:hover{border-color:var(--ink-faint);color:var(--ink)}
+
+        .btn-row{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+
+        .toast{position:fixed;top:20px;right:20px;padding:10px 18px;border-radius:var(--radius);font-size:0.8rem;font-weight:500;z-index:10000;animation:toastIn 0.25s ease;box-shadow:var(--shadow);display:flex;align-items:center;gap:8px;font-family:inherit}
+        .toast.success{background:var(--bg-card-solid);color:var(--success);border:1px solid var(--success-bg)}
+        .toast.error{background:var(--bg-card-solid);color:var(--danger);border:1px solid var(--danger-bg)}
+        @keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+        .empty{text-align:center;padding:40px 16px;color:var(--ink-faint);font-size:0.84rem}
+        .footer{text-align:center;padding:40px 0 0;color:var(--ink-faint);font-size:0.73rem}
+    </style>
+</head>
+<body>
+    <div id="notification" class="toast" style="display:none;"></div>
+
+    <header class="header">
+        <div class="header-left">
+            <div class="header-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <h1>Argus 智能监控</h1>
+        </div>
+        <div class="header-right">
+            <a href="/" class="header-link">监控主页</a>
+            <a href="/static/detect.html" class="header-link">图片检测</a>
+            <a href="/static/users.html" class="header-link">用户管理</a>
+            <a href="/static/logs.html" class="header-link">操作日志</a>
+            <button id="themeToggle" class="header-link" onclick="toggleTheme()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">深色</button>
+            <button class="header-link" onclick="doLogout()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">退出登录</button>
+        </div>
+    </header>
+
+    <div class="main">
+        <div class="card">
+            <div class="card-head">
+                <span class="card-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                    系统配置
+                </span>
+            </div>
+            <div class="card-body" id="configList">
+                <div class="empty">加载中...</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <div class="card-head">
+                <span class="card-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    数据备份
+                </span>
+            </div>
+            <div class="card-body" style="padding:20px;">
+                <p style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:12px;">导出所有告警、检测、标注、数据集、训练记录为 JSON 文件。</p>
+                <button class="btn btn-primary" onclick="exportBackup()">导出备份</button>
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-ghost" onclick="loadConfig()">重置</button>
+            <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()">保存配置</button>
+        </div>
+    </div>
+
+    <footer class="footer">Argus 智能监控告警系统 v0.1.0</footer>
+
+    <script src="/static/confirm.js"></script>
+    <script>
+        function authFetch(url, opts = {}) {
+            const t = localStorage.getItem('token');
+            if (!opts.headers) opts.headers = {};
+            if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+            return fetch(url, opts);
+        }
+
+        function doLogout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            fetch('/api/v1/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        function showNotification(msg, type = 'info') {
+            const el = document.getElementById('notification');
+            el.innerHTML = msg;
+            el.className = 'toast ' + type;
+            el.style.display = 'flex';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+
+        async function loadConfig() {
+            try {
+                const resp = await authFetch('/api/v1/auth/config');
+                const data = await resp.json();
+                if (!data.success) { showNotification(data.detail || '加载失败', 'error'); return; }
+                const configs = data.configs || [];
+                const container = document.getElementById('configList');
+                if (!configs.length) {
+                    container.innerHTML = '<div class="empty">暂无配置</div>';
+                    return;
+                }
+                container.innerHTML = configs.map(c => `
+                    <div class="config-item">
+                        <div class="config-info">
+                            <div class="config-key">${c.key}</div>
+                            <div class="config-desc">${c.description || ''}</div>
+                        </div>
+                        <input class="config-input" data-key="${c.key}" value="${c.value}" ${c.type==='bool'?'placeholder="true / false"':''}>
+                    </div>
+                `).join('');
+            } catch (e) {
+                showNotification('加载失败: ' + e.message, 'error');
+            }
+        }
+
+        async function saveConfig() {
+            const inputs = document.querySelectorAll('.config-input');
+            const configs = Array.from(inputs).map(el => ({
+                key: el.dataset.key,
+                value: el.value.trim()
+            }));
+            try {
+                const resp = await authFetch('/api/v1/auth/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ configs }),
+                });
+                const data = await resp.json();
+                if (data.success) showNotification('配置已保存', 'success');
+                else showNotification(data.detail || '保存失败', 'error');
+            } catch (e) {
+                showNotification('保存失败: ' + e.message, 'error');
+            }
+        }
+
+        async function exportBackup() {
+            try {
+                const resp = await authFetch('/api/v1/auth/backup');
+                if (!resp.ok) { showNotification('备份失败', 'error'); return; }
+                const blob = await resp.blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `argus_backup_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+                showNotification('备份已导出', 'success');
+            } catch (e) {
+                showNotification('备份失败', 'error');
+            }
+        }
+
+        loadConfig();
+    </script>
+</body>
+</html>

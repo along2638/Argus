@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>Argus — 图片检测</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="/static/theme.js"></script>
+    <script src="/static/loading.js"></script>
     <style>
         :root {
             --bg: #f5f0eb; --bg-card: rgba(255,255,255,0.55); --bg-card-solid: #fff;
@@ -138,8 +141,10 @@
             <h1>Argus 智能监控</h1>
         </div>
         <div class="header-right">
-            <a href="/" class="header-link">返回主页</a>
+            <a href="/" class="header-link">监控主页</a>
             <a href="/static/annotate.html" class="header-link">手动标注</a>
+            <a href="/static/users.html" class="header-link">用户管理</a>
+            <button id="themeToggle" class="header-link" onclick="toggleTheme()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">深色</button>
             <button class="header-link" onclick="doLogout()" style="background:var(--accent-soft);color:var(--ink);font-weight:500;cursor:pointer;border:none;font-family:inherit;">退出登录</button>
         </div>
     </header>
@@ -157,10 +162,17 @@
                 <div class="sidebar-body">
                     <div class="upload-zone" id="uploadZone">
                         <div style="opacity:0.2;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg></div>
-                        <div class="upload-zone-text">拖拽或点击上传</div>
+                        <div class="upload-zone-text">拖拽或点击上传（支持多选）</div>
                         <div class="upload-zone-hint">JPG / PNG / BMP</div>
                     </div>
-                    <input type="file" id="fileInput" accept="image/*" style="display:none;">
+                    <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+                    <div style="margin-top:10px;">
+                        <label style="font-size:0.7rem;color:var(--ink-muted);margin-bottom:4px;display:block;">或输入图片 URL</label>
+                        <div style="display:flex;gap:6px;">
+                            <input id="imageUrl" type="url" placeholder="https://example.com/cat.jpg" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;background:var(--bg-input);outline:none;">
+                            <button class="btn btn-ghost btn-sm" onclick="detectFromUrl()">检测</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -204,7 +216,16 @@
                     检测历史
                 </span>
                 <button onclick="loadHistory()" style="background:none;border:none;cursor:pointer;color:var(--ink-muted);font-size:0.75rem;">刷新</button>
+                <button onclick="exportHistory()" style="background:none;border:none;cursor:pointer;color:var(--ink-muted);font-size:0.75rem;">导出</button>
                 <button onclick="clearHistory()" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.75rem;">清空</button>
+            </div>
+            <div style="padding:8px 12px;border-bottom:1px solid var(--border);">
+                <select id="historyModelFilter" onchange="historyPage=1;loadHistory()" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:0.72rem;background:var(--bg-input);color:var(--ink);font-family:inherit;">
+                    <option value="">全部模型</option>
+                    <option value="general">通用检测</option>
+                    <option value="fire_smoke">火灾烟雾</option>
+                    <option value="helmet">安全帽</option>
+                </select>
             </div>
             <div class="history-scroll" id="historyList">
                 <div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">暂无检测记录</div>
@@ -229,7 +250,12 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                         检测结果
                     </span>
-                    <div class="result-stats" id="resultStats"></div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div class="result-stats" id="resultStats"></div>
+                        <button class="btn btn-ghost btn-sm" id="annotateBtn" onclick="goToAnnotate()" style="display:none;">跳转标注</button>
+                        <button class="btn btn-ghost btn-sm" id="importBtn" onclick="importAnnotations()" style="display:none;">导入标注</button>
+                        <button class="btn btn-ghost btn-sm" id="exportBtn" onclick="exportCSV()" style="display:none;">导出 CSV</button>
+                    </div>
                 </div>
                 <div class="result-scroll" id="resultList">
                     <div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">等待检测</div>
@@ -304,8 +330,71 @@
         uploadZone.addEventListener('click', () => fileInput.click());
         uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
         uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-        uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
-        fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+        uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+        fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(e.target.files); });
+
+        let batchFiles = [];
+        let batchResults = [];
+
+        function detectFromUrl() {
+            const url = document.getElementById('imageUrl').value.trim();
+            if (!url) { showNotification('请输入图片 URL', 'error'); return; }
+            loading.classList.add('show');
+            detectBtn.disabled = true;
+            setSelectDisabled('modelSelectWrap', true);
+            setSelectDisabled('confSelectWrap', true);
+
+            const model = getSelectValue('modelSelectWrap');
+            const conf = getSelectValue('confSelectWrap');
+
+            authFetch('/api/v1/stream/detect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image_url: url, model: model, confidence: parseFloat(conf) }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // 加载图片到画布
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        resultImage.src = img.src;
+                        resultImage.style.display = 'block';
+                        imageEmpty.style.display = 'none';
+                        imageWidth = img.naturalWidth;
+                        imageHeight = img.naturalHeight;
+                        resizeCanvas();
+                        detections = data.detections || [];
+                        currentResultId = data.result_id || null;
+                        drawDetections();
+                        renderResultList(data);
+                    };
+                    img.src = url;
+                } else {
+                    showNotification('检测失败: ' + (data.detail || ''), 'error');
+                }
+            })
+            .catch(err => showNotification('请求失败', 'error'))
+            .finally(() => {
+                loading.classList.remove('show');
+                detectBtn.disabled = false;
+                setSelectDisabled('modelSelectWrap', false);
+                setSelectDisabled('confSelectWrap', false);
+            });
+        }
+
+        function handleFiles(files) {
+            batchFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+            if (!batchFiles.length) { showNotification('请选择图片文件', 'error'); return; }
+            batchResults = [];
+            currentResultId = null;
+
+            // 显示第一张图
+            handleFile(batchFiles[0]);
+            detectBtn.disabled = false;
+            showNotification(`已加载 ${batchFiles.length} 张图片`, 'info');
+        }
 
         function handleFile(file) {
             if (!file.type.startsWith('image/')) { showNotification('请选择图片文件', 'error'); return; }
@@ -375,37 +464,50 @@
 
         // ── Detect ──
         async function runDetect() {
-            if (!currentFile) return;
+            if (!currentFile && !batchFiles.length) return;
             loading.classList.add('show');
             detectBtn.disabled = true;
             setSelectDisabled('modelSelectWrap', true);
             setSelectDisabled('confSelectWrap', true);
 
-            const fd = new FormData();
-            fd.append('file', currentFile);
-            fd.append('model', getSelectValue('modelSelectWrap'));
-            fd.append('confidence', getSelectValue('confSelectWrap'));
+            const model = getSelectValue('modelSelectWrap');
+            const conf = getSelectValue('confSelectWrap');
+            const filesToProcess = batchFiles.length > 1 ? batchFiles : [currentFile];
+            batchResults = [];
 
-            try {
-                const resp = await authFetch('/api/v1/stream/detect/upload', { method: 'POST', body: fd });
-                const data = await resp.json();
-                if (data.success) {
-                    detections = data.detections;
-                    currentResultId = data.result_id;
-                    drawDetections();
-                    renderResultList(data);
-                    loadHistory();
-                } else {
-                    showNotification('检测失败: ' + (data.detail || ''), 'error');
+            for (const file of filesToProcess) {
+                const fd = new FormData();
+                fd.append('file', file);
+                fd.append('model', model);
+                fd.append('confidence', conf);
+
+                try {
+                    const resp = await authFetch('/api/v1/stream/detect/upload', { method: 'POST', body: fd });
+                    const data = await resp.json();
+                    if (data.success) {
+                        batchResults.push({ filename: file.name, ...data });
+                        // 如果只有一张图或当前处理的是当前显示的图，更新画布
+                        if (filesToProcess.length === 1 || file === currentFile) {
+                            detections = data.detections;
+                            currentResultId = data.result_id;
+                            drawDetections();
+                            renderResultList(data);
+                        }
+                    }
+                } catch (err) {
+                    showNotification(`${file.name} 检测失败`, 'error');
                 }
-            } catch (err) {
-                showNotification('请求失败: ' + err.message, 'error');
-            } finally {
-                loading.classList.remove('show');
-                detectBtn.disabled = false;
-                setSelectDisabled('modelSelectWrap', false);
-                setSelectDisabled('confSelectWrap', false);
             }
+
+            if (batchFiles.length > 1) {
+                showNotification(`批量检测完成：${batchResults.length}/${batchFiles.length} 张`, 'success');
+            }
+
+            loading.classList.remove('show');
+            detectBtn.disabled = false;
+            setSelectDisabled('modelSelectWrap', false);
+            setSelectDisabled('confSelectWrap', false);
+            loadHistory();
         }
         function setSelectDisabled(id, disabled) {
             const w = document.getElementById(id);
@@ -416,6 +518,9 @@
         function renderResultList(data) {
             const names = { general:'通用模型', fire_smoke:'火灾烟雾模型', helmet:'安全帽模型' };
             resultStats.innerHTML = `<span>${data.detections_count} 个目标</span><span>${data.inference_time_ms}ms</span><span>${names[data.model]||data.model}</span>`;
+            document.getElementById('exportBtn').style.display = data.detections.length ? '' : 'none';
+            document.getElementById('annotateBtn').style.display = (currentFile && data.detections.length) ? '' : 'none';
+            document.getElementById('importBtn').style.display = (currentResultId && data.detections.length) ? '' : 'none';
 
             if (!data.detections.length) {
                 resultList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">未检测到目标</div>';
@@ -435,16 +540,85 @@
             }).join('');
         }
 
+        function goToAnnotate() {
+            if (!currentFile) return;
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            authFetch('/api/annotations/upload', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '/static/annotate.html?image=' + encodeURIComponent(data.filename);
+                    } else {
+                        showNotification('准备标注失败', 'error');
+                    }
+                })
+                .catch(() => showNotification('请求失败', 'error'));
+        }
+
+        async function importAnnotations() {
+            if (!currentResultId) return;
+            try {
+                const resp = await authFetch(`/api/v1/stream/detect/${currentResultId}/import-annotations`, { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    showNotification(`已导入 ${data.count} 个标注框`, 'success');
+                } else {
+                    showNotification(data.message || data.detail || '导入失败', 'error');
+                }
+            } catch (e) {
+                showNotification('请求失败', 'error');
+            }
+        }
+
+        function exportCSV() {
+            if (!batchResults.length && !detections.length) return;
+            let csv = 'filename,class_name,confidence,bbox_x1,bbox_y1,bbox_x2,bbox_y2\n';
+            if (batchResults.length > 1) {
+                // 批量导出
+                batchResults.forEach(r => {
+                    (r.detections || []).forEach(d => {
+                        csv += `${r.filename},${d.class_name},${d.confidence.toFixed(4)},${d.bbox.join(',')}\n`;
+                    });
+                });
+            } else {
+                // 单图导出
+                const fname = currentFile ? currentFile.name : 'unknown';
+                detections.forEach(d => {
+                    csv += `${fname},${d.class_name},${d.confidence.toFixed(4)},${d.bbox.join(',')}\n`;
+                });
+            }
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `detection_${new Date().toISOString().slice(0,19).replace(/[:-]/g,'')}.csv`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showNotification('CSV 已导出', 'success');
+        }
+
         // ── History ──
+        let historyPage = 1;
+        const HISTORY_PAGE = 20;
+
         async function loadHistory() {
             try {
-                const resp = await authFetch('/api/v1/stream/detect/history?limit=50');
+                const model = document.getElementById('historyModelFilter').value;
+                const offset = (historyPage - 1) * HISTORY_PAGE;
+                let url = `/api/v1/stream/detect/history?limit=${HISTORY_PAGE}&offset=${offset}`;
+                if (model) url += `&model=${model}`;
+                const resp = await authFetch(url);
                 const data = await resp.json();
-                if (!data.items.length) {
+                const items = data.items || [];
+                const total = data.total || 0;
+                const totalPages = Math.ceil(total / HISTORY_PAGE);
+                if (historyPage > totalPages) historyPage = totalPages || 1;
+
+                if (!items.length) {
                     historyList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">暂无检测记录</div>';
                     return;
                 }
-                historyList.innerHTML = data.items.map(item => {
+                historyList.innerHTML = items.map(item => {
                     const active = item.id === currentResultId ? 'active' : '';
                     const t = item.detected_at ? new Date(item.detected_at).toLocaleString('zh-CN') : '';
                     const imgSrc = item.image_path ? `/api/v1/stream/image/${item.image_path}` : '';
@@ -459,6 +633,17 @@
                         <button onclick="event.stopPropagation();deleteHistory(${item.id})" style="background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:0.7rem;padding:4px 6px;border-radius:4px;transition:var(--transition);flex-shrink:0;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--ink-faint)'">删除</button>
                     </div>`;
                 }).join('');
+
+                // 分页控件
+                if (totalPages > 1) {
+                    historyList.innerHTML += `<div style="display:flex;justify-content:center;gap:4px;padding:8px;border-top:1px solid var(--border);">
+                        <button onclick="historyPage=1;loadHistory()" ${historyPage<=1?'disabled':''} style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);cursor:pointer;font-size:0.7rem;">«</button>
+                        <button onclick="historyPage--;loadHistory()" ${historyPage<=1?'disabled':''} style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);cursor:pointer;font-size:0.7rem;">‹</button>
+                        <span style="padding:3px 8px;font-size:0.72rem;color:var(--ink-muted);">${historyPage}/${totalPages}</span>
+                        <button onclick="historyPage++;loadHistory()" ${historyPage>=totalPages?'disabled':''} style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);cursor:pointer;font-size:0.7rem;">›</button>
+                        <button onclick "historyPage=${totalPages};loadHistory()" ${historyPage>=totalPages?'disabled':''} style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);cursor:pointer;font-size:0.7rem;">»</button>
+                    </div>`;
+                }
             } catch {}
         }
 
@@ -478,6 +663,29 @@
                 }
                 loadHistory();
             } catch {}
+        }
+
+        async function exportHistory() {
+            const model = document.getElementById('historyModelFilter').value;
+            try {
+                let url = '/api/v1/stream/detect/history?limit=1000';
+                if (model) url += '&model=' + model;
+                const resp = await authFetch(url);
+                const data = await resp.json();
+                const items = data.items || [];
+                if (!items.length) { showNotification('无数据可导出', 'info'); return; }
+                let csv = 'id,filename,model_name,detections_count,detected_at\n';
+                items.forEach(r => {
+                    csv += `${r.id},"${r.filename||''}",${r.model_name},${r.detections_count},${r.detected_at||''}\n`;
+                });
+                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `detect_history_${new Date().toISOString().slice(0,10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+                showNotification(`已导出 ${items.length} 条记录`, 'success');
+            } catch (e) { showNotification('导出失败', 'error'); }
         }
 
         async function clearHistory() {

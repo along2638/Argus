@@ -10,10 +10,10 @@ Argus — 智能监控告警系统。RTSP/RTMP 流 → YOLOv11 ONNX 检测 → R
 # Install
 uv pip install -e ".[dev]"
 
-# Run API server
+# Run API server (dev mode)
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Run ARQ worker
+# Run ARQ worker (dev: auto-started in main.py; production: separate container)
 arq app.services.worker_tasks.WorkerSettings
 
 # Tests
@@ -31,6 +31,11 @@ alembic upgrade head              # apply all migrations
 alembic revision --autogenerate -m "describe_change"  # generate new migration
 alembic history                   # view migration history
 alembic downgrade -1              # rollback one step
+
+# Docker (one command for full stack: API + worker + Redis + MySQL + MinIO)
+docker compose up -d
+docker compose logs -f
+docker compose down
 ```
 
 ## Tech Stack
@@ -58,6 +63,7 @@ alembic downgrade -1              # rollback one step
 - **No foreign keys**: All tables use plain BigInteger for references, cascade handled in business code.
 - **JWT blacklisting**: Logout stores token in Redis with TTL matching token expiry.
 - **ONNX GPU fallback**: CUDA errors suppressed via ONNXRUNTIME_LOG_LEVEL=3, falls back to CPU automatically.
+- **Annotation tool API**: Labeling endpoints (`/api/annotations/*`) are defined directly in `app/main.py`, not in a separate router.
 
 ## Configuration
 
@@ -68,6 +74,7 @@ All config via `.env` (see `.env.example`):
 - **CONFIDENCE_THRESHOLD**: 0.3 (general), 0.01 (fire_smoke)
 - **ALARM_CLASSES**: person, animal classes, fire, smoke, no-helmet
 - **Models path**: ONNX files at paths in `.env`. Missing model = startup failure.
+- **Alembic DSN escaping**: `alembic/env.py` doubles `%` → `%%` for configparser compatibility. If you change MYSQL_DSN, run `alembic upgrade head` to verify.
 
 ## Testing
 

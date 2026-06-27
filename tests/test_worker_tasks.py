@@ -17,8 +17,16 @@ def make_mock_ctx():
     """Create a mock ARQ context with a mock db pool."""
     ctx = {}
 
+    mock_cursor = AsyncMock()
+    mock_cursor.execute = AsyncMock()
+    mock_cursor.lastrowid = 42
+
+    @asynccontextmanager
+    async def mock_cursor_ctx():
+        yield mock_cursor
+
     mock_conn = AsyncMock()
-    mock_conn.fetchrow = AsyncMock(return_value={"id": 42})
+    mock_conn.cursor = mock_cursor_ctx
 
     @asynccontextmanager
     async def mock_acquire():
@@ -29,7 +37,7 @@ def make_mock_ctx():
     mock_pool.close = AsyncMock()
 
     ctx["db_pool"] = mock_pool
-    return ctx, mock_conn
+    return ctx, mock_cursor
 
 
 class TestEnqueueAlarmTask:
@@ -99,7 +107,7 @@ class TestSaveAlarm:
     @pytest.mark.asyncio
     async def test_save_success(self):
         """Test successful alarm save."""
-        ctx, mock_conn = make_mock_ctx()
+        ctx, mock_cursor = make_mock_ctx()
 
         result = await save_alarm(
             ctx,
@@ -112,9 +120,9 @@ class TestSaveAlarm:
         )
 
         assert result is True
-        mock_conn.fetchrow.assert_called_once()
+        mock_cursor.execute.assert_called_once()
         # Verify SQL contains INSERT
-        call_args = mock_conn.fetchrow.call_args
+        call_args = mock_cursor.execute.call_args
         assert "INSERT" in call_args[0][0]
 
     @pytest.mark.asyncio
@@ -122,8 +130,16 @@ class TestSaveAlarm:
         """Test save_alarm creates pool when not in ctx."""
         ctx = {}  # Empty ctx, no db_pool
 
+        mock_cursor = AsyncMock()
+        mock_cursor.execute = AsyncMock()
+        mock_cursor.lastrowid = 99
+
+        @asynccontextmanager
+        async def mock_cursor_ctx():
+            yield mock_cursor
+
         mock_conn = AsyncMock()
-        mock_conn.fetchrow = AsyncMock(return_value={"id": 99})
+        mock_conn.cursor = mock_cursor_ctx
 
         @asynccontextmanager
         async def mock_acquire():
@@ -132,8 +148,8 @@ class TestSaveAlarm:
         mock_pool = MagicMock()
         mock_pool.acquire = mock_acquire
 
-        with patch("app.services.worker_tasks.asyncpg") as mock_asyncpg:
-            mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
+        with patch("app.services.worker_tasks.aiomysql") as mock_aiomysql:
+            mock_aiomysql.create_pool = AsyncMock(return_value=mock_pool)
 
             result = await save_alarm(
                 ctx,
@@ -147,13 +163,13 @@ class TestSaveAlarm:
 
             assert result is True
             assert "db_pool" in ctx
-            mock_asyncpg.create_pool.assert_called_once()
+            mock_aiomysql.create_pool.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_save_failure_raises(self):
         """Test alarm save failure raises exception for ARQ retry."""
-        ctx, mock_conn = make_mock_ctx()
-        mock_conn.fetchrow = AsyncMock(side_effect=Exception("Database error"))
+        ctx, mock_cursor = make_mock_ctx()
+        mock_cursor.execute = AsyncMock(side_effect=Exception("Database error"))
 
         with pytest.raises(Exception, match="Database error"):
             await save_alarm(

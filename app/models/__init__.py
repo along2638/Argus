@@ -6,6 +6,7 @@ from app.models.sys_user import SysUser
 from app.models.detection_result import DetectionResult
 from app.models.detection_box import DetectionBox
 from app.models.stream_config import StreamConfig
+from app.models.stream_health import StreamHealth
 from app.models.operation_log import OperationLog
 from app.models.system_config import SystemConfig
 from app.models.training_record import TrainingRecord
@@ -13,5 +14,5 @@ from app.models.training_record import TrainingRecord
 __all__ = [
     "AlarmRecord", "AnnotationImage", "AnnotationBox", "Dataset",
     "SysUser", "DetectionResult", "DetectionBox",
-    "StreamConfig", "OperationLog", "SystemConfig", "TrainingRecord",
+    "StreamConfig", "StreamHealth", "OperationLog", "SystemConfig", "TrainingRecord",
 ]

@@ -141,8 +141,8 @@ class TestStreamProcessor:
 
         # General model
         assert processor._get_alarm_type("general", "person") == "intrusion"
-        assert processor._get_alarm_type("general", "bird") == "animal"
-        assert processor._get_alarm_type("general", "cat") == "animal"
+        assert processor._get_alarm_type("general", "bird") == "intrusion"
+        assert processor._get_alarm_type("general", "cat") == "intrusion"
         assert processor._get_alarm_type("general", "car") is None
 
         # Unknown model

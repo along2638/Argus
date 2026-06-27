@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     # Alarm Configuration
     ALARM_COOLDOWN_TTL: int = 30  # seconds
 
+    # Alarm Escalation: same type fires N times within window → severity upgrades
+    ALARM_ESCALATION_WINDOW: int = 300  # 5 minutes
+    ALARM_ESCALATION_IMPORTANT: int = 3  # 3 times → important
+    ALARM_ESCALATION_CRITICAL: int = 5  # 5 times → critical
+
     # ARQ Worker Configuration
     ARQ_MAX_JOBS: int = 20
     ARQ_QUEUE_WARNING_THRESHOLD: int = 100

@@ -94,9 +94,8 @@ class StreamProcessor:
 
     def _remove_from_manager(self) -> None:
         """从 StreamManager 中移除自身。"""
-        manager = StreamManager()
-        if self.stream_id in manager._streams:
-            del manager._streams[self.stream_id]
+        if self.stream_id in stream_manager._streams:
+            del stream_manager._streams[self.stream_id]
             print_status(f"流 {self.stream_id} 已从管理器中移除", "info")
 
     async def stop(self) -> None:
@@ -352,6 +351,8 @@ class StreamProcessor:
                     detections, inference_time = await detector.detect_with_model(
                         frame, model_name, tracker=self._tracker
                     )
+                    from app.core.metrics import observe_histogram
+                    observe_histogram("argus_inference_ms", inference_time / 1000.0, model=model_name)
                     logger.debug("detection_result", stream_id=self.stream_id, model=model_name,
                                  count=len(detections), time_ms=round(inference_time, 1),
                                  conf_threshold=settings.CONFIDENCE_THRESHOLD)
@@ -479,7 +480,16 @@ class StreamProcessor:
             else:
                 logger.warning("minio_upload_failed_no_image", stream_id=self.stream_id)
 
+            # Compute severity based on recent alarm frequency
+            from app.core.alarm_severity import compute_severity
+            severity_counts = {}
             for alarm in alarm_detections:
+                at = alarm["alarm_type"]
+                if at not in severity_counts:
+                    severity_counts[at] = await compute_severity(self.stream_id, at)
+
+            for alarm in alarm_detections:
+                severity = severity_counts.get(alarm["alarm_type"], "normal")
                 await enqueue_alarm_task(
                     stream_url=self.stream_url,
                     stream_id=self.stream_id,
@@ -488,7 +498,22 @@ class StreamProcessor:
                     minio_key=object_key or "",
                     track_id=alarm["track_id"],
                     class_name=alarm.get("class_name", ""),
+                    severity=severity,
                 )
+                # Broadcast to WebSocket clients
+                from app.core.alarm_broadcaster import alarm_broadcaster
+                await alarm_broadcaster.broadcast({
+                    "type": "alarm",
+                    "stream_id": self.stream_id,
+                    "alarm_type": alarm["alarm_type"],
+                    "class_name": alarm.get("class_name", ""),
+                    "confidence": alarm["confidence"],
+                    "severity": severity,
+                    "image_key": object_key or "",
+                })
+                # Update metrics
+                from app.core.metrics import inc_counter
+                inc_counter("argus_alarms_total", alarm_type=alarm["alarm_type"], severity=severity)
         except Exception as e:
             logger.error("alarm_save_error", stream_id=self.stream_id, error=str(e))
 

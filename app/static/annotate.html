@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>Argus — 手动标注</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="/static/theme.js"></script>
+    <script src="/static/loading.js"></script>
     <style>
         :root {
             --bg: #f5f0eb;
@@ -398,8 +400,10 @@
         </div>
         <div class="header-right">
             <span class="header-badge" id="progress">0 / 0 已标注</span>
-            <a href="/" class="header-link">返回主页</a>
-            <a href="/static/detect.html" target="_blank" class="header-link">图片检测</a>
+            <a href="/" class="header-link">监控主页</a>
+            <a href="/static/detect.html" class="header-link">图片检测</a>
+            <a href="/static/users.html" class="header-link">用户管理</a>
+            <button id="themeToggle" class="header-link" onclick="toggleTheme()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">深色</button>
             <button class="header-link" onclick="doLogout()" style="background:var(--accent-soft);color:var(--ink);font-weight:500;cursor:pointer;border:none;font-family:inherit;">退出登录</button>
         </div>
     </header>
@@ -420,12 +424,20 @@
                 <button class="btn btn-ghost" onclick="prevImage()">← 上一张</button>
                 <button class="btn btn-ghost" onclick="nextImage()">下一张 →</button>
                 <div class="toolbar-sep"></div>
+                <div class="form-group" style="margin-bottom:0;min-width:120px;">
+                    <select id="classSelect" class="form-select" style="padding:7px 10px;font-size:0.78rem;border-radius:var(--radius);background:var(--bg-input);border:1px solid var(--border);color:var(--ink);font-family:inherit;cursor:pointer;">
+                        <option value="0">fire</option>
+                        <option value="1">smoke</option>
+                    </select>
+                </div>
                 <button class="btn btn-success" onclick="saveAnnotation()">保存标注</button>
                 <button class="btn btn-danger" onclick="deleteLastBox()">删除框</button>
                 <div class="toolbar-hint">
                     <span><kbd>Ctrl+S</kbd> 保存</span>
-                    <span><kbd>←</kbd><kbd>→</kbd> 切换</span>
-                    <span><kbd>Del</kbd> 删框</span>
+                    <span><kbd>Ctrl+Z</kbd> 撤销</span>
+                    <span><kbd>0</kbd> 重置视图</span>
+                    <span>滚轮缩放</span>
+                    <span>Alt+拖拽平移</span>
                 </div>
             </div>
 
@@ -449,6 +461,7 @@
         </div>
     </div>
 
+    <script src="/static/confirm.js"></script>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -463,10 +476,15 @@
         let images = [];
         let currentIndex = 0;
         let boxes = [];
+        let undoHistory = [];
         let isDrawing = false;
         let startX, startY;
         let currentBox = null;
         let img = null;
+        let zoom = 1;
+        let panX = 0, panY = 0;
+        let isPanning = false;
+        let panStartX, panStartY;
 
         async function doLogout() {
             localStorage.removeItem('token');
@@ -483,12 +501,50 @@
             setTimeout(() => { el.style.display = 'none'; }, 2500);
         }
 
+        function saveUndoState() {
+            undoHistory.push(JSON.parse(JSON.stringify(boxes)));
+            if (undoHistory.length > 50) undoHistory.shift();
+        }
+
+        function undo() {
+            if (undoHistory.length === 0) {
+                showNotification('没有可撤销的操作', 'info');
+                return;
+            }
+            boxes = undoHistory.pop();
+            renderBoxes();
+            updateBoxCount();
+            showNotification(`已撤销，剩余 ${boxes.length} 个框`, 'info');
+        }
+
         async function loadFiles() {
+            // 加载标注类别
+            try {
+                const clsResp = await authFetch('/api/v1/auth/annotation-classes');
+                const clsData = await clsResp.json();
+                if (clsData.success && clsData.classes) {
+                    const sel = document.getElementById('classSelect');
+                    sel.innerHTML = clsData.classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                }
+            } catch {}
+
             const response = await authFetch('/api/annotations/files');
             const data = await response.json();
             images = data.files;
             updateProgress();
             renderFileList();
+
+            // 检查 URL 参数，直接加载指定图片
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetImage = urlParams.get('image');
+            if (targetImage) {
+                const idx = images.findIndex(f => f.name === targetImage);
+                if (idx >= 0) {
+                    loadImage(idx);
+                    return;
+                }
+            }
+
             if (images.length > 0) loadImage(0);
         }
 
@@ -546,7 +602,8 @@
                         x: (b.cx - b.w / 2) * imgW,
                         y: (b.cy - b.h / 2) * imgH,
                         w: b.w * imgW,
-                        h: b.h * imgH
+                        h: b.h * imgH,
+                        class_id: b.class !== undefined ? b.class : 0
                     }));
                 }
             } catch (e) {
@@ -557,40 +614,66 @@
         }
 
         function renderBoxes() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(panX, panY);
+            ctx.scale(zoom, zoom);
             ctx.drawImage(img, 0, 0);
+            // 从下拉框构建类别映射
+            const classMap = {};
+            document.getElementById('classSelect').querySelectorAll('option').forEach(opt => {
+                classMap[opt.value] = opt.textContent;
+            });
             boxes.forEach((box, i) => {
                 ctx.strokeStyle = 'rgba(45,122,79,0.9)';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 2 / zoom;
                 ctx.strokeRect(box.x, box.y, box.w, box.h);
                 ctx.fillStyle = 'rgba(45,122,79,0.85)';
-                ctx.font = '600 11px Inter, sans-serif';
-                const label = `fire ${i + 1}`;
+                ctx.font = `${600 / zoom}px Inter, sans-serif`;
+                const label = `${classMap[box.class_id] || 'fire'} ${i + 1}`;
                 const tw = ctx.measureText(label).width;
                 ctx.beginPath();
-                ctx.roundRect(box.x + 2, box.y - 18, tw + 10, 16, 3);
+                ctx.roundRect(box.x + 2, box.y - 18 / zoom, tw + 10, 16 / zoom, 3);
                 ctx.fill();
                 ctx.fillStyle = '#fff';
-                ctx.fillText(label, box.x + 7, box.y - 6);
+                ctx.fillText(label, box.x + 7, box.y - 6 / zoom);
             });
+            ctx.restore();
         }
 
         canvas.onmousedown = (e) => {
+            if (e.button === 1 || (e.button === 0 && e.altKey)) {
+                // 中键或 Alt+左键 = 平移
+                isPanning = true;
+                panStartX = e.clientX - panX;
+                panStartY = e.clientY - panY;
+                canvas.style.cursor = 'grabbing';
+                e.preventDefault();
+                return;
+            }
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            startX = (e.clientX - rect.left) * scaleX;
-            startY = (e.clientY - rect.top) * scaleY;
+            startX = (e.clientX - rect.left - panX) / zoom * scaleX;
+            startY = (e.clientY - rect.top - panY) / zoom * scaleY;
             isDrawing = true;
-            currentBox = { x: startX, y: startY, w: 0, h: 0 };
+            const classId = parseInt(document.getElementById('classSelect').value);
+            currentBox = { x: startX, y: startY, w: 0, h: 0, class_id: classId };
         };
 
         canvas.onmousemove = (e) => {
+            if (isPanning) {
+                panX = e.clientX - panStartX;
+                panY = e.clientY - panStartY;
+                renderBoxes();
+                return;
+            }
             if (!isDrawing) return;
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
+            const x = (e.clientX - rect.left - panX) / zoom * scaleX;
+            const y = (e.clientY - rect.top - panY) / zoom * scaleY;
             currentBox.w = x - startX;
             currentBox.h = y - startY;
             renderBoxes();
@@ -605,9 +688,15 @@
         };
 
         canvas.onmouseup = (e) => {
+            if (isPanning) {
+                isPanning = false;
+                canvas.style.cursor = 'crosshair';
+                return;
+            }
             if (!isDrawing) return;
             isDrawing = false;
             if (Math.abs(currentBox.w) > 5 && Math.abs(currentBox.h) > 5) {
+                saveUndoState();
                 if (currentBox.w < 0) { currentBox.x += currentBox.w; currentBox.w = -currentBox.w; }
                 if (currentBox.h < 0) { currentBox.y += currentBox.h; currentBox.h = -currentBox.h; }
                 boxes.push(currentBox);
@@ -620,10 +709,26 @@
 
         document.onkeydown = (e) => {
             if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveAnnotation(); }
+            else if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
             else if (e.key === 'ArrowRight') nextImage();
             else if (e.key === 'ArrowLeft') prevImage();
             else if (e.key === 'Delete') deleteLastBox();
+            else if (e.key === '0') { zoom = 1; panX = 0; panY = 0; renderBoxes(); }
         };
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            const newZoom = Math.max(0.2, Math.min(5, zoom * delta));
+            // 以鼠标位置为中心缩放
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            panX = mx - (mx - panX) * (newZoom / zoom);
+            panY = my - (my - panY) * (newZoom / zoom);
+            zoom = newZoom;
+            renderBoxes();
+        }, { passive: false });
 
         function nextImage() {
             saveAnnotation();
@@ -643,6 +748,7 @@
         }
         function deleteLastBox() {
             if (boxes.length > 0) {
+                saveUndoState();
                 boxes.pop();
                 renderBoxes();
                 updateBoxCount();
@@ -659,7 +765,8 @@
                 const cy = (box.y + box.h / 2) / imgH;
                 const w = box.w / imgW;
                 const h = box.h / imgH;
-                return `0 ${cx.toFixed(6)} ${cy.toFixed(6)} ${w.toFixed(6)} ${h.toFixed(6)}`;
+                const classId = box.class_id !== undefined ? box.class_id : 0;
+                return `${classId} ${cx.toFixed(6)} ${cy.toFixed(6)} ${w.toFixed(6)} ${h.toFixed(6)}`;
             });
 
             try {

@@ -19,12 +19,13 @@ os.environ["PATH"] = ";".join(_cuda_dirs) + ";" + os.environ.get("PATH", "")
 os.environ["ONNXRUNTIME_LOG_LEVEL"] = "3"
 
 import onnxruntime as ort
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.stream import router as stream_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.admin import router as admin_router
 from app.config import settings
 from app.core.alarm_dedup import alarm_dedup
 from app.core.detector import detector
@@ -76,6 +77,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown."""
     # Startup
     setup_logging()
+    health_task = None
 
     print_status("YOLO 监控告警系统 v0.1.0 启动中...", "info")
     print_status("=" * 50, "info")
@@ -103,6 +105,10 @@ async def lifespan(app: FastAPI):
     await asyncio.sleep(1)  # Give worker time to start
     print_status("[OK] ARQ Worker 已启动", "success")
 
+    # Start stream health recorder
+    from app.core.health_recorder import record_stream_health
+    health_task = asyncio.create_task(record_stream_health(stream_manager))
+
     # Log GPU availability
     providers = ort.get_available_providers()
     gpu_available = "CUDAExecutionProvider" in providers
@@ -110,6 +116,41 @@ async def lifespan(app: FastAPI):
         print_status("[OK] GPU 加速可用 (CUDA)", "success")
     else:
         print_status("[WARN] GPU 不可用，使用 CPU 推理", "warning")
+
+    # 自动恢复上次运行的流
+    print_status("正在恢复历史流配置...", "info")
+    try:
+        from app.db import async_session
+        from app.models.stream_config import StreamConfig
+        from sqlalchemy import select
+
+        async with async_session() as session:
+            result = await session.execute(
+                select(StreamConfig).where(StreamConfig.status == "running")
+            )
+            running_configs = result.scalars().all()
+            restored = 0
+            for cfg in running_configs:
+                try:
+                    r = await stream_manager.start_stream(
+                        stream_id=cfg.stream_id,
+                        stream_url=cfg.stream_url,
+                        validate=False,  # 恢复时跳过验证，避免阻塞启动
+                        alarm_types=cfg.alarm_types or ["helmet", "fire", "intrusion"],
+                    )
+                    if r["success"]:
+                        restored += 1
+                        print_status(f"  [OK] 已恢复流: {cfg.stream_id}", "success")
+                    else:
+                        print_status(f"  [FAIL] 恢复流 {cfg.stream_id} 失败: {r['message']}", "warning")
+                except Exception as e:
+                    print_status(f"  [FAIL] 恢复流 {cfg.stream_id} 异常: {e}", "warning")
+            if running_configs:
+                print_status(f"流恢复完成: {restored}/{len(running_configs)}", "info")
+            else:
+                print_status("无需恢复的流", "info")
+    except Exception as e:
+        print_status(f"流恢复跳过: {e}", "warning")
 
     print_status("=" * 50, "info")
     print_status(f"服务已就绪: http://localhost:{settings.APP_PORT}", "success")
@@ -127,7 +168,14 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     print_status("正在关闭服务...", "warning")
+    if health_task:
+        health_task.cancel()
     worker_task.cancel()
+    if health_task:
+        try:
+            await health_task
+        except asyncio.CancelledError:
+            pass
     try:
         await worker_task
     except asyncio.CancelledError:
@@ -135,6 +183,8 @@ async def lifespan(app: FastAPI):
     await stream_manager.stop_all()
     await close_arq_pool()
     await alarm_dedup.close()
+    from app.core.rate_limiter import RateLimiter
+    await RateLimiter.close()
     minio_service.close()
     detector.close()
     await db_service.close()
@@ -154,6 +204,38 @@ app = FastAPI(
 # Include routers
 app.include_router(stream_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
+
+# WebSocket endpoint for real-time alarm push
+from app.core.alarm_broadcaster import alarm_broadcaster
+
+
+@app.websocket("/ws/alarms")
+async def websocket_alarms(websocket: WebSocket):
+    """WebSocket endpoint for real-time alarm notifications.
+
+    Clients connect here to receive live alarm events.
+    Authentication: pass token as query param ?token=xxx
+    """
+    token = websocket.query_params.get("token")
+    if token:
+        from app.services.auth_service import get_current_user
+        user = await get_current_user(token)
+        if not user:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+
+    await alarm_broadcaster.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive; clients may send pings
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text('{"type":"pong"}')
+    except WebSocketDisconnect:
+        await alarm_broadcaster.disconnect(websocket)
+    except Exception:
+        await alarm_broadcaster.disconnect(websocket)
 
 # Mount static files
 static_dir = Path(__file__).parent / "static"
@@ -162,6 +244,46 @@ if static_dir.exists():
 
 # Public paths (no auth required)
 PUBLIC_PATHS = {"/login", "/static/login.html", "/health", "/docs", "/redoc", "/openapi.json"}
+
+
+# ── 全局异常处理 ──
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    return HTMLResponse(content="""
+    <html><head><title>404</title>
+    <style>body{font-family:Inter,-apple-system,sans-serif;background:#f5f0eb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#1a1a1a;}
+    .box{text-align:center;}.code{font-size:4rem;font-weight:700;color:#c4bfb8;margin-bottom:16px;}
+    .msg{font-size:1.1rem;color:#8a8580;margin-bottom:24px;}.link{color:#1a1a1a;text-decoration:none;padding:8px 20px;border:1px solid rgba(0,0,0,0.06);border-radius:999px;font-size:0.85rem;transition:0.2s;}
+    .link:hover{border-color:#c4bfb8;}</style></head>
+    <body><div class="box"><div class="code">404</div><div class="msg">页面不存在</div><a href="/" class="link">返回主页</a></div></body></html>
+    """, status_code=404)
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc):
+    return HTMLResponse(content="""
+    <html><head><title>500</title>
+    <style>body{font-family:Inter,-apple-system,sans-serif;background:#f5f0eb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#1a1a1a;}
+    .box{text-align:center;}.code{font-size:4rem;font-weight:700;color:#b33a3a;margin-bottom:16px;}
+    .msg{font-size:1.1rem;color:#8a8580;margin-bottom:24px;}.link{color:#1a1a1a;text-decoration:none;padding:8px 20px;border:1px solid rgba(0,0,0,0.06);border-radius:999px;font-size:0.85rem;transition:0.2s;}
+    .link:hover{border-color:#c4bfb8;}</style></head>
+    <body><div class="box"><div class="code">500</div><div class="msg">服务器内部错误</div><a href="/" class="link">返回主页</a></div></body></html>
+    """, status_code=500)
+
+# 需要记录操作日志的 API — key=(method, path), value=action name
+# 新增需要审计的接口时，在此字典中添加映射即可
+_LOG_ACTION_MAP = {
+    ("POST", "/api/v1/stream/start"): "stream_start",
+    ("POST", "/api/v1/stream/stop"): "stream_stop",
+    ("POST", "/api/v1/stream/detect/upload"): "detect_upload",
+    ("POST", "/api/v1/stream/detect"): "detect_url",
+    ("DELETE", "/api/v1/stream/alarms"): "alarm_clear",
+    ("POST", "/api/v1/auth/login"): "login",
+    ("POST", "/api/v1/auth/register"): "register",
+    ("POST", "/api/v1/auth/logout"): "logout",
+    ("POST", "/api/annotations/save"): "annotation_save",
+}
+
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
@@ -193,7 +315,27 @@ async def auth_middleware(request: Request, call_next):
         return RedirectResponse(url="/login", status_code=302)
 
     request.state.user = user
-    return await call_next(request)
+    response = await call_next(request)
+
+    # 操作日志记录（异步，不阻塞响应）
+    log_key = (request.method, path)
+    action = _LOG_ACTION_MAP.get(log_key)
+    if action and 200 <= response.status_code < 400:
+        try:
+            from app.services.operation_log_service import write_log
+            import asyncio
+            asyncio.create_task(write_log(
+                action=action,
+                user_id=user.get("id"),
+                username=user.get("username"),
+                target_type="api",
+                target_id=path,
+                ip_address=request.client.host if request.client else None,
+            ))
+        except Exception:
+            pass  # 日志记录失败不影响正常响应
+
+    return response
 
 # === 标注工具 API ===
 ANNOTATE_DIR = Path(__file__).parent.parent / "fire_smoke_data" / "to_annotate"
@@ -379,6 +521,32 @@ async def save_annotation(data: dict, request: Request = None):
     return {"success": True, "message": f"Saved {filename}"}
 
 
+@app.post("/api/annotations/upload")
+async def upload_to_annotate(file: UploadFile = File(...)):
+    """上传图片到待标注目录（用于检测→标注联动）"""
+    safe_name = Path(file.filename).name
+    if '..' in safe_name:
+        raise HTTPException(status_code=400, detail="非法文件名")
+    dst = ANNOTATE_DIR / safe_name
+    ANNOTATE_DIR.mkdir(parents=True, exist_ok=True)
+    content = await file.read()
+    with open(dst, "wb") as f:
+        f.write(content)
+    return {"success": True, "filename": safe_name}
+
+
+@app.get("/metrics", summary="Prometheus 指标", include_in_schema=False)
+async def metrics_endpoint():
+    """Prometheus-compatible metrics endpoint."""
+    from app.core.metrics import render_metrics, set_gauge
+    from fastapi.responses import PlainTextResponse
+
+    set_gauge("argus_active_streams", stream_manager.active_streams)
+    set_gauge("argus_max_streams", settings.MAX_CONCURRENT_STREAMS)
+
+    return PlainTextResponse(content=render_metrics(), media_type="text/plain; version=0.0.4; charset=utf-8")
+
+
 @app.get("/health", summary="健康检查", description="返回系统健康状态，包括活跃流数量、队列深度、GPU可用性")
 async def health_check():
     """健康检查接口。
@@ -398,11 +566,31 @@ async def health_check():
     else:
         queue_depth = 0
 
+    # 每条流的健康状态
+    streams_health = []
+    for info in stream_manager.get_streams_info():
+        streams_health.append({
+            "stream_id": info.get("stream_id"),
+            "status": info.get("status"),
+            "alarm_count": info.get("alarm_count", 0),
+        })
+
+    # 数据库连接池状态
+    from app.db import get_pool_status
+    pool_status = get_pool_status()
+
+    # GPU memory status
+    from app.core.gpu_monitor import gpu_monitor
+    gpu_status = gpu_monitor.get_status_summary()
+
     return {
         "status": "正常",
         "active_streams": stream_manager.active_streams,
         "queue_depth": queue_depth,
         "gpu_available": gpu_available,
+        "gpu": gpu_status,
+        "streams": streams_health,
+        "db_pool": pool_status,
     }
 
 

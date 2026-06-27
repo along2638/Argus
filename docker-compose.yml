@@ -20,7 +20,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      postgres:
+      mysql:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -41,7 +41,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      postgres:
+      mysql:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -65,21 +65,21 @@ services:
     networks:
       - yolo-net
 
-  # PostgreSQL (Optional - for local development)
-  postgres:
-    image: postgres:16-alpine
-    container_name: yolo-postgres
+  # MySQL (Optional - for local development)
+  mysql:
+    image: mysql:8.0
+    container_name: yolo-mysql
     ports:
-      - "5432:5432"
+      - "3306:3306"
     environment:
-      POSTGRES_DB: yolo_alarm
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+      MYSQL_DATABASE: yolo_alarm
+      MYSQL_ROOT_PASSWORD: mysql123
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - mysql-data:/var/lib/mysql
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -112,7 +112,7 @@ services:
 volumes:
   redis-data:
     driver: local
-  postgres-data:
+  mysql-data:
     driver: local
   minio-data:
     driver: local

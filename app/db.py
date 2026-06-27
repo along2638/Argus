@@ -38,6 +38,7 @@ async def init_db():
     from app.models.detection_result import DetectionResult
     from app.models.detection_box import DetectionBox
     from app.models.stream_config import StreamConfig
+    from app.models.stream_health import StreamHealth
     from app.models.operation_log import OperationLog
     from app.models.system_config import SystemConfig
     from app.models.training_record import TrainingRecord
@@ -51,3 +52,14 @@ async def init_db():
 async def close_db():
     await engine.dispose()
     logger.info("sqlalchemy_engine_disposed")
+
+
+def get_pool_status() -> dict:
+    """获取连接池状态"""
+    pool = engine.pool
+    return {
+        "pool_size": pool.size(),
+        "checked_in": pool.checkedin(),
+        "checked_out": pool.checkedout(),
+        "overflow": pool.overflow(),
+    }

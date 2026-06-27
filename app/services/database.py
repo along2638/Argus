@@ -76,6 +76,7 @@ class DatabaseService:
         cls,
         stream_id: Optional[str] = None,
         alarm_type: Optional[str] = None,
+        severity: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list:
@@ -89,12 +90,15 @@ class DatabaseService:
                 stmt = stmt.where(AlarmRecord.stream_id == stream_id)
             if alarm_type:
                 stmt = stmt.where(AlarmRecord.alarm_type == alarm_type)
+            if severity:
+                stmt = stmt.where(AlarmRecord.severity == severity)
             stmt = stmt.order_by(AlarmRecord.detected_at.desc()).limit(limit).offset(offset)
             result = await session.execute(stmt)
             return [
                 {"id": r.id, "stream_url": r.stream_url, "stream_id": r.stream_id,
                  "alarm_type": r.alarm_type, "confidence": r.confidence, "image_path": r.image_path,
-                 "track_id": r.track_id, "class_name": r.class_name, "detected_by": r.detected_at}
+                 "track_id": r.track_id, "class_name": r.class_name, "severity": r.severity,
+                 "detected_by": r.detected_at}
                 for r in result.scalars().all()
             ]
 
