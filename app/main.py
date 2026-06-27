@@ -109,6 +109,10 @@ async def lifespan(app: FastAPI):
     from app.core.health_recorder import record_stream_health
     health_task = asyncio.create_task(record_stream_health(stream_manager))
 
+    # Load email notification config
+    from app.core.email_notifier import email_notifier
+    await email_notifier.load_config()
+
     # Log GPU availability
     providers = ort.get_available_providers()
     gpu_available = "CUDAExecutionProvider" in providers

@@ -19,7 +19,7 @@
 | 8 | GPU 显存监控 | AI发现 | ✅ DONE | app/core/gpu_monitor.py |
 | 9 | 流健康持久化 | AI发现 | ✅ DONE | app/core/health_recorder.py |
 | 10 | ROI 区域检测 | AI发现 | ✅ DONE | app/core/stream_processor.py |
-| 11 | 邮件通知 | AI发现 | OPEN | - |
+| 11 | 邮件通知 | AI发现 | ✅ DONE | app/core/email_notifier.py |
 | 12 | 定时巡检调度 | AI发现 | OPEN | - |
 
 ## P2 — 低优先级（锦上添花）

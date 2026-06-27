@@ -157,6 +157,10 @@ async def save_alarm(
             # 触发 Webhook 通知
             await _send_webhook(alarm_type, stream_id, confidence, class_name, alarm_id)
 
+            # 触发邮件通知
+            from app.core.email_notifier import email_notifier
+            await email_notifier.send_alarm_email(alarm_type, stream_id, confidence, class_name, alarm_id)
+
             return True
     except Exception as e:
         logger.error(
