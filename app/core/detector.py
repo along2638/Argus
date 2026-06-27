@@ -119,7 +119,7 @@ class MultiModelDetector:
             model.close()
         logger.info("detector_sessions_closed")
 
-    def _preprocess(self, frame: np.ndarray, input_shape: Tuple[int, int]) -> Tuple[np.ndarray, Tuple[float, float]]:
+    def _preprocess(self, frame: np.ndarray, input_shape: Tuple[int, int], model_name: str = "") -> Tuple[np.ndarray, Tuple[float, float]]:
         """Preprocess frame for YOLO inference.
 
         Returns:
@@ -132,9 +132,14 @@ class MultiModelDetector:
         sx = w / target_w
         sy = h / target_h
 
-        # Resize and normalize
+        # Resize
         img = cv2.resize(frame, (target_w, target_h))
-        img = img.astype(np.float32) / 255.0
+
+        # fire_smoke_v2 模型期望 0-255 输入，其他模型归一化到 0-1
+        if model_name != "fire_smoke":
+            img = img.astype(np.float32) / 255.0
+        else:
+            img = img.astype(np.float32)
 
         # HWC to CHW
         img = img.transpose(2, 0, 1)
@@ -256,12 +261,12 @@ class MultiModelDetector:
         session = model.get_session()
 
         # Run in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _run_inference():
             nonlocal session
             # Preprocess
-            blob, scale = self._preprocess(frame, model.input_shape)
+            blob, scale = self._preprocess(frame, model.input_shape, model_name)
 
             # Get input name
             input_name = session.get_inputs()[0].name

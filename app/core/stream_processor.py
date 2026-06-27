@@ -90,7 +90,7 @@ class StreamProcessor:
             logger.error("stream_task_error", stream_id=self.stream_id, error=str(e))
 
         # 从 StreamManager 中移除（延迟执行，避免在回调中修改 dict）
-        asyncio.get_event_loop().call_soon(self._remove_from_manager)
+        asyncio.get_running_loop().call_soon(self._remove_from_manager)
 
     def _remove_from_manager(self) -> None:
         """从 StreamManager 中移除自身。"""
@@ -109,7 +109,7 @@ class StreamProcessor:
         self._container = None
         if container is not None:
             try:
-                await asyncio.get_event_loop().run_in_executor(_stream_executor, container.close)
+                await asyncio.get_running_loop().run_in_executor(_stream_executor, container.close)
             except Exception:
                 pass
 
@@ -182,7 +182,7 @@ class StreamProcessor:
 
     async def _process_stream(self) -> None:
         """Process stream frames with dual-strategy slicing."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         logger.info("stream_opening", stream_id=self.stream_id, url=self.stream_url)
 
         # Open stream with PyAV（带超时保护）
@@ -558,7 +558,7 @@ class StreamManager:
         Returns:
             Tuple of (is_valid, message)
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _try_open():
             result = [False, "验证超时"]

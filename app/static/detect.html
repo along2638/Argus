@@ -238,6 +238,7 @@
         </div>
     </div>
 
+    <script src="/static/confirm.js"></script>
     <script>
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
@@ -462,7 +463,7 @@
         }
 
         async function deleteHistory(id) {
-            if (!confirm('确定删除这条检测记录？')) return;
+            if (!await showConfirm('确定删除这条检测记录？')) return;
             try {
                 await authFetch(`/api/v1/stream/detect/${id}`, { method: 'DELETE' });
                 showNotification('已删除', 'success');
@@ -480,7 +481,7 @@
         }
 
         async function clearHistory() {
-            if (!confirm('确定清空所有检测记录？')) return;
+            if (!await showConfirm('确定清空所有检测记录？')) return;
             try {
                 await authFetch('/api/v1/stream/detect', { method: 'DELETE' });
                 showNotification('已清空', 'success');

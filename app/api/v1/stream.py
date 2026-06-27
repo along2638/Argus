@@ -5,7 +5,7 @@ from typing import List, Optional
 import cv2
 import httpx
 import numpy as np
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -232,12 +232,14 @@ async def delete_alarm(alarm_id: int):
 
 
 @router.delete("/alarms", summary="清空告警记录", description="删除所有告警记录")
-async def delete_all_alarms():
-    """清空所有告警记录接口。"""
+async def delete_all_alarms(request: Request):
+    """清空所有告警记录接口（仅管理员）。"""
+    from app.services.auth_service import has_permission, Permission
+    user = getattr(request.state, "user", None)
+    if not user or not has_permission(user.get("role", ""), Permission.MANAGE_ALARM):
+        raise HTTPException(status_code=403, detail="权限不足")
     from app.services.database import db_service
-
     count = await db_service.delete_all_alarms()
-
     return {"success": True, "message": f"已删除 {count} 条告警记录"}
 
 
@@ -272,6 +274,22 @@ async def detect_image(request: DetectRequest):
     try:
         # 下载或读取图片
         if request.image_url.startswith(("http://", "https://")):
+            # SSRF 防护：禁止访问内网地址
+            from urllib.parse import urlparse
+            import ipaddress
+            parsed = urlparse(request.image_url)
+            hostname = parsed.hostname or ""
+            # 阻止内网 IP、localhost、metadata 地址
+            blocked = ["localhost", "127.0.0.1", "0.0.0.0", "169.254.169.254", "metadata.google.internal"]
+            if hostname in blocked:
+                raise HTTPException(status_code=400, detail="禁止访问内网地址")
+            try:
+                ip = ipaddress.ip_address(hostname)
+                if ip.is_private or ip.is_loopback or ip.is_link_local:
+                    raise HTTPException(status_code=400, detail="禁止访问内网地址")
+            except ValueError:
+                pass  # 域名，继续
+
             async with httpx.AsyncClient(timeout=30, proxy=None) as client:
                 resp = await client.get(request.image_url)
                 resp.raise_for_status()
@@ -331,8 +349,8 @@ async def detect_image(request: DetectRequest):
 @router.post("/detect/upload", summary="上传图片检测", description="上传图片文件进行检测，返回识别结果")
 async def detect_upload(
     file: UploadFile = File(..., description="图片文件"),
-    model: str = "general",
-    confidence: float = 0.3,
+    model: str = Form("general", description="模型: general/helmet/fire_smoke"),
+    confidence: float = Form(0.3, description="置信度阈值"),
     request: Request = None,
 ):
     """上传图片检测接口。
@@ -340,8 +358,11 @@ async def detect_upload(
     支持 jpg/png/bmp 格式，返回检测框、类别和置信度。检测结果自动存入数据库。
     """
     try:
-        # 读取上传的图片
+        # 读取上传的图片（限制 10MB）
+        MAX_SIZE = 10 * 1024 * 1024
         img_bytes = await file.read()
+        if len(img_bytes) > MAX_SIZE:
+            raise HTTPException(status_code=400, detail="文件过大，最大支持 10MB")
         img_array = np.frombuffer(img_bytes, np.uint8)
         frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
 
@@ -448,10 +469,20 @@ async def detect_history(limit: int = 50, offset: int = 0):
     from app.db import async_session
     from app.models.detection_result import DetectionResult
     from app.models.detection_box import DetectionBox
-    from sqlalchemy import select, func
+    from sqlalchemy import select, func, text
 
     async with async_session() as session:
         total = await session.scalar(select(func.count(DetectionResult.id)))
+
+        # 一次性查询所有结果的类别汇总（避免 N+1）
+        summary_query = text("""
+            SELECT result_id, GROUP_CONCAT(DISTINCT class_name SEPARATOR ' · ') as class_summary
+            FROM detection_box
+            GROUP BY result_id
+        """)
+        summary_result = await session.execute(summary_query)
+        summary_map = {row[0]: row[1] for row in summary_result.all()}
+
         result = await session.execute(
             select(DetectionResult)
             .order_by(DetectionResult.detected_at.desc())
@@ -459,14 +490,6 @@ async def detect_history(limit: int = 50, offset: int = 0):
         )
         items = []
         for r in result.scalars().all():
-            # 查询该结果的检测类别
-            boxes_result = await session.execute(
-                select(DetectionBox.class_name, func.count(DetectionBox.id))
-                .where(DetectionBox.result_id == r.id)
-                .group_by(DetectionBox.class_name)
-            )
-            class_summary = [f"{cn}({cnt})" for cn, cnt in boxes_result.all()]
-
             items.append({
                 "id": r.id,
                 "filename": r.filename,
@@ -477,7 +500,7 @@ async def detect_history(limit: int = 50, offset: int = 0):
                 "image_width": r.image_width,
                 "image_height": r.image_height,
                 "detections_count": r.detections_count,
-                "class_summary": class_summary,
+                "class_summary": (summary_map.get(r.id, "") or "").split(" · ") if summary_map.get(r.id) else [],
                 "create_by": r.create_by,
                 "detected_at": str(r.detected_at) if r.detected_at else None,
             })
@@ -548,7 +571,11 @@ async def detect_delete(result_id: int):
 
 
 @router.delete("/detect", summary="清空检测记录")
-async def detect_delete_all():
+async def detect_delete_all(request: Request):
+    from app.services.auth_service import has_permission, Permission
+    user = getattr(request.state, "user", None)
+    if not user or not has_permission(user.get("role", ""), Permission.MANAGE_ALARM):
+        raise HTTPException(status_code=403, detail="权限不足")
     from app.db import async_session
     from app.models.detection_result import DetectionResult
     from app.models.detection_box import DetectionBox

@@ -81,7 +81,8 @@ async def api_login(body: LoginRequest, response: Response):
 
 @router.post("/register")
 async def api_register(body: RegisterRequest):
-    result = await register(body.username, body.password, body.display_name, body.role)
+    # 自注册强制为 viewer 角色，防止权限提升
+    result = await register(body.username, body.password, body.display_name, "viewer")
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
     return result

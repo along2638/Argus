@@ -518,18 +518,71 @@
         .alarm-filter-bar {
             display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
         }
-        .alarm-filter-bar select {
-            padding: 4px 8px;
+
+        /* ── Custom Dropdown ── */
+        .custom-select { position: relative; }
+        .custom-select-trigger {
+            padding: 5px 24px 5px 10px;
             background: var(--bg-input);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             color: var(--ink);
             font-size: 0.73rem;
             font-family: inherit;
-            outline: none;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition);
+            user-select: none;
+            white-space: nowrap;
+            overflow: hidden;
         }
-        .alarm-filter-bar select:focus { border-color: var(--border-focus); }
+        .custom-select-trigger:hover { border-color: var(--ink-faint); }
+        .custom-select.open .custom-select-trigger { border-color: var(--border-focus); }
+        .custom-select-trigger .arrow {
+            width: 0; height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid var(--ink-muted);
+            transition: transform 0.2s;
+        }
+        .custom-select.open .custom-select-trigger .arrow { transform: rotate(180deg); }
+        .custom-select-options {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 120px;
+            background: var(--bg-card-solid);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: none;
+            overflow: hidden;
+            animation: dropIn 0.15s ease;
+        }
+        .custom-select.open .custom-select-options { display: block; }
+        @keyframes dropIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .custom-option {
+            padding: 7px 12px;
+            font-size: 0.73rem;
+            color: var(--ink-light);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .custom-option:hover { background: var(--accent-soft); color: var(--ink); }
+        .custom-option.selected { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+        .custom-option.selected::after {
+            content: '';
+            width: 5px; height: 5px;
+            background: var(--success);
+            border-radius: 50%;
+            margin-left: auto;
+        }
 
         /* ── Pager ── */
         .alarm-pager {
@@ -710,10 +763,9 @@
                     <span class="dot"></span>
                     <span>检测中</span>
                 </div>
-                <a href="/docs" target="_blank" class="header-link">API Docs</a>
-                <a href="/redoc" target="_blank" class="header-link">ReDoc</a>
                 <a href="/static/annotate.html" target="_blank" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">手动标注</a>
                 <a href="/static/detect.html" target="_blank" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">图片检测</a>
+                <button class="header-link" onclick="doLogout()" style="background:var(--accent-soft);color:var(--ink);font-weight:500;cursor:pointer;border:none;font-family:inherit;">退出登录</button>
             </div>
         </header>
 
@@ -799,13 +851,27 @@
                         <span class="alarm-count-badge" id="alarmCountBadge" style="display:none;">0</span>
                     </span>
                     <div class="alarm-filter-bar">
-                        <select id="alarmTypeFilter">
-                            <option value="">全部类型</option>
-                            <option value="helmet">安全帽</option>
-                            <option value="fire">火灾</option>
-                            <option value="intrusion">入侵检测</option>
-                        </select>
-                        <select id="alarmStreamFilter"><option value="">全部流</option></select>
+                        <div class="custom-select" id="alarmTypeFilterWrap">
+                            <div class="custom-select-trigger" onclick="toggleFilterSelect('alarmTypeFilterWrap')">
+                                <span id="alarmTypeFilterText">全部类型</span>
+                                <span class="arrow"></span>
+                            </div>
+                            <div class="custom-select-options">
+                                <div class="custom-option selected" data-value="" onclick="selectFilterOption('alarmTypeFilterWrap','alarmTypeFilterText',this)">全部类型</div>
+                                <div class="custom-option" data-value="helmet" onclick="selectFilterOption('alarmTypeFilterWrap','alarmTypeFilterText',this)">安全帽</div>
+                                <div class="custom-option" data-value="fire" onclick="selectFilterOption('alarmTypeFilterWrap','alarmTypeFilterText',this)">火灾</div>
+                                <div class="custom-option" data-value="intrusion" onclick="selectFilterOption('alarmTypeFilterWrap','alarmTypeFilterText',this)">入侵检测</div>
+                            </div>
+                        </div>
+                        <div class="custom-select" id="alarmStreamFilterWrap">
+                            <div class="custom-select-trigger" onclick="toggleFilterSelect('alarmStreamFilterWrap')">
+                                <span id="alarmStreamFilterText">全部流</span>
+                                <span class="arrow"></span>
+                            </div>
+                            <div class="custom-select-options" id="alarmStreamFilterOptions">
+                                <div class="custom-option selected" data-value="" onclick="selectFilterOption('alarmStreamFilterWrap','alarmStreamFilterText',this)">全部流</div>
+                            </div>
+                        </div>
                         <button class="btn btn-ghost btn-sm" onclick="refreshAlarms()">查询</button>
                         <button class="btn btn-danger-ghost btn-sm" onclick="deleteAllAlarms()">清空</button>
                     </div>
@@ -832,7 +898,13 @@
             </div>
         </div>
 
-        <footer class="footer">Argus 智能监控告警系统 v0.1.0</footer>
+        <footer class="footer">
+            Argus 智能监控告警系统 v0.1.0
+            <div style="margin-top:8px;">
+                <a href="/docs" target="_blank" style="color:var(--ink-muted);text-decoration:none;margin:0 8px;">API Docs</a>
+                <a href="/redoc" target="_blank" style="color:var(--ink-muted);text-decoration:none;margin:0 8px;">ReDoc</a>
+            </div>
+        </footer>
     </div>
 
     <div id="notification" class="toast" style="display:none;"></div>
@@ -843,11 +915,47 @@
         <div id="modalInfo" class="modal-info"></div>
     </div>
 
+    <script src="/static/confirm.js"></script>
     <script>
         const API_BASE = '';
         let logs = [];
         let alarmPage = 1;
         const ALARM_PAGE_SIZE = 20;
+
+        function doLogout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            fetch('/api/v1/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        // ── Custom Filter Select ──
+        function toggleFilterSelect(wrapId) {
+            const wrap = document.getElementById(wrapId);
+            const wasOpen = wrap.classList.contains('open');
+            document.querySelectorAll('.custom-select').forEach(el => el.classList.remove('open'));
+            if (!wasOpen) wrap.classList.add('open');
+        }
+
+        function selectFilterOption(wrapId, textId, optEl) {
+            const wrap = document.getElementById(wrapId);
+            wrap.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+            optEl.classList.add('selected');
+            document.getElementById(textId).textContent = optEl.textContent.trim();
+            wrap.classList.remove('open');
+        }
+
+        function getFilterValue(wrapId) {
+            const wrap = document.getElementById(wrapId);
+            const selected = wrap.querySelector('.custom-option.selected');
+            return selected ? selected.dataset.value : '';
+        }
+
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.custom-select')) {
+                document.querySelectorAll('.custom-select').forEach(el => el.classList.remove('open'));
+            }
+        });
 
         function addLog(message, level = 'info') {
             const now = new Date();
@@ -943,16 +1051,19 @@
             try {
                 const res = await fetch(`${API_BASE}/api/v1/stream/alarms?limit=200`);
                 const data = await res.json();
-                const sel = document.getElementById('alarmStreamFilter');
-                const cur = sel.value;
+                const cur = getFilterValue('alarmStreamFilterWrap');
                 const streams = [...new Set((data.alarms || []).map(a => a.stream_id).filter(Boolean))];
-                sel.innerHTML = '<option value="">全部流</option>' + streams.map(s => `<option value="${s}" ${s === cur ? 'selected' : ''}>${s}</option>`).join('');
+                const opts = document.getElementById('alarmStreamFilterOptions');
+                opts.innerHTML = `<div class="custom-option ${cur === '' ? 'selected' : ''}" data-value="" onclick="selectFilterOption('alarmStreamFilterWrap','alarmStreamFilterText',this)">全部流</div>` +
+                    streams.map(s => `<div class="custom-option ${cur === s ? 'selected' : ''}" data-value="${s}" onclick="selectFilterOption('alarmStreamFilterWrap','alarmStreamFilterText',this)">${s}</div>`).join('');
+                const selected = opts.querySelector('.custom-option.selected');
+                if (selected) document.getElementById('alarmStreamFilterText').textContent = selected.textContent.trim();
             } catch (e) {}
         }
 
         async function refreshAlarms() {
-            const alarmType = document.getElementById('alarmTypeFilter').value;
-            const streamFilter = document.getElementById('alarmStreamFilter').value;
+            const alarmType = getFilterValue('alarmTypeFilterWrap');
+            const streamFilter = getFilterValue('alarmStreamFilterWrap');
             try {
                 let url = `${API_BASE}/api/v1/stream/alarms?limit=200`;
                 if (alarmType) url += `&alarm_type=${alarmType}`;
@@ -1010,7 +1121,7 @@
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImageModal(); });
 
         async function deleteAlarm(id) {
-            if (!confirm('确定删除这条告警？')) return;
+            if (!await showConfirm('确定删除这条告警？')) return;
             try {
                 const res = await fetch(`${API_BASE}/api/v1/stream/alarms/${id}`, { method: 'DELETE' });
                 const d = await res.json();
@@ -1019,7 +1130,7 @@
         }
 
         async function deleteAllAlarms() {
-            if (!confirm('确定清空所有告警？')) return;
+            if (!await showConfirm('确定清空所有告警？')) return;
             try {
                 const res = await fetch(`${API_BASE}/api/v1/stream/alarms`, { method: 'DELETE' });
                 const d = await res.json();
@@ -1053,7 +1164,7 @@
         }
 
         async function stopStream(sid) {
-            if (!confirm(`确定停止流 ${sid}？`)) return;
+            if (!await showConfirm(`确定停止流 ${sid}？`)) return;
             try {
                 const res = await fetch(`${API_BASE}/api/v1/stream/stop`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stream_id: sid }) });
                 const d = await res.json();

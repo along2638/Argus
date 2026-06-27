@@ -62,7 +62,7 @@ async def run_arq_worker():
 
     _arq_executor = ThreadPoolExecutor(max_workers=1)
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(_arq_executor, _run_worker)
     except asyncio.CancelledError:
         logger.info("arq_worker_cancelled")
