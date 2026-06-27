@@ -113,6 +113,10 @@ async def lifespan(app: FastAPI):
     from app.core.email_notifier import email_notifier
     await email_notifier.load_config()
 
+    # Start schedule checker for auto-start/stop streams
+    from app.core.schedule_checker import check_schedules
+    schedule_task = asyncio.create_task(check_schedules(stream_manager))
+
     # Log GPU availability
     providers = ort.get_available_providers()
     gpu_available = "CUDAExecutionProvider" in providers
@@ -174,12 +178,17 @@ async def lifespan(app: FastAPI):
     print_status("正在关闭服务...", "warning")
     if health_task:
         health_task.cancel()
+    schedule_task.cancel()
     worker_task.cancel()
     if health_task:
         try:
             await health_task
         except asyncio.CancelledError:
             pass
+    try:
+        await schedule_task
+    except asyncio.CancelledError:
+        pass
     try:
         await worker_task
     except asyncio.CancelledError:

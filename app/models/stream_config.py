@@ -16,6 +16,7 @@ class StreamConfig(Base):
     roi_y = Column(Integer, nullable=True, comment="ROI 左上角 Y (像素)")
     roi_w = Column(Integer, nullable=True, comment="ROI 宽度 (像素)")
     roi_h = Column(Integer, nullable=True, comment="ROI 高度 (像素)")
+    schedule = Column(String(128), nullable=True, comment="Cron表达式(分 时 日 月 周)，NULL=手动控制")
     frame_count = Column(Integer, default=0, comment="已处理帧数")
     alarm_count = Column(Integer, default=0, comment="告警次数")
     started_at = Column(DateTime, comment="启动时间")
