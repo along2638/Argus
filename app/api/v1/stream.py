@@ -49,6 +49,10 @@ class StreamStartRequest(BaseModel):
         description="要检测的告警类型: helmet(安全帽), fire(火灾), intrusion(入侵检测)",
         examples=[["helmet", "fire", "intrusion"]]
     )
+    roi_x: Optional[int] = Field(None, description="检测区域左上角 X 像素坐标")
+    roi_y: Optional[int] = Field(None, description="检测区域左上角 Y 像素坐标")
+    roi_w: Optional[int] = Field(None, description="检测区域宽度 (像素)")
+    roi_h: Optional[int] = Field(None, description="检测区域高度 (像素)")
 
 
 class StreamStopRequest(BaseModel):
@@ -73,7 +77,8 @@ class StreamStatusResponse(BaseModel):
     status: str = Field(..., description="流状态")
 
 
-async def _save_stream_config(stream_id: str, stream_url: str, alarm_types: list, status: str, username: str = None):
+async def _save_stream_config(stream_id: str, stream_url: str, alarm_types: list, status: str,
+                              username: str = None, roi: tuple = None):
     """保存/更新流配置到数据库。"""
     try:
         from app.db import async_session
@@ -89,6 +94,8 @@ async def _save_stream_config(stream_id: str, stream_url: str, alarm_types: list
                 cfg.alarm_types = alarm_types
                 cfg.status = status
                 cfg.error_message = None
+                if roi:
+                    cfg.roi_x, cfg.roi_y, cfg.roi_w, cfg.roi_h = roi
                 if status == "running":
                     cfg.started_at = datetime.now()
                 elif status in ("stopped", "idle"):
@@ -100,6 +107,10 @@ async def _save_stream_config(stream_id: str, stream_url: str, alarm_types: list
                     stream_url=stream_url,
                     alarm_types=alarm_types,
                     status=status,
+                    roi_x=roi[0] if roi else None,
+                    roi_y=roi[1] if roi else None,
+                    roi_w=roi[2] if roi else None,
+                    roi_h=roi[3] if roi else None,
                     started_at=datetime.now() if status == "running" else None,
                     create_by=username,
                 )
@@ -134,11 +145,16 @@ async def start_stream(request: StreamStartRequest, req: Request = None):
         username = req.state.user.get("username")
 
     # 启动流处理
+    roi = None
+    if request.roi_x is not None and request.roi_y is not None and request.roi_w is not None and request.roi_h is not None:
+        roi = (request.roi_x, request.roi_y, request.roi_w, request.roi_h)
+
     result = await stream_manager.start_stream(
         stream_id=request.stream_id,
         stream_url=request.stream_url,
         validate=request.validate_stream,
         alarm_types=request.alarm_types,
+        roi=roi,
     )
 
     if not result["success"]:
@@ -153,7 +169,7 @@ async def start_stream(request: StreamStartRequest, req: Request = None):
             raise HTTPException(status_code=500, detail=result["message"])
 
     # 持久化流配置到数据库
-    await _save_stream_config(request.stream_id, request.stream_url, request.alarm_types, "running", username)
+    await _save_stream_config(request.stream_id, request.stream_url, request.alarm_types, "running", username, roi=roi)
 
     await log_operation("start_stream", username, f"启动流 {request.stream_id}", req)
 

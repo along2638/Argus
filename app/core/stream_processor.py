@@ -35,10 +35,12 @@ class StreamProcessor:
         "intrusion": ["general"],       # 入侵检测使用通用模型（人、动物）
     }
 
-    def __init__(self, stream_id: str, stream_url: str, alarm_types: List[str] = None):
+    def __init__(self, stream_id: str, stream_url: str, alarm_types: List[str] = None,
+                 roi: tuple = None):
         self.stream_id = stream_id
         self.stream_url = stream_url
         self.alarm_types = alarm_types or ["helmet", "fire", "intrusion"]
+        self._roi = roi  # (x, y, w, h) or None for full frame
         self._task: Optional[asyncio.Task] = None
         self._running = False
         self._container = None  # 保持对 container 的引用，用于 stop 时强制关闭
@@ -345,11 +347,25 @@ class StreamProcessor:
             annotated_frame = frame.copy()
             alarm_detections = []
 
+            # Apply ROI crop if configured
+            detect_frame = frame
+            roi_offset = (0, 0)
+            if self._roi:
+                rx, ry, rw, rh = self._roi
+                h, w = frame.shape[:2]
+                rx = max(0, min(rx, w))
+                ry = max(0, min(ry, h))
+                rw = min(rw, w - rx)
+                rh = min(rh, h - ry)
+                if rw > 0 and rh > 0:
+                    detect_frame = frame[ry:ry+rh, rx:rx+rw]
+                    roi_offset = (rx, ry)
+
             # 只使用用户选择的模型进行检测
             for model_name in self._models_to_use:
                 try:
                     detections, inference_time = await detector.detect_with_model(
-                        frame, model_name, tracker=self._tracker
+                        detect_frame, model_name, tracker=self._tracker
                     )
                     from app.core.metrics import observe_histogram
                     observe_histogram("argus_inference_ms", inference_time / 1000.0, model=model_name)
@@ -368,6 +384,14 @@ class StreamProcessor:
                     confidence = detections.confidence[i]
                     track_id = int(detections.tracker_id[i]) if detections.tracker_id is not None else -1
                     bbox = detections.xyxy[i]
+
+                    # Offset back to original frame coordinates if ROI was applied
+                    ox, oy = roi_offset
+                    bbox = bbox.copy()
+                    bbox[0] += ox
+                    bbox[1] += oy
+                    bbox[2] += ox
+                    bbox[3] += oy
 
                     class_name = detector.get_class_name(model_name, class_id)
                     alarm_type = self._get_alarm_type(model_name, class_name)
@@ -663,7 +687,8 @@ class StreamManager:
         except asyncio.TimeoutError:
             return False, f"连接超时 ({timeout}秒)"
 
-    async def start_stream(self, stream_id: str, stream_url: str, validate: bool = True, alarm_types: List[str] = None) -> dict:
+    async def start_stream(self, stream_id: str, stream_url: str, validate: bool = True,
+                           alarm_types: List[str] = None, roi: tuple = None) -> dict:
         """Start processing a stream with optional validation.
 
         Args:
@@ -671,6 +696,7 @@ class StreamManager:
             stream_url: 流地址
             validate: 是否验证流可用性
             alarm_types: 要检测的告警类型列表 ["helmet", "animal", "fire", "intrusion"]
+            roi: Region of Interest (x, y, w, h) in pixels, or None for full frame
 
         Returns:
             Dict with status and message.
@@ -695,7 +721,7 @@ class StreamManager:
 
             print_status(f"[OK] 流验证通过: {message}", "success")
 
-        processor = StreamProcessor(stream_id, stream_url, alarm_types)
+        processor = StreamProcessor(stream_id, stream_url, alarm_types, roi=roi)
         self._streams[stream_id] = processor
         await processor.start()
 

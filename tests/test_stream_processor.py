@@ -219,3 +219,76 @@ class TestStreamManager:
             result = await stream_manager.start_stream("test", "rtsp://invalid.com", validate=True)
             assert result["success"] is False
             assert "验证失败" in result["message"]
+
+
+class TestStreamProcessorROI:
+    """Test ROI (Region of Interest) support."""
+
+    def test_init_with_roi(self):
+        """Test processor with ROI coordinates."""
+        processor = StreamProcessor("test", "rtsp://test.com", roi=(100, 50, 400, 300))
+        assert processor._roi == (100, 50, 400, 300)
+
+    def test_init_without_roi(self):
+        """Test processor without ROI (full frame)."""
+        processor = StreamProcessor("test", "rtsp://test.com")
+        assert processor._roi is None
+
+    @pytest.mark.asyncio
+    async def test_process_frame_with_roi(self, mock_frame):
+        """Test frame processing with ROI crops the frame before detection."""
+        processor = StreamProcessor(
+            "test", "rtsp://test.com",
+            alarm_types=["helmet"],
+            roi=(10, 10, 100, 100),
+        )
+
+        mock_detections = MagicMock()
+        mock_detections.__len__ = MagicMock(return_value=0)
+
+        with patch("app.core.stream_processor.detector") as mock_detector:
+            mock_detector.detect_with_model = AsyncMock(return_value=(mock_detections, 10.0))
+
+            await processor._process_frame(mock_frame)
+
+            # Verify detector was called with cropped frame
+            call_args = mock_detector.detect_with_model.call_args
+            cropped_frame = call_args[0][0]
+            # Cropped frame should be smaller than original
+            assert cropped_frame.shape[0] <= mock_frame.shape[0]
+            assert cropped_frame.shape[1] <= mock_frame.shape[1]
+
+    @pytest.mark.asyncio
+    async def test_process_frame_roi_none_uses_full_frame(self, mock_frame):
+        """Test without ROI, full frame is passed to detector."""
+        processor = StreamProcessor(
+            "test", "rtsp://test.com",
+            alarm_types=["helmet"],
+        )
+
+        mock_detections = MagicMock()
+        mock_detections.__len__ = MagicMock(return_value=0)
+
+        with patch("app.core.stream_processor.detector") as mock_detector:
+            mock_detector.detect_with_model = AsyncMock(return_value=(mock_detections, 10.0))
+
+            await processor._process_frame(mock_frame)
+
+            call_args = mock_detector.detect_with_model.call_args
+            passed_frame = call_args[0][0]
+            assert passed_frame.shape == mock_frame.shape
+
+    @pytest.mark.asyncio
+    async def test_start_stream_with_roi(self):
+        """Test starting a stream with ROI coordinates."""
+        StreamManager._instance = None
+        manager = StreamManager()
+
+        with patch.object(StreamProcessor, "start", new_callable=AsyncMock):
+            result = await manager.start_stream(
+                "test", "rtsp://test.com", validate=False,
+                roi=(100, 200, 300, 400),
+            )
+            assert result["success"] is True
+            proc = manager._streams["test"]
+            assert proc._roi == (100, 200, 300, 400)
