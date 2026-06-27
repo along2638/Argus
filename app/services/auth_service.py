@@ -18,6 +18,32 @@ logger = get_logger(__name__)
 
 ITERATIONS = 260000
 
+
+def validate_password(password: str) -> tuple[bool, str]:
+    """Validate password complexity.
+
+    Rules:
+    - At least 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one digit
+    - At least one special character (!@#$%^&*...).
+
+    Returns:
+        Tuple of (is_valid, error_message).
+    """
+    if len(password) < 8:
+        return False, "密码长度至少8位"
+    if not any(c.isupper() for c in password):
+        return False, "密码必须包含至少一个大写字母"
+    if not any(c.islower() for c in password):
+        return False, "密码必须包含至少一个小写字母"
+    if not any(c.isdigit() for c in password):
+        return False, "密码必须包含至少一个数字"
+    if not any(c in "!@#$%^&*()_+-=[]{}|;':\",./<>?" for c in password):
+        return False, "密码必须包含至少一个特殊字符"
+    return True, ""
+
 # ── Redis 连接 ──
 _redis: Optional[aioredis.Redis] = None
 
@@ -133,6 +159,10 @@ def get_user_permissions(role: str) -> list:
 # ── Auth CRUD ──
 
 async def register(username: str, password: str, display_name: str = None, role: str = "viewer") -> dict:
+    valid, msg = validate_password(password)
+    if not valid:
+        return {"success": False, "message": msg}
+
     async with async_session() as session:
         exists = await session.execute(select(SysUser.id).where(SysUser.username == username))
         if exists.scalar_one_or_none():
@@ -263,6 +293,10 @@ async def toggle_user_active(user_id: int) -> bool:
 
 
 async def reset_password(user_id: int, new_password: str) -> bool:
+    valid, msg = validate_password(new_password)
+    if not valid:
+        raise ValueError(msg)
+
     async with async_session() as session:
         result = await session.execute(select(SysUser).where(SysUser.id == user_id))
         user = result.scalar_one_or_none()

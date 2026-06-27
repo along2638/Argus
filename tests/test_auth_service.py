@@ -16,6 +16,7 @@ from app.services.auth_service import (
     decode_access_token,
     has_permission,
     get_user_permissions,
+    validate_password,
     Permission,
     ROLE_PERMISSIONS,
 )
@@ -146,3 +147,42 @@ class TestPermissions:
 
     def test_get_user_permissions_unknown(self):
         assert get_user_permissions("nonexistent") == []
+
+
+# ── Password Validation ──
+
+class TestPasswordValidation:
+    def test_valid_password(self):
+        ok, msg = validate_password("MyPass123!")
+        assert ok is True
+        assert msg == ""
+
+    def test_too_short(self):
+        ok, msg = validate_password("Ab1!")
+        assert ok is False
+        assert "8位" in msg
+
+    def test_no_uppercase(self):
+        ok, msg = validate_password("mypass123!")
+        assert ok is False
+        assert "大写" in msg
+
+    def test_no_lowercase(self):
+        ok, msg = validate_password("MYPASS123!")
+        assert ok is False
+        assert "小写" in msg
+
+    def test_no_digit(self):
+        ok, msg = validate_password("MyPassWord!")
+        assert ok is False
+        assert "数字" in msg
+
+    def test_no_special_char(self):
+        ok, msg = validate_password("MyPass123")
+        assert ok is False
+        assert "特殊字符" in msg
+
+    def test_various_valid_passwords(self):
+        for pw in ["Abcdef1!", "Test@1234", "P@ssw0rd", "X1y2z3#w"]:
+            ok, _ = validate_password(pw)
+            assert ok is True, f"Expected valid: {pw}"

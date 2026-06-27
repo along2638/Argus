@@ -7,7 +7,7 @@
 | 1 | 登录暴力破解防护 | AI发现 | ✅ DONE | app/core/rate_limiter.py |
 | 2 | 告警升级机制 | AI发现 | ✅ DONE | app/core/alarm_severity.py |
 | 3 | CSRF 防护 | AI发现 | OPEN | - |
-| 4 | 密码复杂度策略 | AI发现 | OPEN | - |
+| 4 | 密码复杂度策略 | AI发现 | ✅ DONE | app/services/auth_service.py |
 | 5 | auth_service 单元测试 | AI发现 | ✅ DONE | tests/test_auth_service.py |
 
 ## P1 — 中优先级（业务价值）
