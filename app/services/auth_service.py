@@ -252,11 +252,16 @@ async def logout_token(token: str) -> None:
 
 async def create_default_admin():
     async with async_session() as session:
-        exists = await session.execute(select(SysUser.id).where(SysUser.username == "admin"))
-        if not exists.scalar_one_or_none():
+        result = await session.execute(select(SysUser).where(SysUser.username == "admin"))
+        user = result.scalar_one_or_none()
+        if not user:
             session.add(SysUser(username="admin", password_hash=make_password("admin123"), display_name="管理员", role="admin"))
             await session.commit()
             logger.info("default_admin_created")
+        elif user.role != "admin":
+            user.role = "admin"
+            await session.commit()
+            logger.info("admin_role_corrected", old_role=user.role)
 
 
 async def list_users() -> list:
