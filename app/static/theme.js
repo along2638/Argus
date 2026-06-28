@@ -93,4 +93,9 @@ const style = document.createElement('style');
 style.textContent = darkCSS;
 document.head.appendChild(style);
 
-initTheme();
+// 立即初始化，不等 DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTheme);
+} else {
+    initTheme();
+}
