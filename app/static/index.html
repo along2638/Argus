@@ -873,8 +873,8 @@
                         <button class="btn btn-ghost btn-sm" onclick="refreshAlarms()">查询</button>
                         <button class="btn btn-ghost btn-sm" id="sortBtn" onclick="toggleAlarmSort()" style="font-size:0.7rem;">时间 ↓</button>
                         <button class="btn btn-ghost btn-sm" onclick="exportAlarms()">导出</button>
-                        <button class="btn btn-ghost btn-sm" id="batchDeleteBtn" onclick="batchDeleteAlarms()" style="display:none;color:var(--danger);">批量删除</button>
-                        <button class="btn btn-danger-ghost btn-sm" onclick="deleteAllAlarms()">清空</button>
+                        <button class="btn btn-ghost btn-sm" id="batchDeleteBtn" onclick="batchDeleteAlarms()" style="display:none;color:var(--danger);" data-perm="manage_alarm">批量删除</button>
+                        <button class="btn btn-danger-ghost btn-sm" onclick="deleteAllAlarms()" data-perm="manage_alarm">清空</button>
                     </div>
                 </div>
                 <div class="card-body no-pad">

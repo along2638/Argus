@@ -691,8 +691,12 @@ async def detect_delete_all(request: Request):
 # ── Dashboard Statistics ──
 
 @router.get("/dashboard")
-async def dashboard_stats():
+async def dashboard_stats(request: Request):
     """首页统计概览"""
+    from app.services.auth_service import has_permission, Permission
+    user = getattr(request.state, "user", None)
+    if not user or not await has_permission(user.get("role", ""), Permission.VIEW_ALARM):
+        raise HTTPException(status_code=403, detail="权限不足")
     from app.db import async_session
     from app.models.alarm_record import AlarmRecord
     from app.models.detection_result import DetectionResult
@@ -732,8 +736,12 @@ async def dashboard_stats():
 
 
 @router.get("/dashboard/trend")
-async def dashboard_trend(days: int = 7):
+async def dashboard_trend(days: int = 7, request: Request = None):
     """近 N 天告警趋势"""
+    from app.services.auth_service import has_permission, Permission
+    user = getattr(request.state, "user", None) if request else None
+    if not user or not await has_permission(user.get("role", ""), Permission.VIEW_ALARM):
+        raise HTTPException(status_code=403, detail="权限不足")
     from app.db import async_session
     from app.models.alarm_record import AlarmRecord
     from sqlalchemy import select, func, text
