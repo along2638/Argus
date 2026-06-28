@@ -26,4 +26,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Permissions policy (restrict browser features)
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
+        # API version header for API endpoints
+        if request.url.path.startswith("/api/"):
+            response.headers["X-API-Version"] = "1.0"
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+
         return response
