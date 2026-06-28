@@ -2,17 +2,17 @@
  * 自定义确认弹窗 — 替代原生 confirm()
  * 用法: const ok = await showConfirm('确定删除？')
  */
-function showConfirm(message) {
+function showConfirm(message, title) {
     return new Promise(resolve => {
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s ease';
         overlay.innerHTML = `
-            <div style="background:#fff;border-radius:16px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);animation:slideUp .25s ease">
-                <div style="font-size:0.92rem;font-weight:600;color:#1a1a1a;margin-bottom:8px">请确认</div>
-                <div style="font-size:0.84rem;color:#8a8580;margin-bottom:24px;line-height:1.5">${message}</div>
-                <div style="display:flex;gap:10px;justify-content:flex-end">
-                    <button id="confirmCancel" style="padding:8px 20px;border:1px solid rgba(0,0,0,0.06);border-radius:999px;background:transparent;color:#8a8580;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:0.2s">取消</button>
-                    <button id="confirmOk" style="padding:8px 20px;border:none;border-radius:999px;background:#1a1a1a;color:#f5f0eb;font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit;transition:0.2s">确定</button>
+            <div style="background:#fff;border-radius:12px;padding:24px 28px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);animation:slideUp .2s ease">
+                <div style="font-size:0.88rem;font-weight:600;color:#1c1917;margin-bottom:6px">${title || '请确认'}</div>
+                <div style="font-size:0.78rem;color:#78716c;margin-bottom:20px;line-height:1.5">${message}</div>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <button id="confirmCancel" style="padding:7px 18px;border:1px solid #e8e6e3;border-radius:8px;background:#fff;color:#78716c;font-size:0.78rem;cursor:pointer;font-family:inherit;transition:0.15s">取消</button>
+                    <button id="confirmOk" style="padding:7px 18px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.78rem;font-weight:500;cursor:pointer;font-family:inherit;transition:0.15s">确定</button>
                 </div>
             </div>
         `;
@@ -24,17 +24,18 @@ function showConfirm(message) {
         overlay.querySelector('#confirmOk').onclick = ok;
         overlay.querySelector('#confirmCancel').onclick = cancel;
         overlay.onclick = e => { if (e.target === overlay) cancel(); };
-        overlay.querySelector('#confirmOk').onmouseover = function() { this.style.background = '#333'; };
-        overlay.querySelector('#confirmOk').onmouseout = function() { this.style.background = '#1a1a1a'; };
-        overlay.querySelector('#confirmCancel').onmouseover = function() { this.style.borderColor = '#c4bfb8'; };
-        overlay.querySelector('#confirmCancel').onmouseout = function() { this.style.borderColor = 'rgba(0,0,0,0.06)'; };
+        overlay.querySelector('#confirmOk').onmouseover = function() { this.style.background = '#44403c'; };
+        overlay.querySelector('#confirmOk').onmouseout = function() { this.style.background = '#292524'; };
+        overlay.querySelector('#confirmCancel').onmouseover = function() { this.style.borderColor = '#a8a29e'; };
+        overlay.querySelector('#confirmCancel').onmouseout = function() { this.style.borderColor = '#e8e6e3'; };
+
+        document.onkeydown = e => { if (e.key === 'Escape') cancel(); };
     });
 }
 
-// 注入动画样式（只注入一次）
 if (!document.getElementById('confirm-style')) {
     const s = document.createElement('style');
     s.id = 'confirm-style';
-    s.textContent = '@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}';
+    s.textContent = '@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
     document.head.appendChild(s);
 }
