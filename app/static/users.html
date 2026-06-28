@@ -279,7 +279,7 @@
                 document.getElementById('userCount').textContent = `共 ${allUsers.length} 人`;
                 renderUserPage();
             } catch (e) {
-                showNotification('加载失败', 'error');
+                showErrorModal('加载失败');
             }
         }
 
@@ -348,7 +348,7 @@
 
         async function handleChangePwd() {
             const password = document.getElementById('changePwdInput').value;
-            if (!password || password.length < 6) { showNotification('密码至少 6 个字符', 'error'); return; }
+            if (!password || password.length < 6) { showErrorModal('密码至少 6 个字符'); return; }
             try {
                 const resp = await authFetch('/api/v1/auth/change-password', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -356,8 +356,8 @@
                 });
                 const data = await resp.json();
                 if (resp.ok) { showNotification('密码已修改', 'success'); closeModal('changePwdModal'); }
-                else showNotification(data.detail || '修改失败', 'error');
-            } catch (e) { showNotification('请求失败', 'error'); }
+                else showErrorModal(data.detail || '修改失败');
+            } catch (e) { showErrorModal('请求失败'); }
         }
 
         function showAddUser() {
@@ -373,8 +373,8 @@
             const password = document.getElementById('addPassword').value;
             const display_name = document.getElementById('addDisplayName').value.trim();
             const role = document.getElementById('addRole').value;
-            if (!username || username.length < 2) { showNotification('用户名至少 2 个字符', 'error'); return; }
-            if (!password || password.length < 6) { showNotification('密码至少 6 个字符', 'error'); return; }
+            if (!username || username.length < 2) { showErrorModal('用户名至少 2 个字符'); return; }
+            if (!password || password.length < 6) { showErrorModal('密码至少 6 个字符'); return; }
             try {
                 const resp = await authFetch('/api/v1/auth/register', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -382,8 +382,8 @@
                 });
                 const data = await resp.json();
                 if (resp.ok && data.success) { showNotification('用户创建成功', 'success'); closeModal('addModal'); loadUsers(); }
-                else showNotification(data.detail || data.message || '创建失败', 'error');
-            } catch (e) { showNotification('请求失败', 'error'); }
+                else showErrorModal(data.detail || data.message || '创建失败');
+            } catch (e) { showErrorModal('请求失败'); }
         }
 
         function showRoleUpdate(userId, currentRole) {
@@ -401,8 +401,8 @@
                 });
                 const data = await resp.json();
                 if (resp.ok) { showNotification(`角色已更新为 ${roleNames[role]||role}`, 'success'); closeModal('roleModal'); loadUsers(); }
-                else showNotification(data.detail || '操作失败', 'error');
-            } catch (e) { showNotification('请求失败', 'error'); }
+                else showErrorModal(data.detail || '操作失败');
+            } catch (e) { showErrorModal('请求失败'); }
         }
 
         async function toggleActive(userId) {
@@ -410,8 +410,8 @@
                 const resp = await authFetch(`/api/v1/auth/users/${userId}/toggle`, { method: 'POST' });
                 const data = await resp.json();
                 if (resp.ok) { showNotification('状态已切换', 'success'); loadUsers(); }
-                else showNotification(data.detail || '操作失败', 'error');
-            } catch (e) { showNotification('请求失败', 'error'); }
+                else showErrorModal(data.detail || '操作失败');
+            } catch (e) { showErrorModal('请求失败'); }
         }
 
         function showResetPwd(userId) {
@@ -422,7 +422,7 @@
 
         async function handleResetPassword() {
             const password = document.getElementById('resetPassword').value;
-            if (!password || password.length < 6) { showNotification('密码至少 6 个字符', 'error'); return; }
+            if (!password || password.length < 6) { showErrorModal('密码至少 6 个字符'); return; }
             try {
                 const resp = await authFetch(`/api/v1/auth/users/${currentUserId}/reset-password`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -430,8 +430,8 @@
                 });
                 const data = await resp.json();
                 if (resp.ok) { showNotification('密码已重置', 'success'); closeModal('resetModal'); }
-                else showNotification(data.detail || '操作失败', 'error');
-            } catch (e) { showNotification('请求失败', 'error'); }
+                else showErrorModal(data.detail || '操作失败');
+            } catch (e) { showErrorModal('请求失败'); }
         }
 
         async function deleteUser(userId, username) {
@@ -440,8 +440,8 @@
                 const resp = await authFetch(`/api/v1/auth/users/${userId}`, { method: 'DELETE' });
                 const data = await resp.json();
                 if (resp.ok) { showNotification('用户已删除', 'success'); loadUsers(); }
-                else showNotification(data.detail || '删除失败', 'error');
-            } catch (e) { showNotification('请求失败', 'error'); }
+                else showErrorModal(data.detail || '删除失败');
+            } catch (e) { showErrorModal('请求失败'); }
         }
 
         loadUsers();

@@ -925,7 +925,8 @@
         let selectedAlarms = new Set();
         let alarmSortDesc = true;
 
-        function doLogout() {
+        function showErrorModal(msg){var o=document.createElement("div");o.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;";o.innerHTML='<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:1rem;font-weight:600;color:#1c1917;margin-bottom:6px">操作失败</div><div style="font-size:0.82rem;color:#78716c;margin-bottom:20px>"+msg+"</div><button onclick="this.parentElement.parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>');document.body.appendChild(o);o.onclick=function(e){if(e.target===o)o.remove()};setTimeout(function(){if(o.parentElement)o.remove()},5000)}
+function doLogout() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             fetch('/api/v1/auth/logout', { method: 'POST' });
@@ -1138,7 +1139,7 @@
         }
 
         function showImage(u, tn, t, c, s) {
-            if (!u) { showNotification('暂无图片', 'error'); return; }
+            if (!u) { showErrorModal('暂无图片'); return; }
             document.getElementById('modalImage').src = u;
             document.getElementById('modalInfo').innerHTML = `<strong>${tn}</strong><span>·</span>流 ${s}<span>·</span>${c}<span>·</span>${t}`;
             document.getElementById('imageModal').classList.add('active');
@@ -1151,8 +1152,8 @@
             try {
                 const res = await fetch(`${API_BASE}/api/v1/stream/alarms/${id}`, { method: 'DELETE' });
                 const d = await res.json();
-                if (res.ok) { showNotification('已删除', 'success'); refreshAlarms(); } else { showNotification(d.detail || '删除失败', 'error'); }
-            } catch (e) { showNotification('删除失败', 'error'); }
+                if (res.ok) { showNotification('已删除', 'success'); refreshAlarms(); } else { showErrorModal(d.detail || '删除失败'); }
+            } catch (e) { showErrorModal('删除失败'); }
         }
 
         async function deleteAllAlarms() {
@@ -1160,8 +1161,8 @@
             try {
                 const res = await fetch(`${API_BASE}/api/v1/stream/alarms`, { method: 'DELETE' });
                 const d = await res.json();
-                if (res.ok) { showNotification(d.message, 'success'); refreshAlarms(); } else { showNotification(d.detail || '清空失败', 'error'); }
-            } catch (e) { showNotification('清空失败', 'error'); }
+                if (res.ok) { showNotification(d.message, 'success'); refreshAlarms(); } else { showErrorModal(d.detail || '清空失败'); }
+            } catch (e) { showErrorModal('清空失败'); }
         }
 
         function toggleAlarmSort() {
@@ -1234,7 +1235,7 @@
                 a.click();
                 URL.revokeObjectURL(a.href);
                 showNotification(`已导出 ${alarms.length} 条记录`, 'success');
-            } catch (e) { showNotification('导出失败', 'error'); }
+            } catch (e) { showErrorModal('导出失败'); }
         }
 
         async function startStream(event) {
@@ -1244,7 +1245,7 @@
             const validate = document.getElementById('validateStream').checked;
             const btn = document.getElementById('startBtn');
             const at = Array.from(document.querySelectorAll('input[name="alarmType"]:checked')).map(cb => cb.value);
-            if (!at.length) { showNotification('请至少选择一种检测类型', 'error'); return; }
+            if (!at.length) { showErrorModal('请至少选择一种检测类型'); return; }
             btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 启动中…';
             if (validate) addLog(`正在验证流 ${sid}…`, 'info');
             const tl = { helmet:'安全帽', fire:'火灾', intrusion:'入侵检测' };
@@ -1257,8 +1258,8 @@
                 const d = await res.json();
                 if (res.ok) { showNotification(`流 ${sid} 已启动`, 'success');                     document.getElementById('startForm').reset();
                     document.getElementById('validateStream').checked = true; refreshStreams(); refreshHealth(); }
-                else { showNotification(d.detail || '启动失败', 'error'); }
-            } catch (e) { showNotification('请求失败', 'error'); }
+                else { showErrorModal(d.detail || '启动失败'); }
+            } catch (e) { showErrorModal('请求失败'); }
             finally { btn.disabled = false; btn.innerHTML = '启动检测'; }
         }
 
@@ -1268,8 +1269,8 @@
                 const res = await fetch(`${API_BASE}/api/v1/stream/stop`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stream_id: sid }) });
                 const d = await res.json();
                 if (res.ok) { showNotification(`流 ${sid} 已停止`, 'success'); refreshStreams(); refreshHealth(); }
-                else { showNotification(d.detail || '停止失败', 'error'); }
-            } catch (e) { showNotification('请求失败', 'error'); }
+                else { showErrorModal(d.detail || '停止失败'); }
+            } catch (e) { showErrorModal('请求失败'); }
         }
 
         async function restartStream(sid, url, alarmTypes) {
@@ -1286,8 +1287,8 @@
                 });
                 const d = await res.json();
                 if (res.ok) { showNotification(`流 ${sid} 已重启`, 'success'); refreshStreams(); refreshHealth(); }
-                else { showNotification(d.detail || '重启失败', 'error'); }
-            } catch (e) { showNotification('请求失败', 'error'); }
+                else { showErrorModal(d.detail || '重启失败'); }
+            } catch (e) { showErrorModal('请求失败'); }
         }
 
         function fillExample() {

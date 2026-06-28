@@ -118,7 +118,8 @@
             return fetch(url, opts);
         }
 
-        function doLogout() {
+        function showErrorModal(msg){var o=document.createElement("div");o.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;";o.innerHTML='<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:1rem;font-weight:600;color:#1c1917;margin-bottom:6px">操作失败</div><div style="font-size:0.82rem;color:#78716c;margin-bottom:20px>"+msg+"</div><button onclick="this.parentElement.parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>');document.body.appendChild(o);o.onclick=function(e){if(e.target===o)o.remove()};setTimeout(function(){if(o.parentElement)o.remove()},5000)}
+function doLogout() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             fetch('/api/v1/auth/logout', { method: 'POST' });
@@ -137,7 +138,7 @@
             try {
                 const resp = await authFetch('/api/v1/auth/config');
                 const data = await resp.json();
-                if (!data.success) { showNotification(data.detail || '加载失败', 'error'); return; }
+                if (!data.success) { showErrorModal(data.detail || '加载失败'); return; }
                 const configs = data.configs || [];
                 const container = document.getElementById('configList');
                 if (!configs.length) {
@@ -154,7 +155,7 @@
                     </div>
                 `).join('');
             } catch (e) {
-                showNotification('加载失败: ' + e.message, 'error');
+                showErrorModal('加载失败: ' + e.message);
             }
         }
 
@@ -172,16 +173,16 @@
                 });
                 const data = await resp.json();
                 if (data.success) showNotification('配置已保存', 'success');
-                else showNotification(data.detail || '保存失败', 'error');
+                else showErrorModal(data.detail || '保存失败');
             } catch (e) {
-                showNotification('保存失败: ' + e.message, 'error');
+                showErrorModal('保存失败: ' + e.message);
             }
         }
 
         async function exportBackup() {
             try {
                 const resp = await authFetch('/api/v1/auth/backup');
-                if (!resp.ok) { showNotification('备份失败', 'error'); return; }
+                if (!resp.ok) { showErrorModal('备份失败'); return; }
                 const blob = await resp.blob();
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
@@ -190,7 +191,7 @@
                 URL.revokeObjectURL(a.href);
                 showNotification('备份已导出', 'success');
             } catch (e) {
-                showNotification('备份失败', 'error');
+                showErrorModal('备份失败');
             }
         }
 
