@@ -961,432 +961,439 @@
 
     <script src="/static/confirm.js"></script>
     <script>
-        const API_BASE = '';
-        let logs = [];
-        let alarmPage = 1;
-        const ALARM_PAGE_SIZE = 20;
-        let selectedAlarms = new Set();
-        let alarmSortDesc = true;
+const API_BASE = '';
+let logs = [];
+let alarmPage = 1;
+const ALARM_PAGE_SIZE = 20;
+let selectedAlarms = new Set();
+let alarmSortDesc = true;
 
-        function showErrorModal(msg){var o=document.createElement("div");o.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;";o.innerHTML='<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:1rem;font-weight:600;color:#1c1917;margin-bottom:6px">操作失败</div><div style="font-size:0.82rem;color:#78716c;margin-bottom:20px>"+msg+"</div><button onclick="this.parentElement.parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>');document.body.appendChild(o);o.onclick=function(e){if(e.target===o)o.remove()};setTimeout(function(){if(o.parentElement)o.remove()},5000)}
+function showErrorModal(msg) {
+    var o = document.createElement('div');
+    o.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    o.innerHTML = '<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:1rem;font-weight:600;color:#1c1917;margin-bottom:6px">操作失败</div><div style="font-size:0.82rem;color:#78716c;margin-bottom:20px">' + msg + '</div><button onclick="this.parentElement.parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>';
+    document.body.appendChild(o);
+    o.onclick = function(e) { if (e.target === o) o.remove(); };
+    setTimeout(function() { if (o.parentElement) o.remove(); }, 5000);
+}
 function doLogout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            fetch('/api/v1/auth/logout', { method: 'POST' });
-            window.location.href = '/login';
-        }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    fetch('/api/v1/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+}
 
-        // 显示当前用户名和头像
-        (function() {
-            try {
-                const user = JSON.parse(localStorage.getItem('user') || '{}');
-                if (user.username) {
-                    const initial = (user.display_name || user.username).charAt(0).toUpperCase();
-                    const el = document.getElementById('currentUser');
-                    const avatar = document.getElementById('userAvatar');
-                    const avatarLg = document.getElementById('userAvatarLg');
-                    const nameEl = document.getElementById('userName');
-                    const roleEl = document.getElementById('userRole');
-                    if (el) el.textContent = user.display_name || user.username;
-                    if (avatar) avatar.textContent = initial;
-                    if (avatarLg) avatarLg.textContent = initial;
-                    if (nameEl) nameEl.textContent = user.display_name || user.username;
-                    if (roleEl) {
-                        const roles = {admin:'管理员',operator:'操作员',annotator:'标注员',viewer:'观察者'};
-                        roleEl.textContent = roles[user.role] || user.role;
-                    }
-                }
-            } catch(e) {}
-        })();
-
-        function toggleUserDropdown() {
-            document.getElementById('userDropdown').classList.toggle('open');
-        }
-
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.user-dropdown')) {
-                document.getElementById('userDropdown').classList.remove('open');
+// 显示当前用户名和头像
+(function() {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user.username) {
+            const initial = (user.display_name || user.username).charAt(0).toUpperCase();
+            const el = document.getElementById('currentUser');
+            const avatar = document.getElementById('userAvatar');
+            const avatarLg = document.getElementById('userAvatarLg');
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRole');
+            if (el) el.textContent = user.display_name || user.username;
+            if (avatar) avatar.textContent = initial;
+            if (avatarLg) avatarLg.textContent = initial;
+            if (nameEl) nameEl.textContent = user.display_name || user.username;
+            if (roleEl) {
+                const roles = {admin:'管理员',operator:'操作员',annotator:'标注员',viewer:'观察者'};
+                roleEl.textContent = roles[user.role] || user.role;
             }
+        }
+    } catch(e) {}
+})();
+
+function toggleUserDropdown() {
+    document.getElementById('userDropdown').classList.toggle('open');
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.user-dropdown')) {
+        document.getElementById('userDropdown').classList.remove('open');
+    }
+});
+
+function showProfileModal() {
+    document.getElementById('userDropdown').classList.remove('open');
+    showNotification('个人信息功能开发中', 'info');
+}
+
+function showAvatarModal() {
+    document.getElementById('userDropdown').classList.remove('open');
+    showNotification('头像设置功能开发中', 'info');
+}
+
+function authFetch(url, opts = {}) {
+    const t = localStorage.getItem('token');
+    if (!opts.headers) opts.headers = {};
+    if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+    const m = (opts.method || 'GET').toUpperCase();
+    if (['POST','PUT','DELETE','PATCH'].includes(m)) {
+        const c = document.cookie.match(/csrf_token=([^;]+)/);
+        if (c) opts.headers['X-CSRF-Token'] = c[1];
+    }
+    return fetch(url, opts);
+}
+
+// ── Custom Filter Select ──
+function toggleFilterSelect(wrapId) {
+    const wrap = document.getElementById(wrapId);
+    const wasOpen = wrap.classList.contains('open');
+    document.querySelectorAll('.custom-select').forEach(el => el.classList.remove('open'));
+    if (!wasOpen) wrap.classList.add('open');
+}
+
+function selectFilterOption(wrapId, textId, optEl) {
+    const wrap = document.getElementById(wrapId);
+    wrap.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+    optEl.classList.add('selected');
+    document.getElementById(textId).textContent = optEl.textContent.trim();
+    wrap.classList.remove('open');
+}
+
+function getFilterValue(wrapId) {
+    const wrap = document.getElementById(wrapId);
+    const selected = wrap.querySelector('.custom-option.selected');
+    return selected ? selected.dataset.value : '';
+}
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('.custom-select')) {
+        document.querySelectorAll('.custom-select').forEach(el => el.classList.remove('open'));
+    }
+});
+
+function addLog(message, level = 'info') {
+    const now = new Date();
+    logs.unshift({ time: now.toLocaleTimeString('zh-CN', { hour12: false }), message, level });
+    if (logs.length > 50) logs.length = 50;
+    renderLogs();
+}
+
+function renderLogs() {
+    const c = document.getElementById('logContainer');
+    if (!logs.length) { c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></div>暂无日志</div>'; return; }
+    c.innerHTML = logs.map(l => `<div class="log-line"><span class="log-time">${l.time}</span><span class="log-tag ${l.level}">${l.level}</span><span class="log-msg">${l.message}</span></div>`).join('');
+}
+
+function clearLogs() { logs = []; renderLogs(); showNotification('日志已清空', 'info'); }
+
+function showNotification(message, type = 'info') {
+    const el = document.getElementById('notification');
+    const icons = { success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>', error: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>', info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' };
+    el.innerHTML = `<span>${icons[type] || ''}</span> ${message}`;
+    el.className = `toast ${type}`;
+    el.style.display = 'flex';
+    setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+async function refreshHealth() {
+    try {
+        const res = await fetch(`${API_BASE}/health`);
+        const d = await res.json();
+        document.getElementById('status').textContent = d.status;
+        document.getElementById('status').className = `stat-value ${d.status === '正常' ? 'ok' : 'error'}`;
+        document.getElementById('activeStreams').textContent = d.active_streams;
+        document.getElementById('queueDepth').textContent = d.queue_depth;
+        document.getElementById('queueDepth').className = `stat-value ${d.queue_depth > 100 ? 'warning' : ''}`;
+        document.getElementById('gpuStatus').textContent = d.gpu_available ? '可用' : '不可用';
+        document.getElementById('gpuStatus').className = `stat-value ${d.gpu_available ? 'ok' : 'error'}`;
+        addLog('系统状态已刷新', 'success');
+    } catch (e) {
+        document.getElementById('status').textContent = '错误';
+        document.getElementById('status').className = 'stat-value error';
+        addLog(`获取系统状态失败: ${e.message}`, 'error');
+    }
+}
+
+const statusLabels = { 'running': '运行中', 'reconnecting': '重连中', 'error': '异常', 'stopped': '已停止', 'idle': '空闲' };
+const alarmTypeIcons = {
+    'helmet': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18h20M4 18v-4a8 8 0 0116 0v4"/></svg>',
+    'animal': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>',
+    'fire': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c1.5 4-2 8-2 12a6 6 0 0012 0c0-4-3.5-8-2-12-1 2.5-3 4-5 4s-3-1.5-3-4z"/></svg>',
+    'intrusion': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+};
+const alarmTypeNamesShort = { 'helmet': '安全帽', 'fire': '火灾', 'intrusion': '入侵检测' };
+
+async function refreshStreams() {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/stream/list`);
+        const data = await res.json();
+        const c = document.getElementById('streamList');
+        if (data.streams?.length) {
+            c.innerHTML = data.streams.map(s => {
+                const tags = (s.alarm_types || []).map(t => `<span class="stream-type-tag">${alarmTypeIcons[t] || ''} ${alarmTypeNamesShort[t] || t}</span>`).join('');
+                const st = statusLabels[s.status] || s.status;
+                const err = (s.status === 'error' || s.status === 'reconnecting') && s.error_message ? `<span style="font-size:0.66rem;color:var(--ink-faint);margin-left:4px;" title="${s.error_message}">⚠</span>` : '';
+                return `<div class="stream-item"><div class="stream-info"><div class="stream-row"><span class="stream-id">${s.stream_id}</span><span class="stream-status ${s.status}">${st}${err}</span>${tags}</div></div><div style="display:flex;gap:4px;"><button class="btn btn-ghost btn-sm" onclick="restartStream('${s.stream_id}','${s.stream_url}',${JSON.stringify(s.alarm_types||[])})">重启</button><button class="btn btn-danger-ghost btn-sm" onclick="stopStream('${s.stream_id}')">停止</button></div></div>`;
+            }).join('');
+        } else {
+            c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>暂无活跃流</div>';
+        }
+        addLog(`流列表已刷新，${data.active_streams} 个活跃流`, 'info');
+    } catch (e) { addLog(`获取流列表失败: ${e.message}`, 'error'); }
+}
+
+const alarmTypeNames = {
+    'helmet': '安全帽', 'fire': '火灾',
+    'intrusion': '入侵检测', 'no-helmet': '未戴安全帽',
+    'person': '人', 'bird': '鸟', 'cat': '猫', 'dog': '狗',
+    'horse': '马', 'sheep': '羊', 'cow': '牛',
+    'elephant': '大象', 'bear': '熊', 'zebra': '斑马',
+    'giraffe': '长颈鹿', 'fire-smoke': '火灾烟雾',
+};
+
+function timeAgo(dateStr) {
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (diff < 60) return `${diff}秒前`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+    return `${Math.floor(diff / 86400)}天前`;
+}
+
+function confLevel(c) { return c >= 0.7 ? 'high' : c >= 0.3 ? 'mid' : 'low'; }
+
+async function refreshAlarmStreams() {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/stream/alarms?limit=200`);
+        const data = await res.json();
+        const cur = getFilterValue('alarmStreamFilterWrap');
+        const streams = [...new Set((data.alarms || []).map(a => a.stream_id).filter(Boolean))];
+        const opts = document.getElementById('alarmStreamFilterOptions');
+        opts.innerHTML = `<div class="custom-option ${cur === '' ? 'selected' : ''}" data-value="" onclick="selectFilterOption('alarmStreamFilterWrap','alarmStreamFilterText',this)">全部流</div>` +
+            streams.map(s => `<div class="custom-option ${cur === s ? 'selected' : ''}" data-value="${s}" onclick="selectFilterOption('alarmStreamFilterWrap','alarmStreamFilterText',this)">${s}</div>`).join('');
+        const selected = opts.querySelector('.custom-option.selected');
+        if (selected) document.getElementById('alarmStreamFilterText').textContent = selected.textContent.trim();
+    } catch (e) {}
+}
+
+async function refreshAlarms() {
+    const alarmType = getFilterValue('alarmTypeFilterWrap');
+    const streamFilter = getFilterValue('alarmStreamFilterWrap');
+    try {
+        let url = `${API_BASE}/api/v1/stream/alarms?limit=200`;
+        if (alarmType) url += `&alarm_type=${alarmType}`;
+        if (streamFilter) url += `&stream_id=${streamFilter}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const c = document.getElementById('alarmList');
+        let all = data.alarms || [];
+        // 排序
+        all.sort((a, b) => {
+            const ta = new Date(a.detected_by).getTime();
+            const tb = new Date(b.detected_by).getTime();
+            return alarmSortDesc ? tb - ta : ta - tb;
         });
-
-        function showProfileModal() {
-            document.getElementById('userDropdown').classList.remove('open');
-            showNotification('个人信息功能开发中', 'info');
+        const total = all.length;
+        const badge = document.getElementById('alarmCountBadge');
+        if (total > 0) { badge.textContent = total; badge.style.display = 'inline-flex'; } else { badge.style.display = 'none'; }
+        const tp = Math.ceil(total / ALARM_PAGE_SIZE);
+        if (alarmPage > tp) alarmPage = tp || 1;
+        const start = (alarmPage - 1) * ALARM_PAGE_SIZE;
+        const page = all.slice(start, start + ALARM_PAGE_SIZE);
+        if (page.length) {
+            c.innerHTML = `<div style="padding:6px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="selectAllAlarms" onchange="toggleSelectAll(this.checked)" style="accent-color:var(--ink);">
+                <span style="font-size:0.72rem;color:var(--ink-muted);">全选</span>
+                <span id="selectedCount" style="font-size:0.72rem;color:var(--ink-muted);margin-left:8px;"></span>
+            </div>` + page.map(a => {
+                const tn = alarmTypeNames[a.alarm_type] || a.alarm_type;
+                const cn = a.class_name ? ` · ${alarmTypeNames[a.class_name] || a.class_name}` : '';
+                const t = timeAgo(a.detected_by);
+                const ft = new Date(a.detected_by).toLocaleString('zh-CN');
+                const conf = (a.confidence * 100).toFixed(1);
+                const img = a.image_path ? `${API_BASE}/api/v1/stream/image/${a.image_path}` : '';
+                const cl = confLevel(a.confidence);
+                const checked = selectedAlarms.has(a.id) ? 'checked' : '';
+                return `<div class="alarm-item" onclick="showImage('${img}','${tn.replace(/'/g,"\\'")}','${ft}','${conf}%','${a.stream_id}')"><input type="checkbox" ${checked} onchange="toggleAlarmSelect(${a.id},this.checked)" onclick="event.stopPropagation()" style="accent-color:var(--ink);flex-shrink:0;"><div class="alarm-thumb">${img ? `<img src="${img}" loading="lazy">` : '<span class="no-img"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg></span>'}</div><div class="alarm-body"><div class="alarm-top"><span class="alarm-type-badge ${a.alarm_type}">${tn}${cn}</span><span class="alarm-stream-tag">${a.stream_id}</span></div><div class="alarm-info"><span class="alarm-conf"><span class="alarm-conf-bar"><span class="alarm-conf-fill ${cl}" style="width:${Math.min(a.confidence*100,100)}%"></span></span>${conf}%</span><span>${ft}</span></div></div><div class="alarm-right"><span class="alarm-time">${t}</span><div class="alarm-actions"><span onclick="event.stopPropagation();showImage('${img}','${tn.replace(/'/g,"\\'")}','${ft}','${conf}%','${a.stream_id}')">查看</span><span class="del" onclick="event.stopPropagation();deleteAlarm(${a.id})">删除</span></div></div></div>`;
+            }).join('');
+        } else {
+            c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>暂无告警记录</div>';
         }
-
-        function showAvatarModal() {
-            document.getElementById('userDropdown').classList.remove('open');
-            showNotification('头像设置功能开发中', 'info');
-        }
-
-        function authFetch(url, opts = {}) {
-            const t = localStorage.getItem('token');
-            if (!opts.headers) opts.headers = {};
-            if (t) opts.headers['Authorization'] = 'Bearer ' + t;
-            const m = (opts.method || 'GET').toUpperCase();
-            if (['POST','PUT','DELETE','PATCH'].includes(m)) {
-                const c = document.cookie.match(/csrf_token=([^;]+)/);
-                if (c) opts.headers['X-CSRF-Token'] = c[1];
+        const pager = document.getElementById('alarmPager');
+        const pInfo = document.getElementById('alarmPagerInfo');
+        const pBtns = document.getElementById('alarmPagerBtns');
+        if (tp > 1) {
+            pager.style.display = 'flex';
+            pInfo.textContent = `共 ${total} 条，第 ${alarmPage}/${tp} 页`;
+            let btns = `<button ${alarmPage<=1?'disabled':''} onclick="alarmPage--;refreshAlarms()">‹</button>`;
+            for (let p = 1; p <= tp; p++) {
+                if (tp > 7 && p > 2 && p < tp-1 && Math.abs(p-alarmPage)>1) { if (p===3||p===tp-2) btns+='<button disabled>…</button>'; continue; }
+                btns += `<button class="${p===alarmPage?'active':''}" onclick="alarmPage=${p};refreshAlarms()">${p}</button>`;
             }
-            return fetch(url, opts);
-        }
+            btns += `<button ${alarmPage>=tp?'disabled':''} onclick="alarmPage++;refreshAlarms()">›</button>`;
+            pBtns.innerHTML = btns;
+        } else { pager.style.display = 'none'; }
+        addLog(`告警列表已刷新，共 ${total} 条`, 'info');
+    } catch (e) { addLog(`获取告警列表失败: ${e.message}`, 'error'); }
+}
 
-        // ── Custom Filter Select ──
-        function toggleFilterSelect(wrapId) {
-            const wrap = document.getElementById(wrapId);
-            const wasOpen = wrap.classList.contains('open');
-            document.querySelectorAll('.custom-select').forEach(el => el.classList.remove('open'));
-            if (!wasOpen) wrap.classList.add('open');
-        }
+function showImage(u, tn, t, c, s) {
+    if (!u) { showErrorModal('暂无图片'); return; }
+    document.getElementById('modalImage').src = u;
+    document.getElementById('modalInfo').innerHTML = `<strong>${tn}</strong><span>·</span>流 ${s}<span>·</span>${c}<span>·</span>${t}`;
+    document.getElementById('imageModal').classList.add('active');
+}
+function closeImageModal() { document.getElementById('imageModal').classList.remove('active'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImageModal(); });
 
-        function selectFilterOption(wrapId, textId, optEl) {
-            const wrap = document.getElementById(wrapId);
-            wrap.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
-            optEl.classList.add('selected');
-            document.getElementById(textId).textContent = optEl.textContent.trim();
-            wrap.classList.remove('open');
-        }
+async function deleteAlarm(id) {
+    if (!await showConfirm('确定删除这条告警？')) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/stream/alarms/${id}`, { method: 'DELETE' });
+        const d = await res.json();
+        if (res.ok) { showNotification('已删除', 'success'); refreshAlarms(); } else { showErrorModal(d.detail || '删除失败'); }
+    } catch (e) { showErrorModal('删除失败'); }
+}
 
-        function getFilterValue(wrapId) {
-            const wrap = document.getElementById(wrapId);
-            const selected = wrap.querySelector('.custom-option.selected');
-            return selected ? selected.dataset.value : '';
-        }
+async function deleteAllAlarms() {
+    if (!await showConfirm('确定清空所有告警？')) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/stream/alarms`, { method: 'DELETE' });
+        const d = await res.json();
+        if (res.ok) { showNotification(d.message, 'success'); refreshAlarms(); } else { showErrorModal(d.detail || '清空失败'); }
+    } catch (e) { showErrorModal('清空失败'); }
+}
 
-        document.addEventListener('click', e => {
-            if (!e.target.closest('.custom-select')) {
-                document.querySelectorAll('.custom-select').forEach(el => el.classList.remove('open'));
-            }
-        });
+function toggleAlarmSort() {
+    alarmSortDesc = !alarmSortDesc;
+    document.getElementById('sortBtn').textContent = alarmSortDesc ? '时间 ↓' : '时间 ↑';
+    refreshAlarms();
+}
 
-        function addLog(message, level = 'info') {
-            const now = new Date();
-            logs.unshift({ time: now.toLocaleTimeString('zh-CN', { hour12: false }), message, level });
-            if (logs.length > 50) logs.length = 50;
-            renderLogs();
-        }
-
-        function renderLogs() {
-            const c = document.getElementById('logContainer');
-            if (!logs.length) { c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></div>暂无日志</div>'; return; }
-            c.innerHTML = logs.map(l => `<div class="log-line"><span class="log-time">${l.time}</span><span class="log-tag ${l.level}">${l.level}</span><span class="log-msg">${l.message}</span></div>`).join('');
-        }
-
-        function clearLogs() { logs = []; renderLogs(); showNotification('日志已清空', 'info'); }
-
-        function showNotification(message, type = 'info') {
-            const el = document.getElementById('notification');
-            const icons = { success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>', error: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>', info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' };
-            el.innerHTML = `<span>${icons[type] || ''}</span> ${message}`;
-            el.className = `toast ${type}`;
-            el.style.display = 'flex';
-            setTimeout(() => { el.style.display = 'none'; }, 3000);
-        }
-
-        async function refreshHealth() {
-            try {
-                const res = await fetch(`${API_BASE}/health`);
-                const d = await res.json();
-                document.getElementById('status').textContent = d.status;
-                document.getElementById('status').className = `stat-value ${d.status === '正常' ? 'ok' : 'error'}`;
-                document.getElementById('activeStreams').textContent = d.active_streams;
-                document.getElementById('queueDepth').textContent = d.queue_depth;
-                document.getElementById('queueDepth').className = `stat-value ${d.queue_depth > 100 ? 'warning' : ''}`;
-                document.getElementById('gpuStatus').textContent = d.gpu_available ? '可用' : '不可用';
-                document.getElementById('gpuStatus').className = `stat-value ${d.gpu_available ? 'ok' : 'error'}`;
-                addLog('系统状态已刷新', 'success');
-            } catch (e) {
-                document.getElementById('status').textContent = '错误';
-                document.getElementById('status').className = 'stat-value error';
-                addLog(`获取系统状态失败: ${e.message}`, 'error');
-            }
-        }
-
-        const statusLabels = { 'running': '运行中', 'reconnecting': '重连中', 'error': '异常', 'stopped': '已停止', 'idle': '空闲' };
-        const alarmTypeIcons = {
-            'helmet': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18h20M4 18v-4a8 8 0 0116 0v4"/></svg>',
-            'animal': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>',
-            'fire': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c1.5 4-2 8-2 12a6 6 0 0012 0c0-4-3.5-8-2-12-1 2.5-3 4-5 4s-3-1.5-3-4z"/></svg>',
-            'intrusion': '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-        };
-        const alarmTypeNamesShort = { 'helmet': '安全帽', 'fire': '火灾', 'intrusion': '入侵检测' };
-
-        async function refreshStreams() {
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/stream/list`);
-                const data = await res.json();
-                const c = document.getElementById('streamList');
-                if (data.streams?.length) {
-                    c.innerHTML = data.streams.map(s => {
-                        const tags = (s.alarm_types || []).map(t => `<span class="stream-type-tag">${alarmTypeIcons[t] || ''} ${alarmTypeNamesShort[t] || t}</span>`).join('');
-                        const st = statusLabels[s.status] || s.status;
-                        const err = (s.status === 'error' || s.status === 'reconnecting') && s.error_message ? `<span style="font-size:0.66rem;color:var(--ink-faint);margin-left:4px;" title="${s.error_message}">⚠</span>` : '';
-                        return `<div class="stream-item"><div class="stream-info"><div class="stream-row"><span class="stream-id">${s.stream_id}</span><span class="stream-status ${s.status}">${st}${err}</span>${tags}</div></div><div style="display:flex;gap:4px;"><button class="btn btn-ghost btn-sm" onclick="restartStream('${s.stream_id}','${s.stream_url}',${JSON.stringify(s.alarm_types||[])})">重启</button><button class="btn btn-danger-ghost btn-sm" onclick="stopStream('${s.stream_id}')">停止</button></div></div>`;
-                    }).join('');
-                } else {
-                    c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>暂无活跃流</div>';
-                }
-                addLog(`流列表已刷新，${data.active_streams} 个活跃流`, 'info');
-            } catch (e) { addLog(`获取流列表失败: ${e.message}`, 'error'); }
-        }
-
-        const alarmTypeNames = {
-            'helmet': '安全帽', 'fire': '火灾',
-            'intrusion': '入侵检测', 'no-helmet': '未戴安全帽',
-            'person': '人', 'bird': '鸟', 'cat': '猫', 'dog': '狗',
-            'horse': '马', 'sheep': '羊', 'cow': '牛',
-            'elephant': '大象', 'bear': '熊', 'zebra': '斑马',
-            'giraffe': '长颈鹿', 'fire-smoke': '火灾烟雾',
-        };
-
-        function timeAgo(dateStr) {
-            const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-            if (diff < 60) return `${diff}秒前`;
-            if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
-            if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
-            return `${Math.floor(diff / 86400)}天前`;
-        }
-
-        function confLevel(c) { return c >= 0.7 ? 'high' : c >= 0.3 ? 'mid' : 'low'; }
-
-        async function refreshAlarmStreams() {
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/stream/alarms?limit=200`);
-                const data = await res.json();
-                const cur = getFilterValue('alarmStreamFilterWrap');
-                const streams = [...new Set((data.alarms || []).map(a => a.stream_id).filter(Boolean))];
-                const opts = document.getElementById('alarmStreamFilterOptions');
-                opts.innerHTML = `<div class="custom-option ${cur === '' ? 'selected' : ''}" data-value="" onclick="selectFilterOption('alarmStreamFilterWrap','alarmStreamFilterText',this)">全部流</div>` +
-                    streams.map(s => `<div class="custom-option ${cur === s ? 'selected' : ''}" data-value="${s}" onclick="selectFilterOption('alarmStreamFilterWrap','alarmStreamFilterText',this)">${s}</div>`).join('');
-                const selected = opts.querySelector('.custom-option.selected');
-                if (selected) document.getElementById('alarmStreamFilterText').textContent = selected.textContent.trim();
-            } catch (e) {}
-        }
-
-        async function refreshAlarms() {
-            const alarmType = getFilterValue('alarmTypeFilterWrap');
-            const streamFilter = getFilterValue('alarmStreamFilterWrap');
-            try {
-                let url = `${API_BASE}/api/v1/stream/alarms?limit=200`;
-                if (alarmType) url += `&alarm_type=${alarmType}`;
-                if (streamFilter) url += `&stream_id=${streamFilter}`;
-                const res = await fetch(url);
-                const data = await res.json();
-                const c = document.getElementById('alarmList');
-                let all = data.alarms || [];
-                // 排序
-                all.sort((a, b) => {
-                    const ta = new Date(a.detected_by).getTime();
-                    const tb = new Date(b.detected_by).getTime();
-                    return alarmSortDesc ? tb - ta : ta - tb;
-                });
-                const total = all.length;
-                const badge = document.getElementById('alarmCountBadge');
-                if (total > 0) { badge.textContent = total; badge.style.display = 'inline-flex'; } else { badge.style.display = 'none'; }
-                const tp = Math.ceil(total / ALARM_PAGE_SIZE);
-                if (alarmPage > tp) alarmPage = tp || 1;
-                const start = (alarmPage - 1) * ALARM_PAGE_SIZE;
-                const page = all.slice(start, start + ALARM_PAGE_SIZE);
-                if (page.length) {
-                    c.innerHTML = `<div style="padding:6px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
-                        <input type="checkbox" id="selectAllAlarms" onchange="toggleSelectAll(this.checked)" style="accent-color:var(--ink);">
-                        <span style="font-size:0.72rem;color:var(--ink-muted);">全选</span>
-                        <span id="selectedCount" style="font-size:0.72rem;color:var(--ink-muted);margin-left:8px;"></span>
-                    </div>` + page.map(a => {
-                        const tn = alarmTypeNames[a.alarm_type] || a.alarm_type;
-                        const cn = a.class_name ? ` · ${alarmTypeNames[a.class_name] || a.class_name}` : '';
-                        const t = timeAgo(a.detected_by);
-                        const ft = new Date(a.detected_by).toLocaleString('zh-CN');
-                        const conf = (a.confidence * 100).toFixed(1);
-                        const img = a.image_path ? `${API_BASE}/api/v1/stream/image/${a.image_path}` : '';
-                        const cl = confLevel(a.confidence);
-                        const checked = selectedAlarms.has(a.id) ? 'checked' : '';
-                        return `<div class="alarm-item" onclick="showImage('${img}','${tn.replace(/'/g,"\\'")}','${ft}','${conf}%','${a.stream_id}')"><input type="checkbox" ${checked} onchange="toggleAlarmSelect(${a.id},this.checked)" onclick="event.stopPropagation()" style="accent-color:var(--ink);flex-shrink:0;"><div class="alarm-thumb">${img ? `<img src="${img}" loading="lazy">` : '<span class="no-img"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg></span>'}</div><div class="alarm-body"><div class="alarm-top"><span class="alarm-type-badge ${a.alarm_type}">${tn}${cn}</span><span class="alarm-stream-tag">${a.stream_id}</span></div><div class="alarm-info"><span class="alarm-conf"><span class="alarm-conf-bar"><span class="alarm-conf-fill ${cl}" style="width:${Math.min(a.confidence*100,100)}%"></span></span>${conf}%</span><span>${ft}</span></div></div><div class="alarm-right"><span class="alarm-time">${t}</span><div class="alarm-actions"><span onclick="event.stopPropagation();showImage('${img}','${tn.replace(/'/g,"\\'")}','${ft}','${conf}%','${a.stream_id}')">查看</span><span class="del" onclick="event.stopPropagation();deleteAlarm(${a.id})">删除</span></div></div></div>`;
-                    }).join('');
-                } else {
-                    c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>暂无告警记录</div>';
-                }
-                const pager = document.getElementById('alarmPager');
-                const pInfo = document.getElementById('alarmPagerInfo');
-                const pBtns = document.getElementById('alarmPagerBtns');
-                if (tp > 1) {
-                    pager.style.display = 'flex';
-                    pInfo.textContent = `共 ${total} 条，第 ${alarmPage}/${tp} 页`;
-                    let btns = `<button ${alarmPage<=1?'disabled':''} onclick="alarmPage--;refreshAlarms()">‹</button>`;
-                    for (let p = 1; p <= tp; p++) {
-                        if (tp > 7 && p > 2 && p < tp-1 && Math.abs(p-alarmPage)>1) { if (p===3||p===tp-2) btns+='<button disabled>…</button>'; continue; }
-                        btns += `<button class="${p===alarmPage?'active':''}" onclick="alarmPage=${p};refreshAlarms()">${p}</button>`;
-                    }
-                    btns += `<button ${alarmPage>=tp?'disabled':''} onclick="alarmPage++;refreshAlarms()">›</button>`;
-                    pBtns.innerHTML = btns;
-                } else { pager.style.display = 'none'; }
-                addLog(`告警列表已刷新，共 ${total} 条`, 'info');
-            } catch (e) { addLog(`获取告警列表失败: ${e.message}`, 'error'); }
-        }
-
-        function showImage(u, tn, t, c, s) {
-            if (!u) { showErrorModal('暂无图片'); return; }
-            document.getElementById('modalImage').src = u;
-            document.getElementById('modalInfo').innerHTML = `<strong>${tn}</strong><span>·</span>流 ${s}<span>·</span>${c}<span>·</span>${t}`;
-            document.getElementById('imageModal').classList.add('active');
-        }
-        function closeImageModal() { document.getElementById('imageModal').classList.remove('active'); }
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImageModal(); });
-
-        async function deleteAlarm(id) {
-            if (!await showConfirm('确定删除这条告警？')) return;
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/stream/alarms/${id}`, { method: 'DELETE' });
-                const d = await res.json();
-                if (res.ok) { showNotification('已删除', 'success'); refreshAlarms(); } else { showErrorModal(d.detail || '删除失败'); }
-            } catch (e) { showErrorModal('删除失败'); }
-        }
-
-        async function deleteAllAlarms() {
-            if (!await showConfirm('确定清空所有告警？')) return;
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/stream/alarms`, { method: 'DELETE' });
-                const d = await res.json();
-                if (res.ok) { showNotification(d.message, 'success'); refreshAlarms(); } else { showErrorModal(d.detail || '清空失败'); }
-            } catch (e) { showErrorModal('清空失败'); }
-        }
-
-        function toggleAlarmSort() {
-            alarmSortDesc = !alarmSortDesc;
-            document.getElementById('sortBtn').textContent = alarmSortDesc ? '时间 ↓' : '时间 ↑';
+function toggleSelectAll(checked) {
+    selectedAlarms.clear();
+    if (checked) {
+        const alarmType = getFilterValue('alarmTypeFilterWrap');
+        const streamFilter = getFilterValue('alarmStreamFilterWrap');
+        let url = `${API_BASE}/api/v1/stream/alarms?limit=200`;
+        if (alarmType) url += `&alarm_type=${alarmType}`;
+        if (streamFilter) url += `&stream_id=${streamFilter}`;
+        fetch(url).then(r=>r.json()).then(d => {
+            (d.alarms||[]).forEach(a => selectedAlarms.add(a.id));
             refreshAlarms();
-        }
-
-        function toggleSelectAll(checked) {
-            selectedAlarms.clear();
-            if (checked) {
-                const alarmType = getFilterValue('alarmTypeFilterWrap');
-                const streamFilter = getFilterValue('alarmStreamFilterWrap');
-                let url = `${API_BASE}/api/v1/stream/alarms?limit=200`;
-                if (alarmType) url += `&alarm_type=${alarmType}`;
-                if (streamFilter) url += `&stream_id=${streamFilter}`;
-                fetch(url).then(r=>r.json()).then(d => {
-                    (d.alarms||[]).forEach(a => selectedAlarms.add(a.id));
-                    refreshAlarms();
-                });
-            } else {
-                refreshAlarms();
-            }
-        }
-
-        function toggleAlarmSelect(id, checked) {
-            if (checked) selectedAlarms.add(id);
-            else selectedAlarms.delete(id);
-            const btn = document.getElementById('batchDeleteBtn');
-            btn.style.display = selectedAlarms.size > 0 ? '' : 'none';
-            document.getElementById('selectedCount').textContent = selectedAlarms.size > 0 ? `已选 ${selectedAlarms.size} 条` : '';
-        }
-
-        async function batchDeleteAlarms() {
-            if (selectedAlarms.size === 0) return;
-            if (!await showConfirm(`确定删除选中的 ${selectedAlarms.size} 条告警？`)) return;
-            let deleted = 0;
-            for (const id of selectedAlarms) {
-                try {
-                    await authFetch(`${API_BASE}/api/v1/stream/alarms/${id}`, { method: 'DELETE' });
-                    deleted++;
-                } catch {}
-            }
-            selectedAlarms.clear();
-            document.getElementById('batchDeleteBtn').style.display = 'none';
-            document.getElementById('selectedCount').textContent = '';
-            showNotification(`已删除 ${deleted} 条`, 'success');
-            refreshAlarms();
-        }
-
-        async function exportAlarms() {
-            const alarmType = getFilterValue('alarmTypeFilterWrap');
-            const streamFilter = getFilterValue('alarmStreamFilterWrap');
-            try {
-                let url = `${API_BASE}/api/v1/stream/alarms?limit=1000`;
-                if (alarmType) url += `&alarm_type=${alarmType}`;
-                if (streamFilter) url += `&stream_id=${streamFilter}`;
-                const res = await authFetch(url);
-                const data = await res.json();
-                const alarms = data.alarms || [];
-                if (!alarms.length) { showNotification('无数据可导出', 'info'); return; }
-                let csv = 'id,alarm_type,class_name,stream_id,confidence,detected_by\n';
-                alarms.forEach(a => {
-                    csv += `${a.id},${a.alarm_type},${a.class_name||''},${a.stream_id},${a.confidence},${a.detected_by||''}\n`;
-                });
-                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `alarms_${new Date().toISOString().slice(0,10)}.csv`;
-                a.click();
-                URL.revokeObjectURL(a.href);
-                showNotification(`已导出 ${alarms.length} 条记录`, 'success');
-            } catch (e) { showErrorModal('导出失败'); }
-        }
-
-        async function startStream(event) {
-            event.preventDefault();
-            const sid = document.getElementById('streamId').value;
-            const url = document.getElementById('streamUrl').value;
-            const validate = document.getElementById('validateStream').checked;
-            const btn = document.getElementById('startBtn');
-            const at = Array.from(document.querySelectorAll('input[name="alarmType"]:checked')).map(cb => cb.value);
-            if (!at.length) { showErrorModal('请至少选择一种检测类型'); return; }
-            btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 启动中…';
-            if (validate) addLog(`正在验证流 ${sid}…`, 'info');
-            const tl = { helmet:'安全帽', fire:'火灾', intrusion:'入侵检测' };
-            addLog(`检测类型: ${at.map(t=>tl[t]||t).join(', ')}`, 'info');
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/stream/start`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ stream_id: sid, stream_url: url, validate, alarm_types: at }),
-                });
-                const d = await res.json();
-                if (res.ok) { showNotification(`流 ${sid} 已启动`, 'success');                     document.getElementById('startForm').reset();
-                    document.getElementById('validateStream').checked = true; refreshStreams(); refreshHealth(); }
-                else { showErrorModal(d.detail || '启动失败'); }
-            } catch (e) { showErrorModal('网络请求失败，请检查网络连接后重试'); }
-            finally { btn.disabled = false; btn.innerHTML = '启动检测'; }
-        }
-
-        async function stopStream(sid) {
-            if (!await showConfirm(`确定停止流 ${sid}？`)) return;
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/stream/stop`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stream_id: sid }) });
-                const d = await res.json();
-                if (res.ok) { showNotification(`流 ${sid} 已停止`, 'success'); refreshStreams(); refreshHealth(); }
-                else { showErrorModal(d.detail || '停止失败'); }
-            } catch (e) { showErrorModal('网络请求失败，请检查网络连接后重试'); }
-        }
-
-        async function restartStream(sid, url, alarmTypes) {
-            if (!await showConfirm(`确定重启流 ${sid}？`)) return;
-            try {
-                // 先停止
-                await fetch(`${API_BASE}/api/v1/stream/stop`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stream_id: sid }) });
-                // 等待 1 秒后重启
-                await new Promise(r => setTimeout(r, 1000));
-                const res = await fetch(`${API_BASE}/api/v1/stream/start`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ stream_id: sid, stream_url: url, validate: true, alarm_types: alarmTypes }),
-                });
-                const d = await res.json();
-                if (res.ok) { showNotification(`流 ${sid} 已重启`, 'success'); refreshStreams(); refreshHealth(); }
-                else { showErrorModal(d.detail || '重启失败'); }
-            } catch (e) { showErrorModal('网络请求失败，请检查网络连接后重试'); }
-        }
-
-        function fillExample() {
-            document.getElementById('streamId').value = 'camera-001';
-            document.getElementById('streamUrl').value = 'rtsp://admin:password@192.168.1.100:554/stream1';
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            refreshHealth(); refreshStreams(); refreshAlarmStreams(); refreshAlarms();
-            addLog('调试面板已加载', 'info');
-            setInterval(() => { refreshHealth(); refreshStreams(); refreshAlarmStreams(); refreshAlarms(); }, 30000);
         });
+    } else {
+        refreshAlarms();
+    }
+}
+
+function toggleAlarmSelect(id, checked) {
+    if (checked) selectedAlarms.add(id);
+    else selectedAlarms.delete(id);
+    const btn = document.getElementById('batchDeleteBtn');
+    btn.style.display = selectedAlarms.size > 0 ? '' : 'none';
+    document.getElementById('selectedCount').textContent = selectedAlarms.size > 0 ? `已选 ${selectedAlarms.size} 条` : '';
+}
+
+async function batchDeleteAlarms() {
+    if (selectedAlarms.size === 0) return;
+    if (!await showConfirm(`确定删除选中的 ${selectedAlarms.size} 条告警？`)) return;
+    let deleted = 0;
+    for (const id of selectedAlarms) {
+        try {
+            await authFetch(`${API_BASE}/api/v1/stream/alarms/${id}`, { method: 'DELETE' });
+            deleted++;
+        } catch {}
+    }
+    selectedAlarms.clear();
+    document.getElementById('batchDeleteBtn').style.display = 'none';
+    document.getElementById('selectedCount').textContent = '';
+    showNotification(`已删除 ${deleted} 条`, 'success');
+    refreshAlarms();
+}
+
+async function exportAlarms() {
+    const alarmType = getFilterValue('alarmTypeFilterWrap');
+    const streamFilter = getFilterValue('alarmStreamFilterWrap');
+    try {
+        let url = `${API_BASE}/api/v1/stream/alarms?limit=1000`;
+        if (alarmType) url += `&alarm_type=${alarmType}`;
+        if (streamFilter) url += `&stream_id=${streamFilter}`;
+        const res = await authFetch(url);
+        const data = await res.json();
+        const alarms = data.alarms || [];
+        if (!alarms.length) { showNotification('无数据可导出', 'info'); return; }
+        let csv = 'id,alarm_type,class_name,stream_id,confidence,detected_by\n';
+        alarms.forEach(a => {
+            csv += `${a.id},${a.alarm_type},${a.class_name||''},${a.stream_id},${a.confidence},${a.detected_by||''}\n`;
+        });
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `alarms_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showNotification(`已导出 ${alarms.length} 条记录`, 'success');
+    } catch (e) { showErrorModal('导出失败'); }
+}
+
+async function startStream(event) {
+    event.preventDefault();
+    const sid = document.getElementById('streamId').value;
+    const url = document.getElementById('streamUrl').value;
+    const validate = document.getElementById('validateStream').checked;
+    const btn = document.getElementById('startBtn');
+    const at = Array.from(document.querySelectorAll('input[name="alarmType"]:checked')).map(cb => cb.value);
+    if (!at.length) { showErrorModal('请至少选择一种检测类型'); return; }
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 启动中…';
+    if (validate) addLog(`正在验证流 ${sid}…`, 'info');
+    const tl = { helmet:'安全帽', fire:'火灾', intrusion:'入侵检测' };
+    addLog(`检测类型: ${at.map(t=>tl[t]||t).join(', ')}`, 'info');
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/stream/start`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stream_id: sid, stream_url: url, validate, alarm_types: at }),
+        });
+        const d = await res.json();
+        if (res.ok) { showNotification(`流 ${sid} 已启动`, 'success');                     document.getElementById('startForm').reset();
+            document.getElementById('validateStream').checked = true; refreshStreams(); refreshHealth(); }
+        else { showErrorModal(d.detail || '启动失败'); }
+    } catch (e) { showErrorModal('网络请求失败，请检查网络连接后重试'); }
+    finally { btn.disabled = false; btn.innerHTML = '启动检测'; }
+}
+
+async function stopStream(sid) {
+    if (!await showConfirm(`确定停止流 ${sid}？`)) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/stream/stop`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stream_id: sid }) });
+        const d = await res.json();
+        if (res.ok) { showNotification(`流 ${sid} 已停止`, 'success'); refreshStreams(); refreshHealth(); }
+        else { showErrorModal(d.detail || '停止失败'); }
+    } catch (e) { showErrorModal('网络请求失败，请检查网络连接后重试'); }
+}
+
+async function restartStream(sid, url, alarmTypes) {
+    if (!await showConfirm(`确定重启流 ${sid}？`)) return;
+    try {
+        // 先停止
+        await fetch(`${API_BASE}/api/v1/stream/stop`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stream_id: sid }) });
+        // 等待 1 秒后重启
+        await new Promise(r => setTimeout(r, 1000));
+        const res = await fetch(`${API_BASE}/api/v1/stream/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stream_id: sid, stream_url: url, validate: true, alarm_types: alarmTypes }),
+        });
+        const d = await res.json();
+        if (res.ok) { showNotification(`流 ${sid} 已重启`, 'success'); refreshStreams(); refreshHealth(); }
+        else { showErrorModal(d.detail || '重启失败'); }
+    } catch (e) { showErrorModal('网络请求失败，请检查网络连接后重试'); }
+}
+
+function fillExample() {
+    document.getElementById('streamId').value = 'camera-001';
+    document.getElementById('streamUrl').value = 'rtsp://admin:password@192.168.1.100:554/stream1';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    refreshHealth(); refreshStreams(); refreshAlarmStreams(); refreshAlarms();
+    addLog('调试面板已加载', 'info');
+    setInterval(() => { refreshHealth(); refreshStreams(); refreshAlarmStreams(); refreshAlarms(); }, 30000);
+});
     </script>
 </body>
 </html>
