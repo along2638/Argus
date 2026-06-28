@@ -335,8 +335,6 @@ async def delete_all_alarms(request: Request):
 
 # ── 调试接口 ──
 
-from fastapi import UploadFile, File
-
 
 class DetectRequest(BaseModel):
     """图片检测请求模型"""

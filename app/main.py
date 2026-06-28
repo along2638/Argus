@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI):
 
     print_status("正在创建默认管理员账号...", "info")
     await create_default_admin()
-    print_status("[OK] 默认管理员: admin / admin123", "success")
+    print_status("[OK] 默认管理员已就绪", "success")
 
     print_status("正在初始化 MinIO 存储...", "info")
     await minio_service.ensure_bucket()
@@ -350,7 +350,6 @@ async def auth_middleware(request: Request, call_next):
     if action and 200 <= response.status_code < 400:
         try:
             from app.services.operation_log_service import write_log
-            import asyncio
             asyncio.create_task(write_log(
                 action=action,
                 user_id=user.get("id"),

@@ -243,9 +243,31 @@ async def api_change_password(body: PasswordResetRequest,
 
 @router.get("/sessions")
 async def api_list_sessions(authorization: Optional[str] = Header(None), request: Request = None):
-    """查看当前用户的会话（这里是模拟，实际可用 JWT 黑名单实现）"""
+    """查看当前用户的会话信息"""
     user = await _get_current_user(authorization, request)
-    return {"success": True, "sessions": [{"user": user["username"], "role": user["role"], "login_time": "当前会话"}]}
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+    if not token and request:
+        token = request.cookies.get("token")
+
+    session_info = {
+        "user_id": user["id"],
+        "username": user["username"],
+        "role": user["role"],
+        "permissions": user.get("permissions", []),
+    }
+
+    # Decode token to get expiry
+    if token:
+        from app.services.auth_service import decode_access_token
+        payload = decode_access_token(token)
+        if payload and payload.get("exp"):
+            from datetime import datetime, timezone
+            exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+            session_info["expires_at"] = exp.isoformat()
+
+    return {"success": True, "sessions": [session_info]}
 
 
 @router.get("/logs")
