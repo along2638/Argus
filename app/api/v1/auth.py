@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, Header, Response
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.core.client_ip import get_client_ip
 from app.services.auth_service import (
     authenticate, register, get_current_user, logout_token, list_users,
     update_user_role, toggle_user_active, reset_password, delete_user,
@@ -21,7 +22,7 @@ async def log_operation(action: str, username: str = None, detail: str = None, r
     try:
         from app.db import async_session
         from app.models.operation_log import OperationLog
-        ip = request.client.host if request and request.client else None
+        ip = get_client_ip(request) if request else None
         async with async_session() as session:
             session.add(OperationLog(
                 action=action,

@@ -99,7 +99,7 @@ class RateLimiter:
                 if key_func:
                     key = key_func(request)
                 else:
-                    ip = request.client.host if request.client else "unknown"
+                    ip = get_client_ip(request)
                     key = f"{func.__name__}:{ip}"
 
                 allowed, retry_after = await cls.is_allowed(key, max_requests, window_seconds)

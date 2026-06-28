@@ -145,7 +145,7 @@ async def upsert_config(body: ConfigUpdateRequest, request: Request):
         target_type="system_config",
         target_id=body.config_key,
         detail={"config_key": body.config_key, "config_value": body.config_value},
-        ip_address=request.client.host if request.client else None,
+        ip_address=get_client_ip(request),
     )
     return {"success": True, "message": f"配置 {body.config_key} 已保存"}
 

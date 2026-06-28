@@ -366,7 +366,7 @@ async def auth_middleware(request: Request, call_next):
                 username=user.get("username"),
                 target_type="api",
                 target_id=path,
-                ip_address=request.client.host if request.client else None,
+                ip_address=get_client_ip(request),
             ))
         except Exception:
             pass  # 日志记录失败不影响正常响应

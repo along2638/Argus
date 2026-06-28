@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel, Field
 
 from app.core.rate_limiter import RateLimiter
+from app.core.client_ip import get_client_ip
 
 from app.config import settings
 from app.core.detector import detector
@@ -21,7 +22,7 @@ async def log_operation(action: str, username: str = None, detail: str = None, r
     try:
         from app.db import async_session
         from app.models.operation_log import OperationLog
-        ip = request.client.host if request and request.client else None
+        ip = get_client_ip(request) if request else None
         async with async_session() as session:
             session.add(OperationLog(
                 action=action,
