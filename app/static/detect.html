@@ -95,11 +95,13 @@
         .history-sidebar .sidebar-title .icon { width:15px; height:15px; opacity:0.5; }
         .history-filter { padding:8px 14px; border-bottom:1px solid var(--border); }
         .history-scroll { flex:1; overflow-y:auto; padding:6px 8px; }
-        .history-pager { padding:6px 10px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:center; gap:4px; flex-shrink:0; }
-        .history-pager button { padding:3px 8px; border:1px solid var(--border); border-radius:4px; background:var(--bg-input); cursor:pointer; font-size:0.7rem; font-family:inherit; color:var(--ink-muted); transition:var(--transition); }
-        .history-pager button:hover:not(:disabled) { border-color:var(--ink-faint); color:var(--ink); }
-        .history-pager button:disabled { opacity:0.3; cursor:not-allowed; }
-        .history-pager span { font-size:0.72rem; color:var(--ink-muted); padding:0 4px; }
+        .history-pager { padding:8px 10px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:4px; flex-shrink:0; font-size:0.72rem; color:var(--ink-muted); }
+        .history-pager-btns { display:flex; gap:3px; }
+        .history-pager-btns button { padding:5px 10px; border:1px solid var(--border); border-radius:4px; background:var(--bg-input); cursor:pointer; font-size:0.75rem; font-family:inherit; color:var(--ink-muted); transition:var(--transition); }
+        .history-pager-btns button:hover:not(:disabled) { border-color:var(--ink-faint); color:var(--ink); }
+        .history-pager-btns button:disabled { opacity:0.3; cursor:not-allowed; }
+        .history-pager-btns button.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+        .history-page-size { padding:4px 6px; border:1px solid var(--border); border-radius:4px; background:var(--bg-input); font-size:0.72rem; font-family:inherit; color:var(--ink); cursor:pointer; outline:none; }
 
         /* ── Right Panel ── */
         .right-panel { flex:1 1 0; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
@@ -638,7 +640,8 @@
 
         // ── History ──
         let historyPage = 1;
-        const HISTORY_PAGE = 10;
+        let historyPageSize = 10;
+        const HISTORY_PAGE_OPTIONS = [10, 30, 50, 100];
 
         function selectHistoryModel(opt) {
             const w = document.getElementById('historyModelWrap');
@@ -650,6 +653,12 @@
             loadHistory();
         }
 
+        function changeHistoryPageSize(val) {
+            historyPageSize = parseInt(val);
+            historyPage = 1;
+            loadHistory();
+        }
+
         function getHistoryModelFilter() {
             return document.querySelector('#historyModelWrap .custom-option.selected')?.dataset.value || '';
         }
@@ -657,14 +666,14 @@
         async function loadHistory() {
             try {
                 const model = getHistoryModelFilter();
-                const offset = (historyPage - 1) * HISTORY_PAGE;
-                let url = `/api/v1/stream/detect/history?limit=${HISTORY_PAGE}&offset=${offset}`;
+                const offset = (historyPage - 1) * historyPageSize;
+                let url = `/api/v1/stream/detect/history?limit=${historyPageSize}&offset=${offset}`;
                 if (model) url += `&model=${model}`;
                 const resp = await authFetch(url);
                 const data = await resp.json();
                 const items = data.items || [];
                 const total = data.total || 0;
-                const totalPages = Math.ceil(total / HISTORY_PAGE);
+                const totalPages = Math.ceil(total / historyPageSize);
                 if (historyPage > totalPages) historyPage = totalPages || 1;
 
                 if (!items.length) {
@@ -696,7 +705,8 @@
                     btns += `<span>${historyPage}/${totalPages || 1}</span>`;
                     btns += `<button onclick="historyPage++;loadHistory()" ${historyPage>=totalPages?'disabled':''}>›</button>`;
                     btns += `<button onclick="historyPage=${totalPages};loadHistory()" ${historyPage>=totalPages?'disabled':''}>»</button>`;
-                    pager.innerHTML = btns;
+                    const sizeOptions = HISTORY_PAGE_OPTIONS.map(s => `<option value="${s}" ${s===historyPageSize?'selected':''}>${s}</option>`).join('');
+                    pager.innerHTML = `<select class="history-page-size" onchange="changeHistoryPageSize(this.value)">${sizeOptions}</select><div class="history-pager-btns">${btns}</div><span>${total} 条</span>`;
                 } else {
                     pager.style.display = 'none';
                 }
