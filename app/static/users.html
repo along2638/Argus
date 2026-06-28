@@ -66,6 +66,12 @@
         @keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
         .empty{text-align:center;padding:40px 16px;color:var(--ink-faint);font-size:0.84rem}
         .footer{text-align:center;padding:40px 0 0;color:var(--ink-faint);font-size:0.73rem}
+        .pager{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-top:1px solid var(--border);font-size:0.72rem;color:var(--ink-muted)}
+        .pager-btns{display:flex;gap:3px}
+        .pager-btns button{padding:4px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--ink-muted);font-size:0.7rem;font-family:inherit;cursor:pointer;transition:var(--transition)}
+        .pager-btns button:hover:not(:disabled){border-color:var(--ink-faint);color:var(--ink)}
+        .pager-btns button:disabled{opacity:0.3;cursor:not-allowed}
+        .pager-btns button.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
     </style>
 </head>
 <body>
@@ -114,6 +120,10 @@
                         <tr><td colspan="6"><div class="empty">加载中...</div></td></tr>
                     </tbody>
                 </table>
+                <div class="pager" id="userPager" style="display:none;">
+                    <span id="userPagerInfo"></span>
+                    <div class="pager-btns" id="userPagerBtns"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -232,43 +242,77 @@
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
+        let allUsers = [];
+        let userPage = 1;
+        const USER_PAGE_SIZE = 15;
+
         async function loadUsers() {
             try {
                 const resp = await authFetch('/api/v1/auth/users');
                 const data = await resp.json();
                 if (!data.success) { showNotification(data.detail || '无权限', 'error'); return; }
-                const users = data.users || [];
-                document.getElementById('userCount').textContent = `共 ${users.length} 人`;
-                const tbody = document.getElementById('userList');
-                if (!users.length) {
-                    tbody.innerHTML = '<tr><td colspan="6"><div class="empty">暂无用户</div></td></tr>';
-                    return;
-                }
-                tbody.innerHTML = users.map(u => {
-                    const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('zh-CN') : '从未登录';
-                    const createTime = u.create_time ? new Date(u.create_time).toLocaleString('zh-CN') : '-';
-                    const activeDot = u.is_active ? '<span class="status-dot active"></span>启用' : '<span class="status-dot inactive"></span>禁用';
-                    return `<tr>
-                        <td>
-                            <div style="font-weight:500">${u.username}</div>
-                            <div style="font-size:0.72rem;color:var(--ink-muted)">${u.display_name || '-'}</div>
-                        </td>
-                        <td><span class="role-badge ${u.role}">${roleNames[u.role]||u.role}</span></td>
-                        <td>${activeDot}</td>
-                        <td style="font-size:0.76rem;color:var(--ink-muted)">${createTime}</td>
-                        <td style="font-size:0.76rem;color:var(--ink-muted)">${lastLogin}</td>
-                        <td style="text-align:right">
-                            <div class="actions">
-                                <button class="btn btn-ghost btn-sm" onclick="showResetPwd(${u.id})">重置密码</button>
-                                ${u.username !== 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="showRoleUpdate(${u.id},'${u.role}')">角色</button>` : ''}
-                                ${u.username !== 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="toggleActive(${u.id})">${u.is_active ? '禁用' : '启用'}</button>` : ''}
-                                ${u.username !== 'admin' ? `<button class="btn btn-danger-ghost btn-sm" onclick="deleteUser(${u.id},'${u.username}')">删除</button>` : ''}
-                            </div>
-                        </td>
-                    </tr>`;
-                }).join('');
+                allUsers = data.users || [];
+                document.getElementById('userCount').textContent = `共 ${allUsers.length} 人`;
+                renderUserPage();
             } catch (e) {
                 showNotification('加载失败', 'error');
+            }
+        }
+
+        function renderUserPage() {
+            const tbody = document.getElementById('userList');
+            if (!allUsers.length) {
+                tbody.innerHTML = '<tr><td colspan="6"><div class="empty">暂无用户</div></td></tr>';
+                document.getElementById('userPager').style.display = 'none';
+                return;
+            }
+            const totalPages = Math.ceil(allUsers.length / USER_PAGE_SIZE);
+            if (userPage > totalPages) userPage = totalPages;
+            const start = (userPage - 1) * USER_PAGE_SIZE;
+            const pageData = allUsers.slice(start, start + USER_PAGE_SIZE);
+
+            tbody.innerHTML = pageData.map(u => {
+                const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('zh-CN') : '从未登录';
+                const createTime = u.create_time ? new Date(u.create_time).toLocaleString('zh-CN') : '-';
+                const activeDot = u.is_active ? '<span class="status-dot active"></span>启用' : '<span class="status-dot inactive"></span>禁用';
+                return `<tr>
+                    <td>
+                        <div style="font-weight:500">${u.username}</div>
+                        <div style="font-size:0.72rem;color:var(--ink-muted)">${u.display_name || '-'}</div>
+                    </td>
+                    <td><span class="role-badge ${u.role}">${roleNames[u.role]||u.role}</span></td>
+                    <td>${activeDot}</td>
+                    <td style="font-size:0.76rem;color:var(--ink-muted)">${createTime}</td>
+                    <td style="font-size:0.76rem;color:var(--ink-muted)">${lastLogin}</td>
+                    <td style="text-align:right">
+                        <div class="actions">
+                            <button class="btn btn-ghost btn-sm" onclick="showResetPwd(${u.id})">重置密码</button>
+                            ${u.username !== 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="showRoleUpdate(${u.id},'${u.role}')">角色</button>` : ''}
+                            ${u.username !== 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="toggleActive(${u.id})">${u.is_active ? '禁用' : '启用'}</button>` : ''}
+                            ${u.username !== 'admin' ? `<button class="btn btn-danger-ghost btn-sm" onclick="deleteUser(${u.id},'${u.username}')">删除</button>` : ''}
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            const pager = document.getElementById('userPager');
+            if (totalPages > 1) {
+                pager.style.display = 'flex';
+                document.getElementById('userPagerInfo').textContent = `共 ${allUsers.length} 人，第 ${userPage}/${totalPages} 页`;
+                let btns = `<button ${userPage<=1?'disabled':''} onclick="userPage=1;renderUserPage()">«</button>`;
+                btns += `<button ${userPage<=1?'disabled':''} onclick="userPage--;renderUserPage()">‹</button>`;
+                for (let p = 1; p <= totalPages; p++) {
+                    if (totalPages > 7 && p > 2 && p < totalPages-1 && Math.abs(p-userPage)>1) {
+                        if (p === 3 || p === totalPages-2) btns += '<button disabled>…</button>';
+                        continue;
+                    }
+                    btns += `<button class="${p===userPage?'active':''}" onclick="userPage=${p};renderUserPage()">${p}</button>`;
+                }
+                btns += `<button ${userPage>=totalPages?'disabled':''} onclick="userPage++;renderUserPage()">›</button>`;
+                btns += `<button ${userPage>=totalPages?'disabled':''} onclick="userPage=${totalPages};renderUserPage()">»</button>`;
+                document.getElementById('userPagerBtns').innerHTML = btns;
+            } else {
+                pager.style.display = 'none';
             }
         }
 

@@ -42,6 +42,12 @@
         .empty{text-align:center;padding:40px 16px;color:var(--ink-faint);font-size:0.84rem}
         .footer{text-align:center;padding:40px 0 0;color:var(--ink-faint);font-size:0.73rem}
         .source-tag{display:inline-flex;padding:2px 8px;border-radius:var(--radius);font-size:0.66rem;font-weight:500;background:var(--accent);color:var(--ink-muted)}
+        .pager{display:flex;align-items:center;justify-content:space-between;padding:12px 0;margin-top:8px;font-size:0.72rem;color:var(--ink-muted)}
+        .pager-btns{display:flex;gap:3px}
+        .pager-btns button{padding:4px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--ink-muted);font-size:0.7rem;font-family:inherit;cursor:pointer;transition:var(--transition)}
+        .pager-btns button:hover:not(:disabled){border-color:var(--ink-faint);color:var(--ink)}
+        .pager-btns button:disabled{opacity:0.3;cursor:not-allowed}
+        .pager-btns button.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
     </style>
 </head>
 <body>
@@ -65,6 +71,10 @@
             </div>
             <div class="card-body">
                 <div class="dataset-grid" id="datasetList"><div class="empty">加载中...</div></div>
+                <div class="pager" id="dsPager" style="display:none;">
+                    <span id="dsPagerInfo"></span>
+                    <div class="pager-btns" id="dsPagerBtns"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -81,10 +91,22 @@
             } catch (e) { showNotification('扫描失败', 'error'); }
         }
 
+        let allDatasets = [];
+        let dsPage = 1;
+        const DS_PAGE_SIZE = 9;
+
         async function loadDatasets(){
-            try{const r=await authFetch('/api/v1/auth/datasets');const d=await r.json();const list=d.datasets||[];const c=document.getElementById('datasetList');
-            if(!list.length){c.innerHTML='<div class="empty">暂无数据集<br><span style="font-size:0.72rem;color:var(--ink-faint);">标注图片后自动统计，或在「系统配置」中手动添加</span></div>';return}
-            c.innerHTML=list.map(ds=>`<div class="dataset-card">
+            try{const r=await authFetch('/api/v1/auth/datasets');const d=await r.json();allDatasets=d.datasets||[];renderDsPage();}catch(e){console.error(e)}
+        }
+
+        function renderDsPage(){
+            const c=document.getElementById('datasetList');
+            if(!allDatasets.length){c.innerHTML='<div class="empty">暂无数据集<br><span style="font-size:0.72rem;color:var(--ink-faint);">标注图片后自动统计，或在「系统配置」中手动添加</span></div>';document.getElementById('dsPager').style.display='none';return}
+            const totalPages=Math.ceil(allDatasets.length/DS_PAGE_SIZE);
+            if(dsPage>totalPages)dsPage=totalPages;
+            const start=(dsPage-1)*DS_PAGE_SIZE;
+            const pageData=allDatasets.slice(start,start+DS_PAGE_SIZE);
+            c.innerHTML=pageData.map(ds=>`<div class="dataset-card">
                 <div class="dataset-name">${ds.name} <span class="source-tag">自动扫描</span></div>
                 <div class="dataset-desc">${ds.description||'暂无描述'}</div>
                 <div class="dataset-stats">
@@ -94,7 +116,19 @@
                     <div class="dataset-stat"><div class="dataset-stat-val">${ds.test_count||0}</div><div class="dataset-stat-label">测试集</div></div>
                 </div>
                 <div style="margin-top:12px;"><button class="btn btn-ghost btn-sm" onclick="scanDataset(${ds.id})">重新扫描</button></div>
-            </div>`).join('')}catch(e){console.error(e)}
+            </div>`).join('');
+            const pager=document.getElementById('dsPager');
+            if(totalPages>1){
+                pager.style.display='flex';
+                document.getElementById('dsPagerInfo').textContent=`共 ${allDatasets.length} 个，第 ${dsPage}/${totalPages} 页`;
+                let btns=`<button ${dsPage<=1?'disabled':''} onclick="dsPage=1;renderDsPage()">«</button>`;
+                btns+=`<button ${dsPage<=1?'disabled':''} onclick="dsPage--;renderDsPage()">‹</button>`;
+                for(let p=1;p<=totalPages;p++){if(totalPages>7&&p>2&&p<totalPages-1&&Math.abs(p-dsPage)>1){if(p===3||p===totalPages-2)btns+='<button disabled>…</button>';continue}btns+=`<button class="${p===dsPage?'active':''}" onclick="dsPage=${p};renderDsPage()">${p}</button>`}
+                btns+=`<button ${dsPage>=totalPages?'disabled':''} onclick="dsPage++;renderDsPage()">›</button>`;
+                btns+=`<button ${dsPage>=totalPages?'disabled':''} onclick="dsPage=${totalPages};renderDsPage()">»</button>`;
+                document.getElementById('dsPagerBtns').innerHTML=btns;
+            }else{pager.style.display='none'}
+        }
         loadDatasets();
     </script>
 </body>
