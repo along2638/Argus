@@ -38,7 +38,7 @@
         .main-layout { position:relative; z-index:1; display:flex; height:calc(100vh - 61px); overflow:hidden; }
 
         /* ── Left Sidebar ── */
-        .sidebar { width:320px; background:var(--bg-card); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+        .sidebar { width:260px; background:var(--bg-card); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
         .sidebar-section { border-bottom:1px solid var(--border); }
         .sidebar-head { padding:12px 18px; display:flex; align-items:center; justify-content:space-between; }
         .sidebar-title { font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:6px; }
@@ -74,19 +74,27 @@
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
 
         /* ── History List ── */
-        .history-scroll { flex:1; overflow-y:auto; padding:6px 10px; }
-        .history-item { display:flex; gap:10px; padding:10px; border-radius:var(--radius-md); cursor:pointer; transition:var(--transition); margin-bottom:2px; align-items:center; }
+        .history-scroll { flex:1; overflow-y:auto; padding:4px 6px; }
+        .history-item { display:flex; gap:8px; padding:8px; border-radius:var(--radius-md); cursor:pointer; transition:var(--transition); margin-bottom:2px; align-items:center; }
         .history-item:hover { background:var(--accent-soft); }
         .history-item.active { background:var(--ink); color:var(--bg); }
         .history-item.active .history-meta { color:rgba(255,255,255,0.6); }
-        .history-thumb { width:48px; height:36px; border-radius:6px; overflow:hidden; flex-shrink:0; background:var(--bg-input); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
+        .history-thumb { width:52px; height:40px; border-radius:6px; overflow:hidden; flex-shrink:0; background:var(--bg-input); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
         .history-item.active .history-thumb { border-color:rgba(255,255,255,0.2); }
         .history-thumb img { width:100%; height:100%; object-fit:cover; }
         .history-info { flex:1; min-width:0; }
-        .history-name { font-size:0.75rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .history-meta { font-size:0.66rem; color:var(--ink-faint); display:flex; gap:8px; margin-top:2px; }
-        .history-count { font-size:0.66rem; padding:1px 6px; background:var(--accent-soft); border-radius:var(--radius); font-weight:500; flex-shrink:0; }
+        .history-name { font-size:0.78rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .history-meta { font-size:0.68rem; color:var(--ink-faint); display:flex; gap:8px; margin-top:2px; }
+        .history-count { font-size:0.68rem; padding:2px 8px; background:var(--accent-soft); border-radius:var(--radius); font-weight:500; flex-shrink:0; }
         .history-item.active .history-count { background:rgba(255,255,255,0.2); color:#fff; }
+
+        /* ── Right Sidebar (History) ── */
+        .history-sidebar { width:300px; background:var(--bg-card); border-left:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+        .history-sidebar .sidebar-head { padding:10px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+        .history-sidebar .sidebar-title { font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:6px; }
+        .history-sidebar .sidebar-title .icon { width:15px; height:15px; opacity:0.5; }
+        .history-filter { padding:8px 14px; border-bottom:1px solid var(--border); }
+        .history-scroll { flex:1; overflow-y:auto; padding:6px 8px; }
 
         /* ── Right Panel ── */
         .right-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
@@ -133,7 +141,8 @@
         .toast.error { background:var(--bg-card-solid); color:var(--danger); border:1px solid var(--danger-bg); }
         @keyframes toastIn { from { transform:translateX(120%); opacity:0; } to { transform:translateX(0); opacity:1; } }
 
-        @media (max-width:768px) { .main-layout { flex-direction:column; } .sidebar { width:100%; height:auto; max-height:200px; } }
+        @media (max-width:1024px) { .history-sidebar { width:240px; } }
+        @media (max-width:768px) { .main-layout { flex-direction:column; } .sidebar { width:100%; height:auto; max-height:200px; } .history-sidebar { width:100%; height:200px; border-left:none; border-top:1px solid var(--border); } }
     </style>
 </head>
 <body>
@@ -213,35 +222,6 @@
                 </div>
                 <button class="btn-detect" id="detectBtn" disabled onclick="runDetect()">检测</button>
             </div>
-
-            <div class="sidebar-head" style="border-top:1px solid var(--border);">
-                <span class="sidebar-title">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-                    检测历史
-                </span>
-                <div style="display:flex;gap:4px;">
-                    <button onclick="loadHistory()" style="background:none;border:none;cursor:pointer;color:var(--ink-muted);font-size:0.72rem;padding:3px 6px;border-radius:4px;transition:var(--transition);" onmouseover="this.style.color='var(--ink)'" onmouseout="this.style.color='var(--ink-muted)'">刷新</button>
-                    <button onclick="exportHistory()" style="background:none;border:none;cursor:pointer;color:var(--ink-muted);font-size:0.72rem;padding:3px 6px;border-radius:4px;transition:var(--transition);" onmouseover="this.style.color='var(--ink)'" onmouseout="this.style.color='var(--ink-muted)'">导出</button>
-                    <button onclick="clearHistory()" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.72rem;padding:3px 6px;border-radius:4px;transition:var(--transition);" onmouseover="this.style.background='var(--danger-bg)'" onmouseout="this.style.background='none'">清空</button>
-                </div>
-            </div>
-            <div style="padding:6px 12px 8px;border-bottom:1px solid var(--border);">
-                <div class="custom-select" id="historyModelWrap" style="width:100%;">
-                    <div class="custom-select-trigger" onclick="toggleSelect('historyModelWrap')" style="width:100%;justify-content:space-between;">
-                        <span id="historyModelText">全部模型</span>
-                        <span class="arrow"></span>
-                    </div>
-                    <div class="custom-select-options" style="width:100%;">
-                        <div class="custom-option selected" data-value="" onclick="selectHistoryModel(this)">全部模型</div>
-                        <div class="custom-option" data-value="general" onclick="selectHistoryModel(this)">通用检测</div>
-                        <div class="custom-option" data-value="fire_smoke" onclick="selectHistoryModel(this)">火灾烟雾</div>
-                        <div class="custom-option" data-value="helmet" onclick="selectHistoryModel(this)">安全帽</div>
-                    </div>
-                </div>
-            </div>
-            <div class="history-scroll" id="historyList">
-                <div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">暂无检测记录</div>
-            </div>
         </aside>
 
         <!-- Right Panel -->
@@ -274,6 +254,38 @@
                 </div>
             </div>
         </div>
+
+        <!-- Right Sidebar (History) -->
+        <aside class="history-sidebar">
+            <div class="sidebar-head">
+                <span class="sidebar-title">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                    检测历史
+                </span>
+                <div style="display:flex;gap:4px;">
+                    <button onclick="loadHistory()" style="background:none;border:none;cursor:pointer;color:var(--ink-muted);font-size:0.72rem;padding:3px 8px;border-radius:4px;transition:var(--transition);" onmouseover="this.style.color='var(--ink)'" onmouseout="this.style.color='var(--ink-muted)'">刷新</button>
+                    <button onclick="exportHistory()" style="background:none;border:none;cursor:pointer;color:var(--ink-muted);font-size:0.72rem;padding:3px 8px;border-radius:4px;transition:var(--transition);" onmouseover="this.style.color='var(--ink)'" onmouseout="this.style.color='var(--ink-muted)'">导出</button>
+                    <button onclick="clearHistory()" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.72rem;padding:3px 8px;border-radius:4px;transition:var(--transition);" onmouseover="this.style.background='var(--danger-bg)'" onmouseout="this.style.background='none'">清空</button>
+                </div>
+            </div>
+            <div class="history-filter">
+                <div class="custom-select" id="historyModelWrap" style="width:100%;">
+                    <div class="custom-select-trigger" onclick="toggleSelect('historyModelWrap')" style="width:100%;justify-content:space-between;">
+                        <span id="historyModelText">全部模型</span>
+                        <span class="arrow"></span>
+                    </div>
+                    <div class="custom-select-options" style="width:100%;">
+                        <div class="custom-option selected" data-value="" onclick="selectHistoryModel(this)">全部模型</div>
+                        <div class="custom-option" data-value="general" onclick="selectHistoryModel(this)">通用检测</div>
+                        <div class="custom-option" data-value="fire_smoke" onclick="selectHistoryModel(this)">火灾烟雾</div>
+                        <div class="custom-option" data-value="helmet" onclick="selectHistoryModel(this)">安全帽</div>
+                    </div>
+                </div>
+            </div>
+            <div class="history-scroll" id="historyList">
+                <div style="text-align:center;padding:40px 20px;color:var(--ink-faint);font-size:0.78rem;">暂无检测记录</div>
+            </div>
+        </aside>
     </div>
 
     <script src="/static/confirm.js"></script>
