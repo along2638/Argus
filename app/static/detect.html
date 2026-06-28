@@ -225,13 +225,19 @@
                     <button onclick="clearHistory()" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.72rem;padding:3px 6px;border-radius:4px;transition:var(--transition);" onmouseover="this.style.background='var(--danger-bg)'" onmouseout="this.style.background='none'">清空</button>
                 </div>
             </div>
-            <div style="padding:6px 12px;border-bottom:1px solid var(--border);">
-                <select id="historyModelFilter" onchange="historyPage=1;loadHistory()" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:0.72rem;background:var(--bg-input);color:var(--ink);font-family:inherit;outline:none;transition:var(--transition);">
-                    <option value="">全部模型</option>
-                    <option value="general">通用检测</option>
-                    <option value="fire_smoke">火灾烟雾</option>
-                    <option value="helmet">安全帽</option>
-                </select>
+            <div style="padding:6px 12px 8px;border-bottom:1px solid var(--border);">
+                <div class="custom-select" id="historyModelWrap" style="width:100%;">
+                    <div class="custom-select-trigger" onclick="toggleSelect('historyModelWrap')" style="width:100%;justify-content:space-between;">
+                        <span id="historyModelText">全部模型</span>
+                        <span class="arrow"></span>
+                    </div>
+                    <div class="custom-select-options" style="width:100%;">
+                        <div class="custom-option selected" data-value="" onclick="selectHistoryModel(this)">全部模型</div>
+                        <div class="custom-option" data-value="general" onclick="selectHistoryModel(this)">通用检测</div>
+                        <div class="custom-option" data-value="fire_smoke" onclick="selectHistoryModel(this)">火灾烟雾</div>
+                        <div class="custom-option" data-value="helmet" onclick="selectHistoryModel(this)">安全帽</div>
+                    </div>
+                </div>
             </div>
             <div class="history-scroll" id="historyList">
                 <div style="text-align:center;padding:30px;color:var(--ink-faint);font-size:0.78rem;">暂无检测记录</div>
@@ -615,9 +621,23 @@
         let historyPage = 1;
         const HISTORY_PAGE = 20;
 
+        function selectHistoryModel(opt) {
+            const w = document.getElementById('historyModelWrap');
+            w.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            w.querySelector('.custom-select-trigger span:first-child').textContent = opt.textContent.trim();
+            w.classList.remove('open');
+            historyPage = 1;
+            loadHistory();
+        }
+
+        function getHistoryModelFilter() {
+            return document.querySelector('#historyModelWrap .custom-option.selected')?.dataset.value || '';
+        }
+
         async function loadHistory() {
             try {
-                const model = document.getElementById('historyModelFilter').value;
+                const model = getHistoryModelFilter();
                 const offset = (historyPage - 1) * HISTORY_PAGE;
                 let url = `/api/v1/stream/detect/history?limit=${HISTORY_PAGE}&offset=${offset}`;
                 if (model) url += `&model=${model}`;
@@ -680,7 +700,7 @@
         }
 
         async function exportHistory() {
-            const model = document.getElementById('historyModelFilter').value;
+            const model = getHistoryModelFilter();
             try {
                 let url = '/api/v1/stream/detect/history?limit=1000';
                 if (model) url += '&model=' + model;
