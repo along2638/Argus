@@ -255,7 +255,7 @@ async def authenticate(username: str, password: str) -> dict:
                 "username": user.username,
                 "display_name": user.display_name,
                 "role": user.role,
-                "permissions": get_user_permissions(user.role),
+                "permissions": await get_user_permissions(user.role),
             },
         }
 
@@ -280,7 +280,7 @@ async def get_current_user(token: str) -> Optional[dict]:
                 "username": user.username,
                 "display_name": user.display_name,
                 "role": user.role,
-                "permissions": get_user_permissions(user.role),
+                "permissions": await get_user_permissions(user.role),
             }
     except Exception as e:
         logger.error("get_current_user_error", error=str(e), user_id=payload.get("sub"))
