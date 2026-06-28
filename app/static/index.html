@@ -125,6 +125,23 @@
         }
         .topbar-btn:hover { color: var(--ink); border-color: var(--border); }
 
+        /* ── User Dropdown ── */
+        .user-dropdown { position: relative; }
+        .user-trigger { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--accent-soft); cursor: pointer; transition: var(--transition); font-family: inherit; font-size: 0.78rem; color: var(--ink); }
+        .user-trigger:hover { border-color: var(--ink-faint); }
+        .user-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; flex-shrink: 0; }
+        .user-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 180px; background: var(--bg-card-solid); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0,0,0,0.1); z-index: 100; display: none; overflow: hidden; }
+        .user-dropdown.open .user-menu { display: block; }
+        .user-menu-header { padding: 14px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+        .user-avatar-lg { width: 36px; height: 36px; border-radius: 50%; background: var(--ink); color: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; flex-shrink: 0; }
+        .user-menu-name { font-size: 0.85rem; font-weight: 600; }
+        .user-menu-role { font-size: 0.7rem; color: var(--ink-muted); }
+        .user-menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+        .user-menu-item { display: flex; align-items: center; gap: 8px; padding: 9px 16px; font-size: 0.8rem; color: var(--ink-light); cursor: pointer; transition: var(--transition); text-decoration: none; }
+        .user-menu-item:hover { background: var(--accent-soft); color: var(--ink); }
+        .user-menu-item.danger { color: var(--danger); }
+        .user-menu-item.danger:hover { background: var(--danger-bg); }
+
         /* ── Grid ── */
         .grid-top {
             display: grid;
@@ -763,8 +780,33 @@
                 <a href="/static/training.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">训练记录</a>
                 <a href="/static/datasets.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">数据集</a>
                 <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-                <span id="currentUser" style="font-size:0.75rem;color:var(--ink-muted);padding:0 8px;"></span>
-                <button class="topbar-btn" onclick="doLogout()" style="background:var(--accent-soft);color:var(--ink);font-weight:500;cursor:pointer;border:none;font-family:inherit;">退出登录</button>
+                <div class="user-dropdown" id="userDropdown">
+                    <button class="user-trigger" onclick="toggleUserDropdown()">
+                        <div class="user-avatar" id="userAvatar">A</div>
+                        <span id="currentUser"></span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div class="user-menu" id="userMenu">
+                        <div class="user-menu-header">
+                            <div class="user-avatar-lg" id="userAvatarLg">A</div>
+                            <div><div class="user-menu-name" id="userName"></div><div class="user-menu-role" id="userRole"></div></div>
+                        </div>
+                        <div class="user-menu-divider"></div>
+                        <a class="user-menu-item" onclick="showProfileModal()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            个人信息
+                        </a>
+                        <a class="user-menu-item" onclick="showAvatarModal()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+                            设置头像
+                        </a>
+                        <div class="user-menu-divider"></div>
+                        <a class="user-menu-item danger" onclick="doLogout()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                            退出登录
+                        </a>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -934,14 +976,48 @@ function doLogout() {
             window.location.href = '/login';
         }
 
-        // 显示当前用户名
+        // 显示当前用户名和头像
         (function() {
             try {
                 const user = JSON.parse(localStorage.getItem('user') || '{}');
-                const el = document.getElementById('currentUser');
-                if (el && user.username) el.textContent = user.username;
+                if (user.username) {
+                    const initial = (user.display_name || user.username).charAt(0).toUpperCase();
+                    const el = document.getElementById('currentUser');
+                    const avatar = document.getElementById('userAvatar');
+                    const avatarLg = document.getElementById('userAvatarLg');
+                    const nameEl = document.getElementById('userName');
+                    const roleEl = document.getElementById('userRole');
+                    if (el) el.textContent = user.display_name || user.username;
+                    if (avatar) avatar.textContent = initial;
+                    if (avatarLg) avatarLg.textContent = initial;
+                    if (nameEl) nameEl.textContent = user.display_name || user.username;
+                    if (roleEl) {
+                        const roles = {admin:'管理员',operator:'操作员',annotator:'标注员',viewer:'观察者'};
+                        roleEl.textContent = roles[user.role] || user.role;
+                    }
+                }
             } catch(e) {}
         })();
+
+        function toggleUserDropdown() {
+            document.getElementById('userDropdown').classList.toggle('open');
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.user-dropdown')) {
+                document.getElementById('userDropdown').classList.remove('open');
+            }
+        });
+
+        function showProfileModal() {
+            document.getElementById('userDropdown').classList.remove('open');
+            showNotification('个人信息功能开发中', 'info');
+        }
+
+        function showAvatarModal() {
+            document.getElementById('userDropdown').classList.remove('open');
+            showNotification('头像设置功能开发中', 'info');
+        }
 
         function authFetch(url, opts = {}) {
             const t = localStorage.getItem('token');
