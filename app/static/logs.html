@@ -5,71 +5,104 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>Argus — 操作日志</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="/static/theme.js"></script>
     <script src="/static/loading.js"></script>
     <style>
-        :root{--bg:#f8f7f5;--bg-card:#fff;--bg-card-solid:#fff;--bg-input:#f5f4f2;--border:#e8e6e3;--border-focus:#b8b5b0;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#78716c;--ink-faint:#a8a29e;--accent:#292524;--accent-soft:rgba(26,26,26,0.06);--success:#16a34a;--success-bg:rgba(45,122,79,0.08);--danger:#dc2626;--danger-bg:rgba(179,58,58,0.08);--warning:#d97706;--radius:8px;--radius-md:12px;--radius-lg:16px;--shadow:0 1px 3px rgba(0,0,0,0.04),0 8px 32px rgba(0,0,0,0.06);--shadow-sm:0 1px 2px rgba(0,0,0,0.04);--transition:0.2s ease}
+        :root{--bg:#f8f7f5;--bg-panel:#fff;--bg-hover:#f3f2f0;--bg-input:#f5f4f2;--border:#e8e6e3;--border-focus:#b8b5b0;--ink:#1c1917;--ink-2:#44403c;--ink-3:#78716c;--ink-4:#a8a29e;--accent:#292524;--green:#16a34a;--green-bg:#f0fdf4;--red:#dc2626;--red-bg:#fef2f2;--amber:#d97706;--amber-bg:#fffbeb;--radius:8px;--radius-lg:12px;--shadow:0 1px 3px rgba(0,0,0,0.06);--transition:0.15s ease}
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family: 'DM Sans', -apple-system, sans-serif;background:var(--bg);min-height:100vh;color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
-        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 30%,rgba(180,170,155,0.08) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 75% 60%,rgba(160,150,135,0.06) 0%,transparent 60%);pointer-events:none;z-index:0}
-        ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:3px}
+        body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);min-height:100vh;color:var(--ink);-webkit-font-smoothing:antialiased}
+        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.08);border-radius:2px}
 
-        .header{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid var(--border);background:var(--bg-card);backdrop-filter:blur(20px)}
-        .header-left{display:flex;align-items:center;gap:12px}
-        .header-logo{width:34px;height:34px;background:var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,0.15)}
-        .header h1{font-size:1.1rem;font-weight:600}
-        .header-right{display:flex;align-items:center;gap:8px}
-        .header-link{color:var(--ink-muted);font-size:0.78rem;text-decoration:none;padding:5px 12px;border-radius:var(--radius);transition:var(--transition);border:1px solid transparent}
-        .header-link:hover{color:var(--ink);border-color:var(--border)}
+        .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--border);background:var(--bg-panel)}
+        .topbar-left{display:flex;align-items:center;gap:10px}
+        .topbar-logo{width:28px;height:28px;background:var(--ink);border-radius:6px;display:flex;align-items:center;justify-content:center}
+        .topbar h1{font-size:0.92rem;font-weight:600}
+        .topbar-right{display:flex;align-items:center;gap:4px}
+        .topbar-btn{font-size:0.75rem;padding:5px 12px;border:none;border-radius:var(--radius);background:transparent;color:var(--ink-3);cursor:pointer;transition:var(--transition);font-family:inherit}
+        .topbar-btn:hover{background:var(--bg-hover);color:var(--ink)}
+        .topbar-btn.accent{background:var(--accent);color:#fff}
+        .topbar-btn.accent:hover{background:var(--ink-2)}
 
-        .main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:24px 32px 60px}
+        .main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:20px 24px 60px}
 
-        .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);backdrop-filter:blur(20px);overflow:hidden;box-shadow:var(--shadow-sm)}
-        .card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+        .card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
+        .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
         .card-title{display:flex;align-items:center;gap:8px;font-size:0.84rem;font-weight:600}
         .card-body{padding:0}
 
-        .btn{padding:6px 14px;border:none;border-radius:var(--radius);cursor:pointer;font-size:0.76rem;font-weight:500;font-family:inherit;transition:var(--transition)}
-        .btn-ghost{background:transparent;color:var(--ink-muted);border:1px solid var(--border)}
-        .btn-ghost:hover{border-color:var(--ink-faint);color:var(--ink)}
-        .btn-sm{padding:4px 10px;font-size:0.7rem}
+        .filter-bar{display:flex;gap:10px;padding:12px 18px;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap}
+        .filter-group{display:flex;align-items:center;gap:5px}
+        .filter-label{font-size:0.68rem;font-weight:500;color:var(--ink-3);white-space:nowrap}
+        .filter-select{height:30px;padding:0 24px 0 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-input);font-size:0.72rem;font-family:inherit;color:var(--ink);cursor:pointer;outline:none;transition:var(--transition);appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center}
+        .filter-select:hover{border-color:var(--ink-4)}
+        .filter-select:focus{border-color:var(--border-focus)}
+        .filter-input{height:30px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-input);font-size:0.72rem;font-family:inherit;color:var(--ink);outline:none;transition:var(--transition);width:140px}
+        .filter-input:focus{border-color:var(--border-focus)}
+        .filter-input::placeholder{color:var(--ink-4)}
+        .filter-btn{height:30px;padding:0 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-panel);font-size:0.72rem;font-family:inherit;color:var(--ink-3);cursor:pointer;transition:var(--transition);font-weight:500}
+        .filter-btn:hover{border-color:var(--ink-4);color:var(--ink)}
+        .filter-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+        .filter-btn.primary:hover{background:var(--ink-2)}
+        .filter-btn.danger{color:var(--red);border-color:var(--red-bg)}
+        .filter-btn.danger:hover{background:var(--red-bg)}
 
         .log-table{width:100%;border-collapse:collapse}
-        .log-table th{text-align:left;padding:10px 16px;font-size:0.68rem;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--border);background:var(--bg-input)}
-        .log-table td{padding:10px 16px;font-size:0.78rem;border-bottom:1px solid var(--border)}
+        .log-table th{text-align:left;padding:9px 16px;font-size:0.66rem;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--border);background:var(--bg-input)}
+        .log-table td{padding:9px 16px;font-size:0.76rem;border-bottom:1px solid var(--border)}
         .log-table tr:last-child td{border-bottom:none}
-        .log-table tr:hover td{background:rgba(0,0,0,0.015)}
+        .log-table tr:hover td{background:var(--bg-hover)}
 
-        .action-badge{display:inline-flex;padding:2px 8px;border-radius:var(--radius);font-size:0.68rem;font-weight:500}
-        .action-badge.login{background:var(--success-bg);color:var(--success)}
-        .action-badge.logout{background:var(--accent-soft);color:var(--ink-muted)}
-        .action-badge.start_stream{background:rgba(8,145,178,0.1);color:#0891b2}
-        .action-badge.stop_stream{background:var(--warning-bg);color:var(--warning)}
-        .action-badge.detect{background:rgba(139,92,246,0.1);color:#8b5cf6}
+        .badge{display:inline-flex;padding:2px 8px;border-radius:var(--radius);font-size:0.66rem;font-weight:500;white-space:nowrap}
+        .badge-login{background:var(--green-bg);color:var(--green)}
+        .badge-logout{background:var(--bg-input);color:var(--ink-3)}
+        .badge-start_stream{background:#ecfeff;color:#0891b2}
+        .badge-stop_stream{background:var(--amber-bg);color:var(--amber)}
+        .badge-register{background:#ede9fe;color:#7c3aed}
+        .badge-change_password{background:#fef3c7;color:#b45309}
+        .badge-delete_user{background:var(--red-bg);color:var(--red)}
+        .badge-update_config{background:#e0f2fe;color:#0369a1}
+        .badge-add_training{background:#f0fdf4;color:#15803d}
+        .badge-import_annotations{background:#fdf4ff;color:#a21caf}
+        .badge-detect{background:#faf5ff;color:#7c3aed}
+        .badge-default{background:var(--bg-input);color:var(--ink-3)}
 
-        .pager{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--border);font-size:0.72rem;color:var(--ink-muted)}
-        .pager-btns{display:flex;gap:3px}
-        .pager-btns button{padding:3px 9px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--ink-muted);font-size:0.7rem;font-family:inherit;cursor:pointer;transition:var(--transition)}
-        .pager-btns button:hover:not(:disabled){border-color:var(--ink-faint);color:var(--ink)}
-        .pager-btns button.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-        .empty{text-align:center;padding:40px 16px;color:var(--ink-faint);font-size:0.84rem}
+        .pager{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-top:1px solid var(--border);font-size:0.7rem;color:var(--ink-3)}
+        .pager-btns{display:flex;gap:2px}
+        .pager-btns button{min-width:28px;height:26px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-input);cursor:pointer;font-size:0.72rem;font-weight:500;font-family:inherit;color:var(--ink-3);transition:var(--transition);display:inline-flex;align-items:center;justify-content:center}
+        .pager-btns button:hover:not(:disabled){border-color:var(--ink-4);color:var(--ink)}
+        .pager-btns button:disabled{opacity:0.2;cursor:not-allowed}
+        .pager-btns button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+        .pager-btns span{font-size:0.72rem;color:var(--ink-3);padding:0 8px}
 
-        .footer{text-align:center;padding:40px 0 0;color:var(--ink-faint);font-size:0.73rem}
+        .empty{text-align:center;padding:48px 16px;color:var(--ink-4);font-size:0.82rem}
+        .empty svg{opacity:0.15;margin-bottom:8px}
+
+        .toast{position:fixed;top:16px;right:16px;padding:8px 14px;border-radius:var(--radius);font-size:0.75rem;font-weight:500;z-index:999;animation:slideIn .2s ease;box-shadow:var(--shadow);font-family:inherit}
+        .toast.ok{background:var(--bg-panel);color:var(--green);border:1px solid var(--green-bg)}
+        .toast.err{background:var(--bg-panel);color:var(--red);border:1px solid var(--red-bg)}
+        @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+        .footer{text-align:center;padding:40px 0 0;color:var(--ink-4);font-size:0.7rem}
+
+        @media(max-width:768px){.filter-bar{flex-direction:column;align-items:stretch}.filter-group{width:100%}.filter-select,.filter-input{width:100%}}
     </style>
 </head>
 <body>
-    <header class="header">
-        <div class="header-left">
-            <div class="header-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-            <h1>Argus 智能监控</h1>
+    <div id="toast" class="toast" style="display:none;"></div>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-logo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <h1>Argus 操作日志</h1>
         </div>
-        <div class="header-right">
-            <a href="/" class="header-link">监控主页</a>
-            <a href="/static/detect.html" class="header-link">图片检测</a>
-            <a href="/static/users.html" class="header-link">用户管理</a>
-            <button id="themeToggle" class="header-link" onclick="toggleTheme()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">深色</button>
-            <button class="header-link" onclick="doLogout()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">退出登录</button>
+        <div class="topbar-right">
+            <a href="/" class="topbar-btn">主页</a>
+            <a href="/static/detect.html" class="topbar-btn">检测</a>
+            <a href="/static/users.html" class="topbar-btn">管理</a>
+            <button class="topbar-btn" onclick="toggleTheme()" id="themeToggle">深色</button>
+            <button class="topbar-btn accent" onclick="doLogout()">退出</button>
         </div>
     </header>
 
@@ -77,27 +110,62 @@
         <div class="card">
             <div class="card-head">
                 <span class="card-title">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
                     操作日志
                 </span>
-                <button class="btn btn-ghost btn-sm" onclick="loadLogs()">刷新</button>
+                <span id="totalCount" style="font-size:0.72rem;color:var(--ink-4)"></span>
             </div>
+
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <span class="filter-label">操作类型</span>
+                    <select class="filter-select" id="filterAction" onchange="page=1;loadLogs()">
+                        <option value="">全部</option>
+                        <option value="login">登录</option>
+                        <option value="logout">退出登录</option>
+                        <option value="register">注册用户</option>
+                        <option value="start_stream">启动流</option>
+                        <option value="stop_stream">停止流</option>
+                        <option value="change_password">修改密码</option>
+                        <option value="delete_user">删除用户</option>
+                        <option value="update_config">修改配置</option>
+                        <option value="add_training">新增训练</option>
+                        <option value="update_training">更新训练</option>
+                        <option value="delete_training">删除训练</option>
+                        <option value="import_annotations">导入标注</option>
+                        <option value="config_update">配置更新</option>
+                        <option value="config_delete">配置删除</option>
+                        <option value="dataset_create">创建数据集</option>
+                        <option value="training_create">创建训练</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">用户名</span>
+                    <input class="filter-input" id="filterUser" type="text" placeholder="搜索用户名..." onkeydown="if(event.key==='Enter'){page=1;loadLogs()}">
+                </div>
+                <button class="filter-btn primary" onclick="page=1;loadLogs()">查询</button>
+                <button class="filter-btn" onclick="resetFilters()">重置</button>
+                <div style="flex:1"></div>
+                <button class="filter-btn danger" onclick="clearLogs()">清空日志</button>
+            </div>
+
             <div class="card-body">
                 <table class="log-table">
                     <thead>
                         <tr>
                             <th style="width:160px">时间</th>
                             <th style="width:100px">用户</th>
-                            <th style="width:120px">操作</th>
+                            <th style="width:130px">操作类型</th>
                             <th>详情</th>
-                            <th style="width:120px">IP</th>
+                            <th style="width:120px">IP 地址</th>
                         </tr>
                     </thead>
                     <tbody id="logList">
-                        <tr><td colspan="5"><div class="empty">加载中...</div></td></tr>
+                        <tr><td colspan="5"><div class="empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg><div>加载中...</div></div></td></tr>
                     </tbody>
                 </table>
             </div>
+
             <div class="pager" id="pager" style="display:none;">
                 <span id="pagerInfo"></span>
                 <div class="pager-btns" id="pagerBtns"></div>
@@ -122,62 +190,115 @@
         function doLogout() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            fetch('/api/v1/auth/logout', { method: 'POST' });
-            window.location.href = '/login';
+            authFetch('/api/v1/auth/logout', { method: 'POST' });
+            location.href = '/login';
         }
 
-        const actionNames = { login:'登录', logout:'退出登录', start_stream:'启动流', stop_stream:'停止流', detect:'图片检测', register:'注册用户' };
+        function notify(msg, type) {
+            const el = $('toast');
+            el.textContent = msg; el.className = 'toast ' + (type === 'error' ? 'err' : 'ok');
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+
+        function $(id) { return document.getElementById(id); }
+
+        const ACTION_LABELS = {
+            login: '登录', logout: '退出登录', register: '注册用户',
+            start_stream: '启动流', stop_stream: '停止流',
+            change_password: '修改密码', delete_user: '删除用户',
+            update_config: '修改配置', config_update: '配置更新', config_delete: '配置删除',
+            add_training: '新增训练', update_training: '更新训练', delete_training: '删除训练',
+            training_create: '创建训练', dataset_create: '创建数据集',
+            import_annotations: '导入标注', detect_upload: '上传检测',
+            alarm_clear: '清空告警', annotation_save: '保存标注',
+            detect_url: 'URL检测'
+        };
 
         async function loadLogs() {
             try {
-                const resp = await authFetch('/api/v1/auth/logs?limit=200');
+                const action = $('filterAction').value;
+                const username = $('filterUser').value.trim();
+                let url = '/api/v1/admin/logs?limit=500';
+                if (action) url += '&action=' + encodeURIComponent(action);
+                if (username) url += '&username=' + encodeURIComponent(username);
+
+                const resp = await authFetch(url);
                 const data = await resp.json();
-                const logs = data.logs || [];
-                const total = logs.length;
+                const items = data.items || [];
+                const total = items.length;
                 const tp = Math.ceil(total / PAGE_SIZE);
                 if (page > tp) page = tp || 1;
                 const start = (page - 1) * PAGE_SIZE;
-                const pageData = logs.slice(start, start + PAGE_SIZE);
-                const tbody = document.getElementById('logList');
+                const pageData = items.slice(start, start + PAGE_SIZE);
 
+                $('totalCount').textContent = total + ' 条记录';
+
+                const tbody = $('logList');
                 if (!pageData.length) {
-                    tbody.innerHTML = '<tr><td colspan="5"><div class="empty">暂无日志</div></td></tr>';
-                    document.getElementById('pager').style.display = 'none';
+                    tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg><div>暂无日志记录</div></div></td></tr>';
+                    $('pager').style.display = 'none';
                     return;
                 }
 
                 tbody.innerHTML = pageData.map(l => {
-                    const t = new Date(l.create_time).toLocaleString('zh-CN');
-                    const action = actionNames[l.action] || l.action;
-                    const actionClass = l.action.replace('_', '_');
+                    const t = l.create_time ? new Date(l.create_time).toLocaleString('zh-CN') : '-';
+                    const label = ACTION_LABELS[l.action] || l.action || '-';
+                    const cls = l.action || 'default';
                     return `<tr>
-                        <td style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--ink-muted)">${t}</td>
-                        <td>${l.username || '-'}</td>
-                        <td><span class="action-badge ${actionClass}">${action}</span></td>
-                        <td style="color:var(--ink-light)">${l.detail || '-'}</td>
-                        <td style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--ink-faint)">${l.ip_address || '-'}</td>
+                        <td style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--ink-3)">${t}</td>
+                        <td style="font-weight:500">${l.username || '-'}</td>
+                        <td><span class="badge badge-${cls}">${label}</span></td>
+                        <td style="color:var(--ink-2);font-size:0.74rem">${l.detail || '-'}</td>
+                        <td style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--ink-4)">${l.ip_address || '-'}</td>
                     </tr>`;
                 }).join('');
 
-                const pager = document.getElementById('pager');
+                const pager = $('pager');
                 if (tp > 1) {
                     pager.style.display = 'flex';
-                    document.getElementById('pagerInfo').textContent = `共 ${total} 条，第 ${page}/${tp} 页`;
-                    let btns = `<button ${page<=1?'disabled':''} onclick="page--;loadLogs()">‹</button>`;
+                    $('pagerInfo').textContent = `${total} 条 · 第 ${page}/${tp} 页`;
+                    let btns = `<button ${page<=1?'disabled':''} onclick="page=1;loadLogs()">«</button>`;
+                    btns += `<button ${page<=1?'disabled':''} onclick="page--;loadLogs()">‹</button>`;
                     for (let p = 1; p <= tp; p++) {
                         if (tp > 7 && p > 2 && p < tp-1 && Math.abs(p-page) > 1) {
                             if (p === 3 || p === tp-2) btns += '<button disabled>…</button>';
                             continue;
                         }
-                        btns += `<button class="${p===page?'active':''}" onclick="page=${p};loadLogs()">${p}</button>`;
+                        btns += `<button class="${p===page?'on':''}" onclick="page=${p};loadLogs()">${p}</button>`;
                     }
                     btns += `<button ${page>=tp?'disabled':''} onclick="page++;loadLogs()">›</button>`;
-                    document.getElementById('pagerBtns').innerHTML = btns;
+                    btns += `<button ${page>=tp?'disabled':''} onclick="page=${tp};loadLogs()">»</button>`;
+                    $('pagerBtns').innerHTML = btns;
                 } else {
                     pager.style.display = 'none';
                 }
             } catch (e) {
                 console.error(e);
+            }
+        }
+
+        function resetFilters() {
+            $('filterAction').value = '';
+            $('filterUser').value = '';
+            page = 1;
+            loadLogs();
+        }
+
+        async function clearLogs() {
+            if (!await showConfirm('确定清空所有操作日志？此操作不可恢复。')) return;
+            try {
+                const resp = await authFetch('/api/v1/admin/logs', { method: 'DELETE' });
+                const data = await resp.json();
+                if (data.success) {
+                    notify('已清空 ' + data.message, 'ok');
+                    page = 1;
+                    loadLogs();
+                } else {
+                    notify('操作失败', 'error');
+                }
+            } catch (e) {
+                notify('请求失败', 'error');
             }
         }
 
