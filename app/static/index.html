@@ -763,6 +763,7 @@
                 <a href="/static/training.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">训练记录</a>
                 <a href="/static/datasets.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">数据集</a>
                 <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+                <span id="currentUser" style="font-size:0.75rem;color:var(--ink-muted);padding:0 8px;"></span>
                 <button class="topbar-btn" onclick="doLogout()" style="background:var(--accent-soft);color:var(--ink);font-weight:500;cursor:pointer;border:none;font-family:inherit;">退出登录</button>
             </div>
         </header>
@@ -932,6 +933,15 @@ function doLogout() {
             fetch('/api/v1/auth/logout', { method: 'POST' });
             window.location.href = '/login';
         }
+
+        // 显示当前用户名
+        (function() {
+            try {
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                const el = document.getElementById('currentUser');
+                if (el && user.username) el.textContent = user.username;
+            } catch(e) {}
+        })();
 
         function authFetch(url, opts = {}) {
             const t = localStorage.getItem('token');
