@@ -233,11 +233,16 @@
         }
 
         function showNotification(msg, type = 'info') {
-            const el = document.getElementById('notification');
-            el.innerHTML = msg;
-            el.className = 'toast ' + type;
-            el.style.display = 'flex';
-            setTimeout(() => el.style.display = 'none', 3000);
+            if (type === 'error') {
+                // 错误提示用居中弹窗
+                showPermModal(msg);
+            } else {
+                const el = document.getElementById('notification');
+                el.innerHTML = msg;
+                el.className = 'toast ' + type;
+                el.style.display = 'flex';
+                setTimeout(() => el.style.display = 'none', 3000);
+            }
         }
 
         function openModal(id) { document.getElementById(id).classList.add('active'); }
