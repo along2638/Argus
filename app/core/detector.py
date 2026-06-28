@@ -48,15 +48,16 @@ class ModelSession:
                 try:
                     # 临时重定向 stderr 避免 C++ 错误刷屏
                     old_stderr = sys.stderr
-                    sys.stderr = open(os.devnull, 'w')
+                    devnull = open(os.devnull, 'w')
+                    sys.stderr = devnull
                     try:
                         sess = ort.InferenceSession(
                             self.model_path,
                             providers=[provider],
                         )
                     finally:
-                        sys.stderr.close()
                         sys.stderr = old_stderr
+                        devnull.close()
 
                     input_meta = sess.get_inputs()[0]
                     self.input_shape = (input_meta.shape[2], input_meta.shape[3])
@@ -64,16 +65,16 @@ class ModelSession:
                     actual = sess.get_providers()
                     used_provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in actual else "CPUExecutionProvider"
 
-                    import numpy as np
                     dummy = np.random.randn(1, 3, self.input_shape[0], self.input_shape[1]).astype(np.float32)
 
                     old_stderr = sys.stderr
-                    sys.stderr = open(os.devnull, 'w')
+                    devnull = open(os.devnull, 'w')
+                    sys.stderr = devnull
                     try:
                         sess.run(None, {input_meta.name: dummy})
                     finally:
-                        sys.stderr.close()
                         sys.stderr = old_stderr
+                        devnull.close()
 
                     self.session = sess
                     if provider == "CUDAExecutionProvider" and used_provider == "CUDAExecutionProvider":
@@ -83,7 +84,7 @@ class ModelSession:
                     break
 
                 except Exception:
-                    sys.stderr = sys.__stderr__
+                    # stderr already restored by finally block above
                     if provider == "CUDAExecutionProvider":
                         print(f"[提示] {self.model_name}: GPU 不可用，自动切换 CPU 推理")
                     else:

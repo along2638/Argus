@@ -753,9 +753,19 @@ async def detect_video(
     """上传视频逐帧检测，frame_interval 表示每隔多少帧检测一次。"""
     try:
         import tempfile, os
+
+        # Validate frame_interval
+        if frame_interval < 1:
+            frame_interval = 1
+        elif frame_interval > 100:
+            frame_interval = 100
+
         suffix = os.path.splitext(file.filename or "video.mp4")[1]
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             content = await file.read()
+            # File size limit: 100MB
+            if len(content) > 100 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="文件过大，最大支持 100MB")
             tmp.write(content)
             tmp_path = tmp.name
 
@@ -987,11 +997,23 @@ async def batch_analyze_videos(
 ):
     """批量分析指定目录下的所有视频文件，返回 JSON 结果。"""
     import os
-    if not os.path.isdir(directory):
+    from pathlib import Path
+
+    # Path traversal protection
+    if '..' in directory or not os.path.isabs(directory):
+        raise HTTPException(status_code=400, detail="请使用绝对路径")
+    resolved = Path(directory).resolve()
+    if not resolved.is_dir():
         raise HTTPException(status_code=400, detail=f"目录不存在: {directory}")
 
+    # Validate frame_interval
+    if frame_interval < 1:
+        frame_interval = 1
+    elif frame_interval > 100:
+        frame_interval = 100
+
     from app.core.batch_analyzer import batch_analyze
-    result = await batch_analyze(directory, model, confidence, frame_interval)
+    result = await batch_analyze(str(resolved), model, confidence, frame_interval)
     return {"success": True, **result}
 
 
@@ -1005,8 +1027,19 @@ async def batch_analyze_report(
 ):
     """批量分析并生成 HTML 报告。"""
     import os
-    if not os.path.isdir(directory):
+    from pathlib import Path
+
+    # Path traversal protection
+    if '..' in directory or not os.path.isabs(directory):
+        raise HTTPException(status_code=400, detail="请使用绝对路径")
+    resolved = Path(directory).resolve()
+    if not resolved.is_dir():
         raise HTTPException(status_code=400, detail=f"目录不存在: {directory}")
+
+    if frame_interval < 1:
+        frame_interval = 1
+    elif frame_interval > 100:
+        frame_interval = 100
 
     from app.core.batch_analyzer import batch_analyze, generate_html_report
     from fastapi.responses import HTMLResponse

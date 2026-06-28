@@ -273,8 +273,7 @@ class WorkerSettings:
     async def startup(ctx):
         """Worker startup hook."""
         logger.info("arq_worker_starting")
-        # Initialize database connection pool
-        await db_service.get_pool()
+        # Worker creates its own DB pool in save_alarm() on first call
         logger.info("arq_worker_started")
 
     @staticmethod

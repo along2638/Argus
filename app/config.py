@@ -99,6 +99,13 @@ class Settings(BaseSettings):
     ])
 
 
-
 # Singleton instance
 settings = Settings()
+
+# Warn if using default JWT secret
+if settings.JWT_SECRET == "argus-jwt-secret-key-change-in-production":
+    import warnings
+    warnings.warn(
+        "Using default JWT_SECRET! Set a strong secret in .env for production.",
+        stacklevel=2,
+    )

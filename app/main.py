@@ -227,16 +227,18 @@ from app.core.alarm_broadcaster import alarm_broadcaster
 async def websocket_alarms(websocket: WebSocket):
     """WebSocket endpoint for real-time alarm notifications.
 
-    Clients connect here to receive live alarm events.
-    Authentication: pass token as query param ?token=xxx
+    Authentication: pass token as query param ?token=xxx (required).
     """
     token = websocket.query_params.get("token")
-    if token:
-        from app.services.auth_service import get_current_user
-        user = await get_current_user(token)
-        if not user:
-            await websocket.close(code=4001, reason="Invalid token")
-            return
+    if not token:
+        await websocket.close(code=4001, reason="Token required")
+        return
+
+    from app.services.auth_service import get_current_user
+    user = await get_current_user(token)
+    if not user:
+        await websocket.close(code=4001, reason="Invalid token")
+        return
 
     await alarm_broadcaster.connect(websocket)
     try:
@@ -305,7 +307,6 @@ async def auth_middleware(request: Request, call_next):
     if (path in PUBLIC_PATHS
         or path.startswith("/api/v1/auth/")
         or path.startswith("/static/")
-        or path.startswith("/api/annotations/")
         or path.startswith("/docs")
         or path.startswith("/redoc")
         or path.startswith("/openapi")):
@@ -392,7 +393,13 @@ async def list_annotate_files():
 @app.get("/api/annotations/image/{filename}")
 async def get_annotate_image(filename: str):
     """获取待标注的图片"""
-    img_path = ANNOTATE_DIR / filename
+    # Path traversal protection: reject filenames with path separators
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    img_path = (ANNOTATE_DIR / filename).resolve()
+    # Ensure resolved path is still within ANNOTATE_DIR
+    if not str(img_path).startswith(str(ANNOTATE_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid filename")
     if img_path.exists():
         return FileResponse(str(img_path), media_type="image/jpeg")
     raise HTTPException(status_code=404, detail="Image not found")
@@ -538,9 +545,11 @@ async def save_annotation(data: dict, request: Request = None):
 async def upload_to_annotate(file: UploadFile = File(...)):
     """上传图片到待标注目录（用于检测→标注联动）"""
     safe_name = Path(file.filename).name
-    if '..' in safe_name:
+    if '..' in safe_name or '/' in safe_name or '\\' in safe_name:
         raise HTTPException(status_code=400, detail="非法文件名")
-    dst = ANNOTATE_DIR / safe_name
+    dst = (ANNOTATE_DIR / safe_name).resolve()
+    if not str(dst).startswith(str(ANNOTATE_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="非法文件名")
     ANNOTATE_DIR.mkdir(parents=True, exist_ok=True)
     content = await file.read()
     with open(dst, "wb") as f:

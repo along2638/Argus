@@ -23,7 +23,12 @@ class AlarmDeduplicator:
                 encoding="utf-8",
                 decode_responses=True,
             )
-            logger.info("redis_connected", url=settings.REDIS_URL)
+            # Mask password in log
+            safe_url = settings.REDIS_URL
+            if "@" in safe_url:
+                prefix = safe_url.split("@")[0]
+                safe_url = prefix.split("://")[0] + "://***@" + safe_url.split("@")[1]
+            logger.info("redis_connected", url=safe_url)
         return cls._redis
 
     @classmethod

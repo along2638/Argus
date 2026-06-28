@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime
 
 import asyncio
 from fastapi import APIRouter, HTTPException, Request, Header, Response
@@ -187,6 +188,8 @@ async def api_toggle_user(user_id: int,
     user = await _get_current_user(authorization, request)
     if not has_permission(user["role"], Permission.ADMIN):
         raise HTTPException(status_code=403, detail="权限不足")
+    if user["id"] == user_id:
+        raise HTTPException(status_code=400, detail="不能禁用自己的账号")
     ok = await toggle_user_active(user_id)
     if not ok:
         raise HTTPException(status_code=404, detail="用户不存在")
@@ -199,7 +202,10 @@ async def api_reset_password(user_id: int, body: PasswordResetRequest,
     user = await _get_current_user(authorization, request)
     if not has_permission(user["role"], Permission.ADMIN):
         raise HTTPException(status_code=403, detail="权限不足")
-    ok = await reset_password(user_id, body.new_password)
+    try:
+        ok = await reset_password(user_id, body.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not ok:
         raise HTTPException(status_code=404, detail="用户不存在")
     return {"success": True, "message": "密码已重置"}
@@ -225,7 +231,10 @@ async def api_change_password(body: PasswordResetRequest,
                                authorization: Optional[str] = Header(None), request: Request = None):
     """当前用户修改自己的密码"""
     user = await _get_current_user(authorization, request)
-    ok = await reset_password(user["id"], body.new_password)
+    try:
+        ok = await reset_password(user["id"], body.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not ok:
         raise HTTPException(status_code=400, detail="修改失败")
     await log_operation("change_password", user["username"], "修改密码", request)
