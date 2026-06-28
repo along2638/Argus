@@ -283,10 +283,11 @@ PUBLIC_PATHS = {"/login", "/static/login.html", "/health", "/docs", "/redoc", "/
 async def not_found_handler(request: Request, exc):
     return HTMLResponse(content="""
     <html><head><title>404</title>
-    <style>body{font-family:Inter,-apple-system,sans-serif;background:#f5f0eb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#1a1a1a;}
-    .box{text-align:center;}.code{font-size:4rem;font-weight:700;color:#c4bfb8;margin-bottom:16px;}
-    .msg{font-size:1.1rem;color:#8a8580;margin-bottom:24px;}.link{color:#1a1a1a;text-decoration:none;padding:8px 20px;border:1px solid rgba(0,0,0,0.06);border-radius:999px;font-size:0.85rem;transition:0.2s;}
-    .link:hover{border-color:#c4bfb8;}</style></head>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body{font-family:'DM Sans',-apple-system,sans-serif;background:#f8f7f5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#1c1917}
+    .box{text-align:center}.code{font-size:4rem;font-weight:700;color:#d6d3d1;margin-bottom:12px}
+    .msg{font-size:1rem;color:#78716c;margin-bottom:20px}.link{color:#1c1917;text-decoration:none;padding:8px 20px;border:1px solid #e8e6e3;border-radius:8px;font-size:0.82rem;transition:0.15s}
+    .link:hover{border-color:#a8a29e;background:#f3f2f0}</style></head>
     <body><div class="box"><div class="code">404</div><div class="msg">页面不存在</div><a href="/" class="link">返回主页</a></div></body></html>
     """, status_code=404)
 
@@ -295,10 +296,11 @@ async def not_found_handler(request: Request, exc):
 async def server_error_handler(request: Request, exc):
     return HTMLResponse(content="""
     <html><head><title>500</title>
-    <style>body{font-family:Inter,-apple-system,sans-serif;background:#f5f0eb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#1a1a1a;}
-    .box{text-align:center;}.code{font-size:4rem;font-weight:700;color:#b33a3a;margin-bottom:16px;}
-    .msg{font-size:1.1rem;color:#8a8580;margin-bottom:24px;}.link{color:#1a1a1a;text-decoration:none;padding:8px 20px;border:1px solid rgba(0,0,0,0.06);border-radius:999px;font-size:0.85rem;transition:0.2s;}
-    .link:hover{border-color:#c4bfb8;}</style></head>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body{font-family:'DM Sans',-apple-system,sans-serif;background:#f8f7f5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#1c1917}
+    .box{text-align:center}.code{font-size:4rem;font-weight:700;color:#fca5a5;margin-bottom:12px}
+    .msg{font-size:1rem;color:#78716c;margin-bottom:20px}.link{color:#1c1917;text-decoration:none;padding:8px 20px;border:1px solid #e8e6e3;border-radius:8px;transition:0.15s}
+    .link:hover{border-color:#a8a29e;background:#f3f2f0}</style></head>
     <body><div class="box"><div class="code">500</div><div class="msg">服务器内部错误</div><a href="/" class="link">返回主页</a></div></body></html>
     """, status_code=500)
 
