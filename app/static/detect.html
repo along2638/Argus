@@ -637,7 +637,7 @@
 
         // ── History ──
         let historyPage = 1;
-        const HISTORY_PAGE = 20;
+        const HISTORY_PAGE = 10;
 
         function selectHistoryModel(opt) {
             const w = document.getElementById('historyModelWrap');
@@ -688,11 +688,11 @@
 
                 // 分页控件
                 const pager = document.getElementById('historyPager');
-                if (totalPages > 1) {
+                if (total > 0) {
                     pager.style.display = 'flex';
                     let btns = `<button onclick="historyPage=1;loadHistory()" ${historyPage<=1?'disabled':''}>«</button>`;
                     btns += `<button onclick="historyPage--;loadHistory()" ${historyPage<=1?'disabled':''}>‹</button>`;
-                    btns += `<span>${historyPage}/${totalPages}</span>`;
+                    btns += `<span>${historyPage}/${totalPages || 1}</span>`;
                     btns += `<button onclick="historyPage++;loadHistory()" ${historyPage>=totalPages?'disabled':''}>›</button>`;
                     btns += `<button onclick="historyPage=${totalPages};loadHistory()" ${historyPage>=totalPages?'disabled':''}>»</button>`;
                     pager.innerHTML = btns;
