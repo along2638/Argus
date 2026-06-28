@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="/static/theme.js"></script>
+    <script src="/static/permissions.js"></script>
     <script src="/static/loading.js"></script>
     <style>
         :root {
@@ -286,6 +287,14 @@
         const $ = id => document.getElementById(id);
         const uploadZone = $('uploadZone'), fileInput = $('fileInput'), detectBtn = $('detectBtn');
         const resultImage = $('resultImage'), canvas = $('canvas'), ctx = canvas.getContext('2d');
+
+        // 权限检查：viewer 只能查看历史，不能上传/检测
+        if (!hasPermission('view_alarm')) {
+            uploadZone.style.opacity = '0.3';
+            uploadZone.style.pointerEvents = 'none';
+            detectBtn.disabled = true;
+            detectBtn.title = '无权限执行检测';
+        }
         const imageEmpty = $('imageEmpty'), loading = $('loading');
         const resultList = $('resultList'), resultStats = $('resultStats'), historyList = $('historyList');
 

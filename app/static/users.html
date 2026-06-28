@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="/static/theme.js"></script>
     <script src="/static/loading.js"></script>
+    <script src="/static/permissions.js"></script>
     <style>
         :root{--bg:#f8f7f5;--bg-card:#fff;--bg-card-solid:#fff;--bg-input:#f5f4f2;--border:#e8e6e3;--border-focus:#b8b5b0;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#78716c;--ink-faint:#a8a29e;--accent:#292524;--accent-soft:rgba(26,26,26,0.06);--success:#16a34a;--success-bg:rgba(45,122,79,0.08);--danger:#dc2626;--danger-bg:rgba(179,58,58,0.08);--warning:#d97706;--warning-bg:#fffbeb;--radius:8px;--radius-md:12px;--radius-lg:16px;--shadow:0 1px 3px rgba(0,0,0,0.04),0 8px 32px rgba(0,0,0,0.06);--shadow-sm:0 1px 2px rgba(0,0,0,0.04);--transition:0.2s ease}
         *{margin:0;padding:0;box-sizing:border-box}
@@ -101,7 +102,7 @@
                 </span>
                 <div style="display:flex;gap:6px;align-items:center;">
                     <button class="btn btn-ghost btn-sm" onclick="showChangePwd()">修改密码</button>
-                    <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ 新增用户</button>
+                    <button class="btn btn-primary btn-sm" onclick="showAddUser()" data-perm="manage_user">+ 新增用户</button>
                 </div>
             </div>
             <div class="card-body">
@@ -275,6 +276,7 @@
                 const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('zh-CN') : '从未登录';
                 const createTime = u.create_time ? new Date(u.create_time).toLocaleString('zh-CN') : '-';
                 const activeDot = u.is_active ? '<span class="status-dot active"></span>启用' : '<span class="status-dot inactive"></span>禁用';
+                const canEdit = hasPermission('manage_user') && u.username !== 'admin';
                 return `<tr>
                     <td>
                         <div style="font-weight:500">${u.username}</div>
@@ -286,10 +288,10 @@
                     <td style="font-size:0.76rem;color:var(--ink-muted)">${lastLogin}</td>
                     <td style="text-align:right">
                         <div class="actions">
-                            <button class="btn btn-ghost btn-sm" onclick="showResetPwd(${u.id})">重置密码</button>
-                            ${u.username !== 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="showRoleUpdate(${u.id},'${u.role}')">角色</button>` : ''}
-                            ${u.username !== 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="toggleActive(${u.id})">${u.is_active ? '禁用' : '启用'}</button>` : ''}
-                            ${u.username !== 'admin' ? `<button class="btn btn-danger-ghost btn-sm" onclick="deleteUser(${u.id},'${u.username}')">删除</button>` : ''}
+                            ${hasPermission('manage_user') ? `<button class="btn btn-ghost btn-sm" onclick="showResetPwd(${u.id})">重置密码</button>` : ''}
+                            ${canEdit ? `<button class="btn btn-ghost btn-sm" onclick="showRoleUpdate(${u.id},'${u.role}')">角色</button>` : ''}
+                            ${canEdit ? `<button class="btn btn-ghost btn-sm" onclick="toggleActive(${u.id})">${u.is_active ? '禁用' : '启用'}</button>` : ''}
+                            ${canEdit ? `<button class="btn btn-danger-ghost btn-sm" onclick="deleteUser(${u.id},'${u.username}')">删除</button>` : ''}
                         </div>
                     </td>
                 </tr>`;

@@ -289,6 +289,10 @@
                 if (resp.ok && data.success) {
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
+                    // 存储用户权限信息
+                    if (data.user) {
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    }
                     window.location.href = '/';
                 } else {
                     showError(data.detail || data.message || '登录失败');
