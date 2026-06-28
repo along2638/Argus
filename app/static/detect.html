@@ -104,16 +104,16 @@
         .history-item:hover .h-del { opacity:1; }
         .h-del:hover { background:var(--red-bg); color:var(--red); }
 
-        .history-pager { padding:6px 12px; border-top:1px solid var(--border); flex-shrink:0; }
-        .pager-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
-        .pager-top span { font-size:0.65rem; color:var(--ink-4); }
-        .pager-top select { padding:2px 16px 2px 4px; border:1px solid var(--border); border-radius:4px; font-size:0.65rem; background:var(--bg-input); color:var(--ink); font-family:inherit; outline:none; }
-        .pager-btns { display:flex; justify-content:center; gap:2px; }
-        .pager-btns button { min-width:26px; height:24px; border:1px solid var(--border); border-radius:4px; background:var(--bg-input); cursor:pointer; font-size:0.7rem; font-family:inherit; color:var(--ink-3); transition:var(--transition); display:inline-flex; align-items:center; justify-content:center; }
-        .pager-btns button:hover:not(:disabled) { border-color:var(--ink-4); color:var(--ink); }
+        .history-pager { padding:8px 12px 10px; border-top:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; gap:8px; }
+        .pager-top { display:flex; justify-content:space-between; align-items:center; }
+        .pager-top span { font-size:0.7rem; color:var(--ink-4); }
+        .pager-top select { height:26px; padding:0 18px 0 6px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.7rem; background:var(--bg-input); color:var(--ink); font-family:inherit; outline:none; cursor:pointer; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 5px center; }
+        .pager-btns { display:flex; align-items:center; justify-content:center; gap:3px; }
+        .pager-btns button { min-width:32px; height:30px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-input); cursor:pointer; font-size:0.78rem; font-weight:500; font-family:inherit; color:var(--ink-3); transition:var(--transition); display:inline-flex; align-items:center; justify-content:center; }
+        .pager-btns button:hover:not(:disabled) { border-color:var(--ink-4); color:var(--ink); background:var(--bg-hover); }
         .pager-btns button:disabled { opacity:0.2; cursor:not-allowed; }
         .pager-btns button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
-        .pager-btns span { font-size:0.68rem; color:var(--ink-4); padding:0 6px; display:flex; align-items:center; }
+        .pager-btns span { font-size:0.75rem; font-weight:500; color:var(--ink); padding:0 10px; }
 
         .panel-right { flex:1; display:flex; flex-direction:column; min-width:0; }
         .panel-history { width:300px; background:var(--bg-panel); border-left:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
