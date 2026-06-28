@@ -116,6 +116,7 @@
         .pager-btns span { font-size:0.68rem; color:var(--ink-4); padding:0 6px; display:flex; align-items:center; }
 
         .panel-right { flex:1; display:flex; flex-direction:column; min-width:0; }
+        .panel-history { width:300px; background:var(--bg-panel); border-left:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
 
         .canvas-wrap { flex:1; display:flex; align-items:center; justify-content:center; padding:16px; background:var(--bg-input); position:relative; overflow:hidden; }
         .canvas-wrap img { max-width:100%; max-height:100%; object-fit:contain; display:none; border-radius:var(--radius); }
@@ -148,7 +149,8 @@
         .toast.err { background:var(--bg-panel); color:var(--red); border:1px solid var(--red-bg); }
         @keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
 
-        @media (max-width:900px) { .layout { flex-direction:column; } .panel-left { width:100%; height:auto; max-height:240px; } }
+        @media (max-width:1100px) { .panel-history { width:240px; } }
+        @media (max-width:900px) { .layout { flex-direction:column; } .panel-left { width:100%; height:auto; max-height:240px; } .panel-history { width:100%; height:200px; border-left:none; border-top:1px solid var(--border); } }
     </style>
 </head>
 <body>
@@ -223,27 +225,6 @@
                         <button class="btn-detect" id="detectBtn" disabled onclick="runDetect()">开始检测</button>
                     </div>
                 </div>
-
-                <div class="history-head">
-                    <span class="history-head-title">检测历史</span>
-                    <div class="history-head-actions">
-                        <button onclick="loadHistory()">刷新</button>
-                        <button onclick="exportHistory()">导出</button>
-                        <button class="danger" onclick="clearHistory()">清空</button>
-                    </div>
-                </div>
-                <div class="history-filter-row">
-                    <select id="historyModelFilter" onchange="historyPage=1;loadHistory()">
-                        <option value="">全部模型</option>
-                        <option value="general">通用检测</option>
-                        <option value="fire_smoke">火灾烟雾</option>
-                        <option value="helmet">安全帽</option>
-                    </select>
-                </div>
-                <div class="history-list" id="historyList">
-                    <div style="text-align:center;padding:32px 16px;color:var(--ink-4);font-size:0.75rem;">暂无检测记录</div>
-                </div>
-                <div class="history-pager" id="historyPager" style="display:none;"></div>
             </div>
         </aside>
 
@@ -273,6 +254,29 @@
                 </div>
             </div>
         </div>
+
+        <aside class="panel-history">
+            <div class="history-head">
+                <span class="history-head-title">检测历史</span>
+                <div class="history-head-actions">
+                    <button onclick="loadHistory()">刷新</button>
+                    <button onclick="exportHistory()">导出</button>
+                    <button class="danger" onclick="clearHistory()">清空</button>
+                </div>
+            </div>
+            <div class="history-filter-row">
+                <select id="historyModelFilter" onchange="historyPage=1;loadHistory()">
+                    <option value="">全部模型</option>
+                    <option value="general">通用检测</option>
+                    <option value="fire_smoke">火灾烟雾</option>
+                    <option value="helmet">安全帽</option>
+                </select>
+            </div>
+            <div class="history-list" id="historyList">
+                <div style="text-align:center;padding:32px 16px;color:var(--ink-4);font-size:0.75rem;">暂无检测记录</div>
+            </div>
+            <div class="history-pager" id="historyPager" style="display:none;"></div>
+        </aside>
     </div>
 
     <script src="/static/confirm.js"></script>
