@@ -1038,7 +1038,7 @@ function authFetch(url, opts = {}) {
     return fetch(url, opts);
 }
 
-// ── Custom Filter Select ──
+// Custom Filter Select
 function toggleFilterSelect(wrapId) {
     const wrap = document.getElementById(wrapId);
     const wasOpen = wrap.classList.contains('open');
@@ -1127,13 +1127,13 @@ async function refreshStreams() {
             c.innerHTML = data.streams.map(s => {
                 const tags = (s.alarm_types || []).map(t => `<span class="stream-type-tag">${alarmTypeIcons[t] || ''} ${alarmTypeNamesShort[t] || t}</span>`).join('');
                 const st = statusLabels[s.status] || s.status;
-                const err = (s.status === 'error' || s.status === 'reconnecting') && s.error_message ? `<span style="font-size:0.66rem;color:var(--ink-faint);margin-left:4px;" title="${s.error_message}">⚠</span>` : '';
+                const err = (s.status === 'error' || s.status === 'reconnecting') && s.error_message ? `<span style="font-size:0.66rem;color:var(--ink-faint);margin-left:4px;" title="${s.error_message}">!</span>` : '';
                 return `<div class="stream-item"><div class="stream-info"><div class="stream-row"><span class="stream-id">${s.stream_id}</span><span class="stream-status ${s.status}">${st}${err}</span>${tags}</div></div><div style="display:flex;gap:4px;"><button class="btn btn-ghost btn-sm" onclick="restartStream('${s.stream_id}','${s.stream_url}',${JSON.stringify(s.alarm_types||[])})">重启</button><button class="btn btn-danger-ghost btn-sm" onclick="stopStream('${s.stream_id}')">停止</button></div></div>`;
             }).join('');
         } else {
             c.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>暂无活跃流</div>';
         }
-        addLog(`流列表已刷新，${data.active_streams} 个活跃流`, 'info');
+        addLog('流列表已刷新，' + data.active_streams + ' 个活跃流', 'info');
     } catch (e) { addLog(`获取流列表失败: ${e.message}`, 'error'); }
 }
 
@@ -1201,7 +1201,7 @@ async function refreshAlarms() {
                 <span id="selectedCount" style="font-size:0.72rem;color:var(--ink-muted);margin-left:8px;"></span>
             </div>` + page.map(a => {
                 const tn = alarmTypeNames[a.alarm_type] || a.alarm_type;
-                const cn = a.class_name ? ` · ${alarmTypeNames[a.class_name] || a.class_name}` : '';
+                const cn = a.class_name ? ` - ${alarmTypeNames[a.class_name] || a.class_name}` : '';
                 const t = timeAgo(a.detected_by);
                 const ft = new Date(a.detected_by).toLocaleString('zh-CN');
                 const conf = (a.confidence * 100).toFixed(1);
