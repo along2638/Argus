@@ -931,6 +931,18 @@
             window.location.href = '/login';
         }
 
+        function authFetch(url, opts = {}) {
+            const t = localStorage.getItem('token');
+            if (!opts.headers) opts.headers = {};
+            if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+            const m = (opts.method || 'GET').toUpperCase();
+            if (['POST','PUT','DELETE','PATCH'].includes(m)) {
+                const c = document.cookie.match(/csrf_token=([^;]+)/);
+                if (c) opts.headers['X-CSRF-Token'] = c[1];
+            }
+            return fetch(url, opts);
+        }
+
         // ── Custom Filter Select ──
         function toggleFilterSelect(wrapId) {
             const wrap = document.getElementById(wrapId);

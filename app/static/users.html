@@ -220,7 +220,7 @@
         function authFetch(url, opts = {}) {
             const t = localStorage.getItem('token');
             if (!opts.headers) opts.headers = {};
-            if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+            if (t) opts.headers['Authorization'] = 'Bearer ' + t; const csrf = document.cookie.match(/csrf_token=([^;]+)/); if (csrf) opts.headers['X-CSRF-Token'] = csrf[1];
             return fetch(url, opts);
         }
 

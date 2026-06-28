@@ -80,7 +80,7 @@
     </div>
     <footer class="footer">Argus 智能监控告警系统 v0.1.0</footer>
     <script>
-        function authFetch(url,opts={}){const t=localStorage.getItem('token');if(!opts.headers)opts.headers={};if(t)opts.headers['Authorization']='Bearer '+t;return fetch(url,opts)}
+        function authFetch(url,opts={}){const t=localStorage.getItem('token');if(!opts.headers)opts.headers={};if(t)opts.headers['Authorization']='Bearer '+t; const csrf = document.cookie.match(/csrf_token=([^;]+)/); if (csrf) opts.headers['X-CSRF-Token'] = csrf[1];return fetch(url,opts)}
         function doLogout(){localStorage.removeItem('token');localStorage.removeItem('user');fetch('/api/v1/auth/logout',{method:'POST'});window.location.href='/login'}
         async function scanDataset(id) {
             try {
