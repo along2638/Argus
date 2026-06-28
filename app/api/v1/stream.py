@@ -8,6 +8,8 @@ import numpy as np
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel, Field
 
+from app.core.rate_limiter import RateLimiter
+
 from app.config import settings
 from app.core.detector import detector
 from app.core.stream_processor import stream_manager
@@ -351,7 +353,8 @@ class DetectResult(BaseModel):
 
 
 @router.post("/detect", summary="图片检测调试", description="传入图片地址（HTTP URL 或本地路径），返回模型识别结果")
-async def detect_image(request: DetectRequest):
+@RateLimiter.limit(max_requests=20, window_seconds=60)
+async def detect_image(request: DetectRequest, req: Request = None):
     """图片检测调试接口。
 
     传入图片地址（HTTP URL 或本地路径），返回指定模型的识别结果。
@@ -436,6 +439,7 @@ async def detect_image(request: DetectRequest):
 
 
 @router.post("/detect/upload", summary="上传图片检测", description="上传图片文件进行检测，返回识别结果")
+@RateLimiter.limit(max_requests=20, window_seconds=60)
 async def detect_upload(
     file: UploadFile = File(..., description="图片文件"),
     model: str = Form("general", description="模型: general/helmet/fire_smoke"),

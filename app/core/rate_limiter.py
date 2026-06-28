@@ -1,8 +1,10 @@
 """Redis-based sliding window rate limiter."""
 
-from typing import Optional
+from typing import Optional, Callable
+from functools import wraps
 
 import redis.asyncio as aioredis
+from fastapi import Request, HTTPException
 
 from app.config import settings
 from app.utils.logger import get_logger
@@ -38,19 +40,7 @@ class RateLimiter:
         max_requests: int,
         window_seconds: int,
     ) -> tuple[bool, int]:
-        """Check if a request is allowed under the rate limit.
-
-        Uses a simple fixed-window counter with TTL.
-
-        Args:
-            key: Unique identifier (e.g. IP address, user ID).
-            max_requests: Maximum requests allowed in the window.
-            window_seconds: Window duration in seconds.
-
-        Returns:
-            Tuple of (is_allowed, retry_after_seconds).
-            retry_after_seconds is 0 when allowed, otherwise seconds until the window resets.
-        """
+        """Check if a request is allowed under the rate limit."""
         try:
             redis = await cls._get_redis()
             redis_key = f"ratelimit:{key}"
@@ -74,5 +64,51 @@ class RateLimiter:
             return True, 0
         except Exception as e:
             logger.error("rate_limiter_error", key=key, error=str(e))
-            # Fail-open: allow the request if Redis is down
             return True, 0
+
+    @classmethod
+    def limit(
+        cls,
+        max_requests: int,
+        window_seconds: int,
+        key_func: Optional[Callable] = None,
+    ):
+        """Decorator for rate-limiting FastAPI endpoints.
+
+        Usage:
+            @router.post("/detect")
+            @RateLimiter.limit(max_requests=10, window_seconds=60)
+            async def detect(...):
+                ...
+        """
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                # Get request from args or kwargs
+                request = kwargs.get("request")
+                if request is None:
+                    for arg in args:
+                        if isinstance(arg, Request):
+                            request = arg
+                            break
+
+                if request is None:
+                    return await func(*args, **kwargs)
+
+                # Determine rate limit key
+                if key_func:
+                    key = key_func(request)
+                else:
+                    ip = request.client.host if request.client else "unknown"
+                    key = f"{func.__name__}:{ip}"
+
+                allowed, retry_after = await cls.is_allowed(key, max_requests, window_seconds)
+                if not allowed:
+                    raise HTTPException(
+                        status_code=429,
+                        detail=f"请求过于频繁，请 {retry_after} 秒后重试",
+                        headers={"Retry-After": str(retry_after)},
+                    )
+                return await func(*args, **kwargs)
+            return wrapper
+        return decorator
