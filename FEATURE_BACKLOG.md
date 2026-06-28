@@ -28,5 +28,5 @@
 |---|------|------|------|------|
 | 13 | 暗色主题 | AI发现 | ✅ DONE | app/static/theme.js |
 | 14 | 批量视频分析报告 | AI发现 | ✅ DONE | app/core/batch_analyzer.py |
-| 15 | 标注版本控制 | AI发现 | OPEN | - |
+| 15 | 标注版本控制 | AI发现 | ✅ DONE | app/models/annotation_snapshot.py |
 | 16 | operation_log 测试 | AI发现 | ✅ DONE | tests/test_operation_log_service.py |
