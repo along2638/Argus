@@ -62,7 +62,7 @@
         }
 
         /* ── Header ── */
-        .header {
+        .topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -71,9 +71,9 @@
             margin-bottom: 36px;
         }
 
-        .header-left { display: flex; align-items: center; gap: 12px; }
+        .topbar-left { display: flex; align-items: center; gap: 12px; }
 
-        .header-logo {
+        .topbar-logo {
             width: 34px; height: 34px;
             background: var(--ink);
             border-radius: 9px;
@@ -83,13 +83,13 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
-        .header h1 {
+        .topbar h1 {
             font-size: 1.15rem;
             font-weight: 600;
             letter-spacing: -0.02em;
         }
 
-        .header-right { display: flex; align-items: center; gap: 10px; }
+        .topbar-right { display: flex; align-items: center; gap: 10px; }
 
         .header-badge {
             display: inline-flex; align-items: center; gap: 6px;
@@ -113,7 +113,7 @@
             50% { opacity: 0.3; }
         }
 
-        .header-link {
+        .topbar-btn {
             color: var(--ink-muted);
             font-size: 0.8rem;
             text-decoration: none;
@@ -122,7 +122,7 @@
             transition: var(--transition);
             border: 1px solid transparent;
         }
-        .header-link:hover { color: var(--ink); border-color: var(--border); }
+        .topbar-btn:hover { color: var(--ink); border-color: var(--border); }
 
         /* ── Grid ── */
         .grid-top {
@@ -732,8 +732,8 @@
             .grid-top { grid-template-columns: 1fr; }
             .grid-bottom { grid-template-columns: 1fr; }
             .check-grid { grid-template-columns: 1fr; }
-            .header { flex-direction: column; gap: 12px; text-align: center; }
-            .header-right { justify-content: center; }
+            .topbar { flex-direction: column; gap: 12px; text-align: center; }
+            .topbar-right { justify-content: center; }
         }
         @media (max-width: 480px) {
             .app { padding: 0 16px 32px; }
@@ -743,26 +743,26 @@
 </head>
 <body>
     <div class="app">
-        <header class="header">
-            <div class="header-left">
-                <div class="header-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="topbar-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
                 <h1>Argus 智能监控</h1>
             </div>
-            <div class="header-right">
+            <div class="topbar-right">
                 <div class="header-badge" id="headerStatus">
                     <span class="dot"></span>
                     <span>检测中</span>
                 </div>
-                <a href="/static/annotate.html" target="_blank" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">手动标注</a>
-                <a href="/static/detect.html" target="_blank" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">图片检测</a>
-                <a href="/static/dashboard.html" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">数据看板</a>
-                <a href="/static/users.html" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">用户管理</a>
-                <a href="/static/logs.html" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">操作日志</a>
-                <a href="/static/config.html" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">系统配置</a>
-                <a href="/static/training.html" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">训练记录</a>
-                <a href="/static/datasets.html" class="header-link" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">数据集</a>
-                <button id="themeToggle" class="header-link" onclick="toggleTheme()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">深色</button>
-                <button class="header-link" onclick="doLogout()" style="background:var(--accent-soft);color:var(--ink);font-weight:500;cursor:pointer;border:none;font-family:inherit;">退出登录</button>
+                <a href="/static/annotate.html" target="_blank" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">手动标注</a>
+                <a href="/static/detect.html" target="_blank" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">图片检测</a>
+                <a href="/static/dashboard.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">数据看板</a>
+                <a href="/static/users.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">用户管理</a>
+                <a href="/static/logs.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">操作日志</a>
+                <a href="/static/config.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">系统配置</a>
+                <a href="/static/training.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">训练记录</a>
+                <a href="/static/datasets.html" class="topbar-btn" style="background:var(--accent-soft);color:var(--ink);font-weight:500;">数据集</a>
+                <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">深色</button>
+                <button class="topbar-btn" onclick="doLogout()" style="background:var(--accent-soft);color:var(--ink);font-weight:500;cursor:pointer;border:none;font-family:inherit;">退出登录</button>
             </div>
         </header>
 
