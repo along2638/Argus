@@ -282,9 +282,12 @@
             try {
                 const resp = await authFetch('/api/v1/auth/users');
                 const data = await resp.json();
+                if (resp.status === 403) {
+                    showErrorModal(data.detail || '权限不足，需要管理员角色');
+                    return;
+                }
                 if (!data.success) {
-                    // 权限不足：弹出居中模态框
-                    showPermModal('管理用户');
+                    showErrorModal(data.detail || '加载用户列表失败');
                     return;
                 }
                 allUsers = data.users || [];
