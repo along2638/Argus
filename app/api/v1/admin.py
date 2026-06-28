@@ -29,9 +29,9 @@ router = APIRouter(prefix="/admin", tags=["系统管理"])
 
 # ── 权限检查辅助 ──
 
-def _require_admin(request: Request):
+async def _require_admin(request: Request):
     user = getattr(request.state, "user", None)
-    if not user or not has_permission(user.get("role", ""), Permission.ADMIN):
+    if not user or not await has_permission(user.get("role", ""), Permission.ADMIN):
         raise HTTPException(status_code=403, detail="权限不足，需要管理员角色")
     return user
 
@@ -63,7 +63,7 @@ async def get_operation_logs(
 @router.delete("/logs", summary="清空操作日志")
 async def clear_operation_logs(request: Request, before_date: Optional[str] = None):
     """清空操作日志（仅管理员）。可选 before_date 参数按日期筛选删除。"""
-    _require_admin(request)
+    await _require_admin(request)
     count = await operation_log_service.delete_logs(before_date=before_date)
     return {"success": True, "message": f"已删除 {count} 条日志"}
 
@@ -118,7 +118,7 @@ async def get_config(config_key: str, request: Request):
 @router.post("/configs", summary="新增/更新系统配置")
 async def upsert_config(body: ConfigUpdateRequest, request: Request):
     """新增或更新系统配置项（仅管理员）。"""
-    user = _require_admin(request)
+    user = await _require_admin(request)
     async with async_session() as session:
         result = await session.execute(select(SystemConfig).where(SystemConfig.config_key == body.config_key))
         cfg = result.scalar_one_or_none()
@@ -153,7 +153,7 @@ async def upsert_config(body: ConfigUpdateRequest, request: Request):
 @router.delete("/configs/{config_key}", summary="删除系统配置")
 async def delete_config(config_key: str, request: Request):
     """删除系统配置项（仅管理员）。"""
-    user = _require_admin(request)
+    user = await _require_admin(request)
     async with async_session() as session:
         result = await session.execute(select(SystemConfig).where(SystemConfig.config_key == config_key))
         cfg = result.scalar_one_or_none()
@@ -269,7 +269,7 @@ async def export_alarms_csv(
     alarm_type: Optional[str] = None,
 ):
     """导出告警记录为 CSV 文件（仅管理员）。"""
-    _require_admin(request)
+    await _require_admin(request)
 
     async with async_session() as session:
         stmt = select(AlarmRecord)
@@ -355,7 +355,7 @@ async def get_trainings(request: Request, limit: int = 50, offset: int = 0, stat
 @router.post("/trainings", summary="新增训练记录")
 async def create_training(body: TrainingRecordRequest, request: Request):
     """新增训练记录（仅管理员/操作员）。"""
-    user = _require_admin(request)
+    user = await _require_admin(request)
     async with async_session() as session:
         record = TrainingRecord(
             model_name=body.model_name,
@@ -389,7 +389,7 @@ async def create_training(body: TrainingRecordRequest, request: Request):
 @router.put("/trainings/{training_id}", summary="更新训练记录")
 async def update_training(training_id: int, body: TrainingRecordRequest, request: Request):
     """更新训练记录（仅管理员）。"""
-    user = _require_admin(request)
+    user = await _require_admin(request)
     async with async_session() as session:
         result = await session.execute(select(TrainingRecord).where(TrainingRecord.id == training_id))
         record = result.scalar_one_or_none()
@@ -413,7 +413,7 @@ async def update_training(training_id: int, body: TrainingRecordRequest, request
 @router.delete("/trainings/{training_id}", summary="删除训练记录")
 async def delete_training(training_id: int, request: Request):
     """删除训练记录（仅管理员）。"""
-    user = _require_admin(request)
+    user = await _require_admin(request)
     async with async_session() as session:
         result = await session.execute(select(TrainingRecord).where(TrainingRecord.id == training_id))
         record = result.scalar_one_or_none()
@@ -466,7 +466,7 @@ async def get_datasets(request: Request, limit: int = 50, offset: int = 0):
 @router.post("/datasets", summary="新增数据集")
 async def create_dataset(body: DatasetRequest, request: Request):
     """新增数据集配置（仅管理员）。"""
-    user = _require_admin(request)
+    user = await _require_admin(request)
     async with async_session() as session:
         exists = await session.execute(select(Dataset.id).where(Dataset.name == body.name))
         if exists.scalar_one_or_none():
@@ -500,7 +500,7 @@ async def create_dataset(body: DatasetRequest, request: Request):
 @router.put("/datasets/{dataset_id}", summary="更新数据集")
 async def update_dataset(dataset_id: int, body: DatasetRequest, request: Request):
     """更新数据集配置（仅管理员）。"""
-    user = _require_admin(request)
+    user = await _require_admin(request)
     async with async_session() as session:
         result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
         dataset = result.scalar_one_or_none()
@@ -521,7 +521,7 @@ async def update_dataset(dataset_id: int, body: DatasetRequest, request: Request
 @router.delete("/datasets/{dataset_id}", summary="删除数据集")
 async def delete_dataset(dataset_id: int, request: Request):
     """删除数据集（仅管理员）。"""
-    user = _require_admin(request)
+    user = await _require_admin(request)
     async with async_session() as session:
         result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
         dataset = result.scalar_one_or_none()

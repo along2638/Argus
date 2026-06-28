@@ -328,7 +328,7 @@ async def delete_all_alarms(request: Request):
     """清空所有告警记录接口（仅管理员）。"""
     from app.services.auth_service import has_permission, Permission
     user = getattr(request.state, "user", None)
-    if not user or not has_permission(user.get("role", ""), Permission.MANAGE_ALARM):
+    if not user or not await has_permission(user.get("role", ""), Permission.MANAGE_ALARM):
         raise HTTPException(status_code=403, detail="权限不足")
     from app.services.database import db_service
     count = await db_service.delete_all_alarms()
@@ -673,7 +673,7 @@ async def detect_delete(result_id: int):
 async def detect_delete_all(request: Request):
     from app.services.auth_service import has_permission, Permission
     user = getattr(request.state, "user", None)
-    if not user or not has_permission(user.get("role", ""), Permission.MANAGE_ALARM):
+    if not user or not await has_permission(user.get("role", ""), Permission.MANAGE_ALARM):
         raise HTTPException(status_code=403, detail="权限不足")
     from app.db import async_session
     from app.models.detection_result import DetectionResult

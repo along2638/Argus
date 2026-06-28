@@ -162,7 +162,7 @@ async def api_logout(response: Response, authorization: Optional[str] = Header(N
 @router.get("/users")
 async def api_list_users(authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.MANAGE_USER):
+    if not await has_permission(user["role"], Permission.MANAGE_USER):
         raise HTTPException(status_code=403, detail="权限不足")
     users = await list_users()
     return {"success": True, "users": users}
@@ -172,7 +172,7 @@ async def api_list_users(authorization: Optional[str] = Header(None), request: R
 async def api_update_role(user_id: int, body: RoleUpdateRequest,
                           authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.ADMIN):
+    if not await has_permission(user["role"], Permission.ADMIN):
         raise HTTPException(status_code=403, detail="权限不足")
     if body.role not in ("admin", "operator", "annotator", "viewer"):
         raise HTTPException(status_code=400, detail="无效的角色")
@@ -186,7 +186,7 @@ async def api_update_role(user_id: int, body: RoleUpdateRequest,
 async def api_toggle_user(user_id: int,
                           authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.ADMIN):
+    if not await has_permission(user["role"], Permission.ADMIN):
         raise HTTPException(status_code=403, detail="权限不足")
     if user["id"] == user_id:
         raise HTTPException(status_code=400, detail="不能禁用自己的账号")
@@ -200,7 +200,7 @@ async def api_toggle_user(user_id: int,
 async def api_reset_password(user_id: int, body: PasswordResetRequest,
                              authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.ADMIN):
+    if not await has_permission(user["role"], Permission.ADMIN):
         raise HTTPException(status_code=403, detail="权限不足")
     try:
         ok = await reset_password(user_id, body.new_password)
@@ -215,7 +215,7 @@ async def api_reset_password(user_id: int, body: PasswordResetRequest,
 async def api_delete_user(user_id: int,
                           authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.ADMIN):
+    if not await has_permission(user["role"], Permission.ADMIN):
         raise HTTPException(status_code=403, detail="权限不足")
     if user["id"] == user_id:
         raise HTTPException(status_code=400, detail="不能删除自己")
@@ -273,7 +273,7 @@ async def api_list_sessions(authorization: Optional[str] = Header(None), request
 @router.get("/logs")
 async def api_list_logs(limit: int = 100, authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.MANAGE_USER):
+    if not await has_permission(user["role"], Permission.MANAGE_USER):
         raise HTTPException(status_code=403, detail="权限不足")
     try:
         from app.db import async_session
@@ -334,7 +334,7 @@ async def api_get_config(authorization: Optional[str] = Header(None), request: R
 @router.put("/config")
 async def api_update_config(body: dict, authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.ADMIN):
+    if not await has_permission(user["role"], Permission.ADMIN):
         raise HTTPException(status_code=403, detail="仅管理员可修改配置")
     try:
         from app.db import async_session
@@ -461,7 +461,7 @@ async def api_list_training(limit: int = 50, authorization: Optional[str] = Head
 @router.post("/training")
 async def api_add_training(body: dict, authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.MANAGE_USER):
+    if not await has_permission(user["role"], Permission.MANAGE_USER):
         raise HTTPException(status_code=403, detail="权限不足")
     try:
         from app.db import async_session
@@ -490,7 +490,7 @@ async def api_add_training(body: dict, authorization: Optional[str] = Header(Non
 @router.put("/training/{record_id}")
 async def api_update_training(record_id: int, body: dict, authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.MANAGE_USER):
+    if not await has_permission(user["role"], Permission.MANAGE_USER):
         raise HTTPException(status_code=403, detail="权限不足")
     try:
         from app.db import async_session
@@ -516,7 +516,7 @@ async def api_update_training(record_id: int, body: dict, authorization: Optiona
 @router.delete("/training/{record_id}")
 async def api_delete_training(record_id: int, authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.MANAGE_USER):
+    if not await has_permission(user["role"], Permission.MANAGE_USER):
         raise HTTPException(status_code=403, detail="权限不足")
     try:
         from app.db import async_session
@@ -720,7 +720,7 @@ async def api_backup(authorization: Optional[str] = Header(None), request: Reque
 @router.post("/datasets")
 async def api_add_dataset(body: dict, authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.MANAGE_USER):
+    if not await has_permission(user["role"], Permission.MANAGE_USER):
         raise HTTPException(status_code=403, detail="权限不足")
     try:
         from app.db import async_session
@@ -749,7 +749,7 @@ async def api_add_dataset(body: dict, authorization: Optional[str] = Header(None
 @router.put("/datasets/{dataset_id}")
 async def api_update_dataset(dataset_id: int, body: dict, authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.MANAGE_USER):
+    if not await has_permission(user["role"], Permission.MANAGE_USER):
         raise HTTPException(status_code=403, detail="权限不足")
     try:
         from app.db import async_session
@@ -773,7 +773,7 @@ async def api_update_dataset(dataset_id: int, body: dict, authorization: Optiona
 @router.delete("/datasets/{dataset_id}")
 async def api_delete_dataset(dataset_id: int, authorization: Optional[str] = Header(None), request: Request = None):
     user = await _get_current_user(authorization, request)
-    if not has_permission(user["role"], Permission.MANAGE_USER):
+    if not await has_permission(user["role"], Permission.MANAGE_USER):
         raise HTTPException(status_code=403, detail="权限不足")
     try:
         from app.db import async_session

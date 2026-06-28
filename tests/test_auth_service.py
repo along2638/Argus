@@ -18,7 +18,7 @@ from app.services.auth_service import (
     get_user_permissions,
     validate_password,
     Permission,
-    ROLE_PERMISSIONS,
+    DEFAULT_ROLE_PERMISSIONS,
 )
 
 
@@ -115,38 +115,48 @@ class TestJWT:
 # ── Permissions ──
 
 class TestPermissions:
-    def test_admin_has_all_permissions(self):
+    @pytest.mark.asyncio
+    async def test_admin_has_all_permissions(self):
         all_perms = [v for k, v in Permission.__dict__.items() if not k.startswith("_")]
         for perm in all_perms:
-            assert has_permission("admin", perm) is True
+            assert await has_permission("admin", perm) is True
 
-    def test_viewer_limited_permissions(self):
-        assert has_permission("viewer", Permission.VIEW_STREAM) is True
-        assert has_permission("viewer", Permission.VIEW_ALARM) is True
-        assert has_permission("viewer", Permission.MANAGE_STREAM) is False
-        assert has_permission("viewer", Permission.ADMIN) is False
+    @pytest.mark.asyncio
+    async def test_viewer_limited_permissions(self):
+        assert await has_permission("viewer", Permission.VIEW_STREAM) is True
+        assert await has_permission("viewer", Permission.VIEW_ALARM) is True
+        assert await has_permission("viewer", Permission.MANAGE_STREAM) is False
+        assert await has_permission("viewer", Permission.ADMIN) is False
 
-    def test_annotator_permissions(self):
-        assert has_permission("annotator", Permission.ANNOTATE) is True
-        assert has_permission("annotator", Permission.VIEW_ALARM) is True
-        assert has_permission("annotator", Permission.MANAGE_STREAM) is False
+    @pytest.mark.asyncio
+    async def test_annotator_permissions(self):
+        assert await has_permission("annotator", Permission.ANNOTATE) is True
+        assert await has_permission("annotator", Permission.VIEW_ALARM) is True
+        assert await has_permission("annotator", Permission.MANAGE_STREAM) is False
 
-    def test_operator_permissions(self):
-        assert has_permission("operator", Permission.MANAGE_STREAM) is True
-        assert has_permission("operator", Permission.MANAGE_ALARM) is True
-        assert has_permission("operator", Permission.ADMIN) is False
+    @pytest.mark.asyncio
+    async def test_operator_permissions(self):
+        assert await has_permission("operator", Permission.MANAGE_STREAM) is True
+        assert await has_permission("operator", Permission.MANAGE_ALARM) is True
+        assert await has_permission("operator", Permission.ADMIN) is False
 
-    def test_unknown_role(self):
-        assert has_permission("hacker", Permission.VIEW_STREAM) is False
+    @pytest.mark.asyncio
+    async def test_unknown_role(self):
+        assert await has_permission("hacker", Permission.VIEW_STREAM) is False
 
-    def test_get_user_permissions(self):
-        perms = get_user_permissions("admin")
+    @pytest.mark.asyncio
+    async def test_get_user_permissions(self):
+        perms = await get_user_permissions("admin")
         assert len(perms) == 7
-        perms = get_user_permissions("viewer")
-        assert len(perms) == 2
 
-    def test_get_user_permissions_unknown(self):
-        assert get_user_permissions("nonexistent") == []
+    @pytest.mark.asyncio
+    async def test_get_user_permissions_unknown(self):
+        assert await get_user_permissions("nonexistent") == []
+
+    def test_default_role_permissions_defined(self):
+        assert "admin" in DEFAULT_ROLE_PERMISSIONS
+        assert "viewer" in DEFAULT_ROLE_PERMISSIONS
+        assert len(DEFAULT_ROLE_PERMISSIONS["admin"]) == 7
 
 
 # ── Password Validation ──

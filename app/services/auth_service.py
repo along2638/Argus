@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, List
 
 import jwt
 import redis.asyncio as aioredis
@@ -138,7 +138,8 @@ class Permission:
     ADMIN = "admin"
 
 
-ROLE_PERMISSIONS = {
+# Default role permissions (used when database is empty)
+DEFAULT_ROLE_PERMISSIONS = {
     "admin": [Permission.VIEW_STREAM, Permission.MANAGE_STREAM, Permission.VIEW_ALARM,
               Permission.MANAGE_ALARM, Permission.ANNOTATE, Permission.MANAGE_USER, Permission.ADMIN],
     "operator": [Permission.VIEW_STREAM, Permission.MANAGE_STREAM, Permission.VIEW_ALARM,
@@ -147,13 +148,62 @@ ROLE_PERMISSIONS = {
     "viewer": [Permission.VIEW_STREAM, Permission.VIEW_ALARM],
 }
 
+# Valid roles
+VALID_ROLES = ["admin", "operator", "annotator", "viewer"]
 
-def has_permission(role: str, perm: str) -> bool:
-    return perm in ROLE_PERMISSIONS.get(role, [])
+
+async def _load_role_permissions() -> dict:
+    """Load role permissions from database, fallback to defaults."""
+    try:
+        from app.models.role_permission import RolePermission
+        async with async_session() as session:
+            result = await session.execute(select(RolePermission))
+            db_perms = {}
+            for rp in result.scalars().all():
+                if rp.role not in db_perms:
+                    db_perms[rp.role] = []
+                db_perms[rp.role].append(rp.permission)
+            if db_perms:
+                return db_perms
+    except Exception as e:
+        logger.debug("load_role_permissions_fallback", error=str(e))
+    return DEFAULT_ROLE_PERMISSIONS
 
 
-def get_user_permissions(role: str) -> list:
-    return ROLE_PERMISSIONS.get(role, [])
+# Cache for role permissions
+_role_permissions_cache: Optional[dict] = None
+_role_permissions_cache_time: Optional[datetime] = None
+
+
+async def get_role_permissions() -> dict:
+    """Get role permissions with 5-minute cache."""
+    global _role_permissions_cache, _role_permissions_cache_time
+    now = datetime.now(timezone.utc)
+    if _role_permissions_cache and _role_permissions_cache_time:
+        if (now - _role_permissions_cache_time).seconds < 300:
+            return _role_permissions_cache
+    _role_permissions_cache = await _load_role_permissions()
+    _role_permissions_cache_time = now
+    return _role_permissions_cache
+
+
+async def has_permission(role: str, perm: str) -> bool:
+    """Check if role has permission."""
+    perms = await get_role_permissions()
+    return perm in perms.get(role, [])
+
+
+async def get_user_permissions(role: str) -> list:
+    """Get permissions for a role."""
+    perms = await get_role_permissions()
+    return perms.get(role, [])
+
+
+def invalidate_permission_cache():
+    """Force reload permissions on next check."""
+    global _role_permissions_cache, _role_permissions_cache_time
+    _role_permissions_cache = None
+    _role_permissions_cache_time = None
 
 
 # ── Auth CRUD ──
