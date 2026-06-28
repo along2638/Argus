@@ -98,3 +98,11 @@ function showPermDenied(action) {
     overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
     setTimeout(() => { if (overlay.parentElement) overlay.remove(); }, 5000);
 }
+
+// 注入动画样式
+if (!document.getElementById('perm-style')) {
+    const s = document.createElement('style');
+    s.id = 'perm-style';
+    s.textContent = '@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}';
+    document.head.appendChild(s);
+}
