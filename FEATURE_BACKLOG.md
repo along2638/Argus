@@ -29,4 +29,4 @@
 | 13 | 暗色主题 | AI发现 | OPEN | - |
 | 14 | 批量视频分析报告 | AI发现 | OPEN | - |
 | 15 | 标注版本控制 | AI发现 | OPEN | - |
-| 16 | operation_log 测试 | AI发现 | OPEN | tests/ |
+| 16 | operation_log 测试 | AI发现 | ✅ DONE | tests/test_operation_log_service.py |
