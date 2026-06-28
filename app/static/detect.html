@@ -38,7 +38,7 @@
         .main-layout { position:relative; z-index:1; display:flex; height:calc(100vh - 61px); overflow:hidden; }
 
         /* ── Left Sidebar ── */
-        .sidebar { width:280px; background:var(--bg-card); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+        .sidebar { width:300px; background:var(--bg-card); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
         .sidebar-section { border-bottom:1px solid var(--border); }
         .sidebar-head { padding:12px 18px; display:flex; align-items:center; justify-content:space-between; }
         .sidebar-title { font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:6px; }
@@ -89,7 +89,7 @@
         .history-item.active .history-count { background:rgba(255,255,255,0.2); color:#fff; }
 
         /* ── Right Sidebar (History) ── */
-        .history-sidebar { width:300px; background:var(--bg-card); border-left:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+        .history-sidebar { width:320px; background:var(--bg-card); border-left:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
         .history-sidebar .sidebar-head { padding:10px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
         .history-sidebar .sidebar-title { font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:6px; }
         .history-sidebar .sidebar-title .icon { width:15px; height:15px; opacity:0.5; }
@@ -108,7 +108,7 @@
         .history-page-size:hover { border-color:var(--ink-faint); }
 
         /* ── Right Panel ── */
-        .right-panel { flex:1 1 0; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
+        .right-panel { flex:1 1 600px; max-width:650px; min-width:400px; display:flex; flex-direction:column; overflow:hidden; }
 
         .image-area { flex:1; display:flex; align-items:center; justify-content:center; padding:16px; background:var(--bg-input); position:relative; overflow:hidden; min-height:200px; }
         .image-area img { max-width:100%; max-height:100%; object-fit:contain; display:none; border-radius:var(--radius-md); }
@@ -152,8 +152,8 @@
         .toast.error { background:var(--bg-card-solid); color:var(--danger); border:1px solid var(--danger-bg); }
         @keyframes toastIn { from { transform:translateX(120%); opacity:0; } to { transform:translateX(0); opacity:1; } }
 
-        @media (max-width:1200px) { .history-sidebar { width:260px; } }
-        @media (max-width:1024px) { .sidebar { width:240px; } .history-sidebar { width:220px; } }
+        @media (max-width:1200px) { .sidebar { width:260px; } .history-sidebar { width:260px; } }
+        @media (max-width:1024px) { .sidebar { width:240px; } .history-sidebar { width:240px; } }
         @media (max-width:768px) { .main-layout { flex-direction:column; } .sidebar { width:100%; height:auto; max-height:200px; } .history-sidebar { width:100%; height:200px; border-left:none; border-top:1px solid var(--border); } }
     </style>
 </head>
