@@ -973,3 +973,44 @@ async def stream_health_trend(
         ]
 
     return {"success": True, "total": len(items), "items": items}
+
+
+# ── Batch Video Analysis ──
+
+@router.post("/batch/analyze", summary="批量视频分析")
+async def batch_analyze_videos(
+    directory: str = Form(..., description="视频文件夹路径"),
+    model: str = Form("general", description="模型: general/helmet/fire_smoke"),
+    confidence: float = Form(0.3, description="置信度阈值"),
+    frame_interval: int = Form(10, description="每隔多少帧检测一次"),
+    request: Request = None,
+):
+    """批量分析指定目录下的所有视频文件，返回 JSON 结果。"""
+    import os
+    if not os.path.isdir(directory):
+        raise HTTPException(status_code=400, detail=f"目录不存在: {directory}")
+
+    from app.core.batch_analyzer import batch_analyze
+    result = await batch_analyze(directory, model, confidence, frame_interval)
+    return {"success": True, **result}
+
+
+@router.post("/batch/report", summary="批量分析HTML报告")
+async def batch_analyze_report(
+    directory: str = Form(..., description="视频文件夹路径"),
+    model: str = Form("general", description="模型: general/helmet/fire_smoke"),
+    confidence: float = Form(0.3, description="置信度阈值"),
+    frame_interval: int = Form(10, description="每隔多少帧检测一次"),
+    request: Request = None,
+):
+    """批量分析并生成 HTML 报告。"""
+    import os
+    if not os.path.isdir(directory):
+        raise HTTPException(status_code=400, detail=f"目录不存在: {directory}")
+
+    from app.core.batch_analyzer import batch_analyze, generate_html_report
+    from fastapi.responses import HTMLResponse
+
+    result = await batch_analyze(directory, model, confidence, frame_interval)
+    html = generate_html_report(result)
+    return HTMLResponse(content=html)
