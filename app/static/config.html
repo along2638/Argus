@@ -182,7 +182,7 @@ function doLogout() {
         async function exportBackup() {
             try {
                 const resp = await authFetch('/api/v1/auth/backup');
-                if (!resp.ok) { showErrorModal('备份失败'); return; }
+                if (!resp.ok) { showErrorModal('备份失败，请检查存储空间是否充足'); return; }
                 const blob = await resp.blob();
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
@@ -191,7 +191,7 @@ function doLogout() {
                 URL.revokeObjectURL(a.href);
                 showNotification('备份已导出', 'success');
             } catch (e) {
-                showErrorModal('备份失败');
+                showErrorModal('备份失败，请检查存储空间是否充足');
             }
         }
 

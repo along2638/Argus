@@ -1259,7 +1259,7 @@ function doLogout() {
                 if (res.ok) { showNotification(`流 ${sid} 已启动`, 'success');                     document.getElementById('startForm').reset();
                     document.getElementById('validateStream').checked = true; refreshStreams(); refreshHealth(); }
                 else { showErrorModal(d.detail || '启动失败'); }
-            } catch (e) { showErrorModal('请求失败'); }
+            } catch (e) { showErrorModal('网络请求失败，请检查网络连接后重试'); }
             finally { btn.disabled = false; btn.innerHTML = '启动检测'; }
         }
 
@@ -1270,7 +1270,7 @@ function doLogout() {
                 const d = await res.json();
                 if (res.ok) { showNotification(`流 ${sid} 已停止`, 'success'); refreshStreams(); refreshHealth(); }
                 else { showErrorModal(d.detail || '停止失败'); }
-            } catch (e) { showErrorModal('请求失败'); }
+            } catch (e) { showErrorModal('网络请求失败，请检查网络连接后重试'); }
         }
 
         async function restartStream(sid, url, alarmTypes) {
@@ -1288,7 +1288,7 @@ function doLogout() {
                 const d = await res.json();
                 if (res.ok) { showNotification(`流 ${sid} 已重启`, 'success'); refreshStreams(); refreshHealth(); }
                 else { showErrorModal(d.detail || '重启失败'); }
-            } catch (e) { showErrorModal('请求失败'); }
+            } catch (e) { showErrorModal('网络请求失败，请检查网络连接后重试'); }
         }
 
         function fillExample() {

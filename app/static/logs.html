@@ -301,10 +301,10 @@
                     page = 1;
                     loadLogs();
                 } else {
-                    showErrorModal('操作失败');
+                    showErrorModal('操作执行失败，请稍后重试');
                 }
             } catch (e) {
-                showErrorModal('请求失败');
+                showErrorModal('网络请求失败，请检查网络连接后重试');
             }
         }
 
