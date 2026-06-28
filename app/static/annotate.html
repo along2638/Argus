@@ -342,6 +342,7 @@
             display: block;
             max-width: 100%;
             max-height: calc(100vh - 200px);
+            image-rendering: auto;
         }
 
         .canvas-empty {
@@ -639,6 +640,8 @@
             ctx.save();
             ctx.translate(panX, panY);
             ctx.scale(zoom, zoom);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0);
             // 从下拉框构建类别映射
             const classMap = {};
@@ -647,17 +650,20 @@
             });
             boxes.forEach((box, i) => {
                 ctx.strokeStyle = 'rgba(45,122,79,0.9)';
-                ctx.lineWidth = 2 / zoom;
-                ctx.strokeRect(box.x, box.y, box.w, box.h);
+                ctx.lineWidth = Math.max(1, 2 / zoom);
+                ctx.lineJoin = 'miter';
+                ctx.lineCap = 'butt';
+                ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w, box.h);
                 ctx.fillStyle = 'rgba(45,122,79,0.85)';
-                ctx.font = `${600 / zoom}px Inter, sans-serif`;
+                ctx.font = `bold ${Math.max(10, 12 / zoom)}px DM Sans, sans-serif`;
                 const label = `${classMap[box.class_id] || 'fire'} ${i + 1}`;
                 const tw = ctx.measureText(label).width;
+                const labelY = Math.max(18 / zoom, box.y);
                 ctx.beginPath();
-                ctx.roundRect(box.x + 2, box.y - 18 / zoom, tw + 10, 16 / zoom, 3);
+                ctx.roundRect(box.x + 2, labelY - 18 / zoom, tw + 10, 16 / zoom, 3);
                 ctx.fill();
                 ctx.fillStyle = '#fff';
-                ctx.fillText(label, box.x + 7, box.y - 6 / zoom);
+                ctx.fillText(label, box.x + 7, labelY - 5 / zoom);
             });
             ctx.restore();
         }
@@ -699,10 +705,11 @@
             currentBox.h = y - startY;
             renderBoxes();
             ctx.strokeStyle = 'rgba(26,26,26,0.5)';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = Math.max(1, 1.5 / zoom);
             ctx.setLineDash([4, 4]);
+            ctx.lineJoin = 'miter';
             ctx.strokeRect(
-                Math.min(startX, x), Math.min(startY, y),
+                Math.min(startX, x) + 0.5, Math.min(startY, y) + 0.5,
                 Math.abs(currentBox.w), Math.abs(currentBox.h)
             );
             ctx.setLineDash([]);
