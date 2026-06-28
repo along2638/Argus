@@ -431,6 +431,14 @@
         async function exportHistory(){const model=$('historyModelFilter').value;try{let url='/api/v1/stream/detect/history?limit=1000';if(model)url+='&model='+model;const r=await authFetch(url),d=await r.json(),items=d.items||[];if(!items.length){notify('无数据','ok');return;}let csv='id,filename,model_name,detections_count,detected_at\n';items.forEach(r=>{csv+=r.id+',"'+(r.filename||'')+'",'+r.model_name+','+r.detections_count+','+(r.detected_at||'')+'\n';});const b=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='detect_history_'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href);notify('已导出 '+items.length+' 条','ok');}catch(e){notify('导出失败','error');}}
         async function clearHistory(){if(!await showConfirm('确定清空所有检测记录？'))return;try{await authFetch('/api/v1/stream/detect',{method:'DELETE'});notify('已清空','ok');currentResultId=null;detections=[];resultImage.style.display='none';imageEmpty.style.display='';ctx.clearRect(0,0,canvas.width,canvas.height);resultList.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-4);font-size:0.72rem;">等待检测</div>';resultStats.innerHTML='';loadHistory();}catch(e){}}
         async function loadDetail(id){loading.classList.add('show');try{const r=await authFetch('/api/v1/stream/detect/'+id),d=await r.json();currentResultId=id;detections=d.detections||[];if(d.image_path){const src='/api/v1/stream/image/'+d.image_path;resultImage.src=src;resultImage.style.display='block';imageEmpty.style.display='none';resultImage.onload=()=>{imageWidth=resultImage.naturalWidth;imageHeight=resultImage.naturalHeight;resizeCanvas();drawDetections();};}renderResults({detections:d.detections,detections_count:d.detections_count,inference_time_ms:d.inference_time_ms,model:d.model_name});loadHistory();}catch(e){notify('加载失败','error');}finally{loading.classList.remove('show');}}
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && e.key === 'd') { e.preventDefault(); if (!detectBtn.disabled) runDetect(); }
+            if (e.key === 'Escape') { document.querySelectorAll('.cfg-select').forEach(s => s.classList.remove('open')); }
+            if (e.ctrlKey && e.key === 'v') { fileInput.click(); }
+        });
+
         loadHistory();
     </script>
 </body>
