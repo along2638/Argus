@@ -227,6 +227,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# CSRF protection middleware
+from app.core.csrf import CSRFMiddleware
+app.add_middleware(CSRFMiddleware)
+
 # Include routers
 app.include_router(stream_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
