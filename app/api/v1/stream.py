@@ -43,8 +43,8 @@ router = APIRouter(prefix="/stream", tags=["流处理管理"])
 class StreamStartRequest(BaseModel):
     """启动流处理请求模型"""
 
-    stream_url: str = Field(..., description="监控流地址 (RTSP/RTMP)", examples=["rtsp://admin:password@192.168.1.100:554/stream1"])
-    stream_id: str = Field(..., description="流唯一标识符", min_length=1, max_length=64, examples=["camera-001"])
+    stream_url: str = Field(..., min_length=1, max_length=2048, description="监控流地址 (RTSP/RTMP)", examples=["rtsp://admin:password@192.168.1.100:554/stream1"])
+    stream_id: str = Field(..., description="流唯一标识符", min_length=1, max_length=64, pattern="^[a-zA-Z0-9_-]+$", examples=["camera-001"])
     validate_stream: bool = Field(True, description="是否在启动前验证流可用性")
     alarm_types: List[str] = Field(
         default=["helmet", "fire", "intrusion"],
@@ -340,9 +340,9 @@ async def delete_all_alarms(request: Request):
 
 class DetectRequest(BaseModel):
     """图片检测请求模型"""
-    image_url: str = Field(..., description="图片地址（支持 HTTP/HTTPS 直链或本地路径）")
-    model: str = Field("general", description="模型名称: general / fire_smoke / helmet")
-    confidence: float = Field(0.3, description="置信度阈值", ge=0.0, le=1.0)
+    image_url: str = Field(..., min_length=1, max_length=2048, description="图片地址（支持 HTTP/HTTPS 直链或本地路径）")
+    model: str = Field("general", pattern="^(general|fire_smoke|helmet)$", description="模型名称: general / fire_smoke / helmet")
+    confidence: float = Field(0.3, ge=0.0, le=1.0, description="置信度阈值")
 
 
 class DetectResult(BaseModel):
