@@ -30,6 +30,7 @@ def detector():
         mock_settings.HELMET_CLASS_MAPPING = {"0": "helmet", "1": "no-helmet", "2": "person"}
         mock_settings.ALARM_CLASSES = ["person", "fire", "smoke", "no-helmet"]
         mock_settings.CONFIDENCE_THRESHOLD = 0.7
+        mock_settings.NMS_THRESHOLD = 0.7
         det = MultiModelDetector()
         yield det
 

@@ -235,9 +235,17 @@ async def get_alarms(
     - **stream_id**: 按流ID筛选（可选）
     - **alarm_type**: 按告警类型筛选（可选）: helmet, animal, fire, intrusion
     - **severity**: 按严重级别筛选（可选）: normal, important, critical
-    - **limit**: 返回记录数（默认100）
+    - **limit**: 返回记录数（默认100，最大500）
     - **offset**: 偏移量（默认0）
     """
+    # Validate bounds
+    if limit < 1:
+        limit = 1
+    elif limit > 500:
+        limit = 500
+    if offset < 0:
+        offset = 0
+
     from app.services.database import db_service
 
     alarms = await db_service.get_alarms(

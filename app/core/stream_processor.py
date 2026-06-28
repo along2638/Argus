@@ -48,6 +48,7 @@ class StreamProcessor:
         self._fps_counter = 0
         self._fps_start_time = time.time()
         self._current_fps = 0.0
+        self._alarm_count = 0
 
         # ByteTrack per-stream tracker (每个流独立跟踪)
         # 降低阈值以提高跟踪稳定性
@@ -130,6 +131,7 @@ class StreamProcessor:
             "status": self._status,
             "error_message": self._error_message,
             "fps": self._current_fps,
+            "alarm_count": self._alarm_count,
         }
 
     async def _process_loop(self) -> None:
@@ -452,6 +454,7 @@ class StreamProcessor:
                                 "confidence": confidence_value,
                                 "track_id": track_id,
                             })
+                            self._alarm_count += 1
 
                             print_status(
                                 f"[ALARM] [{self.stream_id}] {model_name}: {class_name} conf={confidence_value:.1%}",

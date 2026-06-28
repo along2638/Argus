@@ -230,7 +230,7 @@ class MultiModelDetector:
 
         # Apply NMS to remove overlapping detections
         if len(dets) > 1:
-            dets = dets.with_nms(threshold=0.7)
+            dets = dets.with_nms(threshold=settings.NMS_THRESHOLD)
 
         return dets
 

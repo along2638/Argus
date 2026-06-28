@@ -78,6 +78,7 @@ async def lifespan(app: FastAPI):
     # Startup
     setup_logging()
     health_task = None
+    schedule_task = None
 
     print_status("YOLO 监控告警系统 v0.1.0 启动中...", "info")
     print_status("=" * 50, "info")
@@ -178,17 +179,19 @@ async def lifespan(app: FastAPI):
     print_status("正在关闭服务...", "warning")
     if health_task:
         health_task.cancel()
-    schedule_task.cancel()
+    if schedule_task:
+        schedule_task.cancel()
     worker_task.cancel()
     if health_task:
         try:
             await health_task
         except asyncio.CancelledError:
             pass
-    try:
-        await schedule_task
-    except asyncio.CancelledError:
-        pass
+    if schedule_task:
+        try:
+            await schedule_task
+        except asyncio.CancelledError:
+            pass
     try:
         await worker_task
     except asyncio.CancelledError:
@@ -212,6 +215,16 @@ app = FastAPI(
     description="轻量级监控流实时切片与多目标告警系统 - 支持安全帽检测、异物入侵、火灾烟雾识别",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# CORS middleware
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers

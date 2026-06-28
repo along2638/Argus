@@ -98,7 +98,7 @@ class DatabaseService:
                 {"id": r.id, "stream_url": r.stream_url, "stream_id": r.stream_id,
                  "alarm_type": r.alarm_type, "confidence": r.confidence, "image_path": r.image_path,
                  "track_id": r.track_id, "class_name": r.class_name, "severity": r.severity,
-                 "detected_by": r.detected_at}
+                 "detected_at": str(r.detected_at) if r.detected_at else None}
                 for r in result.scalars().all()
             ]
 

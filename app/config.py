@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_STREAMS: int = 10
     CONFIDENCE_THRESHOLD: float = 0.3  # 通用检测阈值
     FIRE_SMOKE_CONFIDENCE_THRESHOLD: float = 0.01  # 火灾烟雾检测需要较低阈值
+    NMS_THRESHOLD: float = 0.7  # 非极大值抑制阈值
 
     # Alarm Configuration
     ALARM_COOLDOWN_TTL: int = 30  # seconds
