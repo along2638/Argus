@@ -251,7 +251,11 @@
             try {
                 const resp = await authFetch('/api/v1/auth/users');
                 const data = await resp.json();
-                if (!data.success) { showNotification(data.detail || '无权限', 'error'); return; }
+                if (!data.success) {
+                    if (resp.status === 403) { showPermDenied('管理用户'); }
+                    else { showNotification(data.detail || '加载失败', 'error'); }
+                    return;
+                }
                 allUsers = data.users || [];
                 document.getElementById('userCount').textContent = `共 ${allUsers.length} 人`;
                 renderUserPage();
