@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Modal Test</title>
+</head>
+<body>
+    <button onclick="testModal()">点击测试弹窗</button>
+    <div id="notification" style="display:none;position:fixed;top:20px;right:20px;background:red;color:white;padding:10px;z-index:10000;">TOAST</div>
+    <script>
+        function showPermModal(action) {
+            var d = document.createElement('div');
+            d.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;';
+            d.innerHTML = '<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:1rem;font-weight:600;color:#1c1917;margin-bottom:6px">操作失败</div><div style="font-size:0.82rem;color:#78716c;margin-bottom:20px">' + action + '</div><button onclick="this.parentElement.parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>';
+            document.body.appendChild(d);
+            d.onclick = function(e) { if (e.target === d) d.remove(); };
+            setTimeout(function() { if (d.parentElement) d.remove(); }, 5000);
+        }
+
+        function showNotification(msg, type) {
+            if (type === 'error') {
+                showPermModal(msg);
+            } else {
+                var el = document.getElementById('notification');
+                el.innerHTML = msg;
+                el.style.display = 'flex';
+                setTimeout(function() { el.style.display = 'none'; }, 3000);
+            }
+        }
+
+        function testModal() {
+            showNotification('这是一条错误消息', 'error');
+        }
+    </script>
+</body>
+</html>
