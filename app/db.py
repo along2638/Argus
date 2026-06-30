@@ -42,6 +42,7 @@ async def init_db():
     from app.models.operation_log import OperationLog
     from app.models.system_config import SystemConfig
     from app.models.training_record import TrainingRecord
+    from app.models.role_permission import RolePermission
 
     async with engine.connect() as conn:
         await conn.run_sync(Base.metadata.create_all)

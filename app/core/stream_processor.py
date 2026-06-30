@@ -30,7 +30,7 @@ class StreamProcessor:
 
     # 告警类型到模型的映射
     ALARM_TYPE_TO_MODELS = {
-        "helmet": ["helmet"],           # 安全帽检测使用安全帽模型
+        "helmet": ["helmet"],           # 安全帽检测使用安全帽模型（含 person/helmet/no-helmet 三类）
         "fire": ["fire_smoke"],         # 火灾检测使用火灾烟雾模型
         "intrusion": ["general"],       # 入侵检测使用通用模型（人、动物）
     }
@@ -363,8 +363,14 @@ class StreamProcessor:
                     detect_frame = frame[ry:ry+rh, rx:rx+rw]
                     roi_offset = (rx, ry)
 
-            # 只使用用户选择的模型进行检测
+            # 组合检测：安全帽告警需要先检测人，再检测帽子
+            if "helmet" in self.alarm_types:
+                await self._detect_helmet_combined(detect_frame, annotated_frame, roi_offset, frame, alarm_detections)
+
+            # 只使用用户选择的模型进行检测（排除已在 _detect_helmet_combined 中处理的 helmet）
             for model_name in self._models_to_use:
+                if model_name == "helmet":
+                    continue  # helmet 已在 _detect_helmet_combined 中处理
                 try:
                     detections, inference_time = await detector.detect_with_model(
                         detect_frame, model_name, tracker=self._tracker
@@ -572,6 +578,86 @@ class StreamProcessor:
             return None
 
         return None
+
+    async def _detect_helmet_combined(
+        self,
+        detect_frame: np.ndarray,
+        annotated_frame: np.ndarray,
+        roi_offset: tuple,
+        full_frame: np.ndarray,
+        alarm_detections: list,
+    ) -> None:
+        """安全帽模型一次推理：helmet / no-helmet / person，person 兜底未戴帽。"""
+        try:
+            helmet_detections, _ = await detector.detect_with_model(
+                detect_frame, "helmet", confidence_threshold=0.01
+            )
+
+            ox, oy = roi_offset
+            h, w = full_frame.shape[:2]
+
+            drawn_boxes = []
+            if len(helmet_detections) > 0:
+                for i in range(len(helmet_detections)):
+                    cid = helmet_detections.class_id[i]
+                    cname = detector.get_class_name("helmet", cid)
+                    conf = float(helmet_detections.confidence[i])
+                    bbox = helmet_detections.xyxy[i].copy()
+                    bbox[0] += ox; bbox[1] += oy; bbox[2] += ox; bbox[3] += oy
+                    x1, y1, x2, y2 = map(int, bbox)
+                    x1 = max(0, min(x1, w)); y1 = max(0, min(y1, h))
+                    x2 = max(0, min(x2, w)); y2 = max(0, min(y2, h))
+                    if x2 <= x1 or y2 <= y1:
+                        continue
+
+                    if cname == "helmet":
+                        if conf < settings.HELMET_CONFIRM_THRESHOLD:
+                            continue
+                        color = (0, 255, 0)
+                        label = f"helmet {conf:.1%}"
+                        drawn_boxes.append((x1, y1, x2, y2))
+                    elif cname == "no-helmet":
+                        if conf < settings.HELMET_CONFIDENCE_THRESHOLD:
+                            continue
+                        color = (0, 0, 255)
+                        label = f"no-helmet {conf:.1%}"
+                        drawn_boxes.append((x1, y1, x2, y2))
+                    elif cname == "person":
+                        if conf < 0.05:
+                            continue
+                        covered = any(
+                            (dx1+dx2)/2 >= x1 and (dx1+dx2)/2 <= x2 and
+                            (dy1+dy2)/2 >= y1 and (dy1+dy2)/2 <= y2
+                            for dx1, dy1, dx2, dy2 in drawn_boxes
+                        )
+                        if covered:
+                            continue
+                        color = (0, 0, 255)
+                        label = f"no-helmet {conf:.1%}"
+                    else:
+                        continue
+
+                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                    (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                    cv2.rectangle(annotated_frame, (x1, y1 - lh - 10), (x1 + lw, y1), color, -1)
+                    cv2.putText(annotated_frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+                    if cname == "no-helmet" or (cname == "person" and not covered):
+                        ncx = (x1 + x2) // 2
+                        ncy = (y1 + y2) // 2
+                        should_alarm = await alarm_dedup.should_trigger_alarm(
+                            self.stream_id, "no-helmet", -1, position=(ncx, ncy)
+                        )
+                        if should_alarm:
+                            alarm_detections.append({
+                                "alarm_type": "helmet",
+                                "class_name": "no-helmet",
+                                "confidence": conf,
+                                "track_id": -1,
+                            })
+
+        except Exception as e:
+            logger.error("helmet_combined_detect_error", stream_id=self.stream_id, error=str(e))
 
 
 class StreamManager:

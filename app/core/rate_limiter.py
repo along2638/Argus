@@ -7,6 +7,7 @@ import redis.asyncio as aioredis
 from fastapi import Request, HTTPException
 
 from app.config import settings
+from app.core.client_ip import get_client_ip
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)

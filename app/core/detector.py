@@ -253,7 +253,12 @@ class MultiModelDetector:
             Tuple of (Detections, inference time in ms)
         """
         if confidence_threshold is None:
-            confidence_threshold = settings.FIRE_SMOKE_CONFIDENCE_THRESHOLD if model_name == "fire_smoke" else settings.CONFIDENCE_THRESHOLD
+            if model_name == "fire_smoke":
+                confidence_threshold = settings.FIRE_SMOKE_CONFIDENCE_THRESHOLD
+            elif model_name == "helmet":
+                confidence_threshold = settings.HELMET_CONFIDENCE_THRESHOLD
+            else:
+                confidence_threshold = settings.CONFIDENCE_THRESHOLD
 
         model = self._models.get(model_name)
         if model is None:

@@ -93,3 +93,14 @@ async def delete_logs(before_date: Optional[str] = None) -> int:
         await session.commit()
         logger.info("operation_logs_deleted", count=total)
         return total or 0
+
+
+async def delete_log_by_id(log_id: int) -> int:
+    """删除单条操作日志，返回删除数量。"""
+    async with async_session() as session:
+        count_stmt = select(func.count(OperationLog.id)).where(OperationLog.id == log_id)
+        total = await session.scalar(count_stmt)
+        if total:
+            await session.execute(delete(OperationLog).where(OperationLog.id == log_id))
+            await session.commit()
+        return total or 0

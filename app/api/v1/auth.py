@@ -10,8 +10,10 @@ from app.core.client_ip import get_client_ip
 from app.services.auth_service import (
     authenticate, register, get_current_user, logout_token, list_users,
     update_user_role, toggle_user_active, reset_password, delete_user,
-    has_permission, Permission,
+    has_permission, Permission, get_role_permissions, invalidate_permission_cache,
+    VALID_ROLES, validate_password,
 )
+from app.core.security_config import get_security_value, invalidate_security_cache
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -38,6 +40,20 @@ async def log_operation(action: str, username: str = None, detail: str = None, r
 router = APIRouter(prefix="/auth", tags=["认证"])
 
 _config_init_lock = asyncio.Lock()
+
+
+def _require_auth(request: Request):
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="未登录")
+    return user
+
+
+async def _require_admin(request: Request):
+    user = _require_auth(request)
+    if not await has_permission(user.get("role", ""), Permission.ADMIN):
+        raise HTTPException(status_code=403, detail="权限不足，需要管理员角色")
+    return user
 
 
 # ── Request/Response Models ──
@@ -88,16 +104,20 @@ async def _get_current_user(authorization: Optional[str] = None, request: Reques
 
 @router.post("/login")
 async def api_login(body: LoginRequest, response: Response, request: Request = None):
-    # Rate limit: 5 login attempts per minute per IP
+    # 动态频率限制
     ip = request.client.host if request and request.client else "unknown"
     from app.core.rate_limiter import RateLimiter
-    allowed, retry_after = await RateLimiter.is_allowed(f"login:{ip}", max_requests=5, window_seconds=60)
-    if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail=f"登录尝试过于频繁，请 {retry_after} 秒后重试",
-            headers={"Retry-After": str(retry_after)},
-        )
+    rate_enabled = (await get_security_value("login_rate_enabled")).lower() == "true"
+    if rate_enabled:
+        max_req = int(await get_security_value("login_rate_max"))
+        window = int(await get_security_value("login_rate_window"))
+        allowed, retry_after = await RateLimiter.is_allowed(f"login:{ip}", max_requests=max_req, window_seconds=window)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"登录尝试过于频繁，请 {retry_after} 秒后重试",
+                headers={"Retry-After": str(retry_after)},
+            )
 
     result = await authenticate(body.username, body.password)
     if not result["success"]:
@@ -117,16 +137,20 @@ async def api_login(body: LoginRequest, response: Response, request: Request = N
 
 @router.post("/register")
 async def api_register(body: RegisterRequest, request: Request = None):
-    # Rate limit: 3 register attempts per minute per IP
+    # 动态频率限制
     ip = request.client.host if request and request.client else "unknown"
     from app.core.rate_limiter import RateLimiter
-    allowed, retry_after = await RateLimiter.is_allowed(f"register:{ip}", max_requests=3, window_seconds=60)
-    if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail=f"注册尝试过于频繁，请 {retry_after} 秒后重试",
-            headers={"Retry-After": str(retry_after)},
-        )
+    rate_enabled = (await get_security_value("register_rate_enabled")).lower() == "true"
+    if rate_enabled:
+        max_req = int(await get_security_value("register_rate_max"))
+        window = int(await get_security_value("register_rate_window"))
+        allowed, retry_after = await RateLimiter.is_allowed(f"register:{ip}", max_requests=max_req, window_seconds=window)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"注册尝试过于频繁，请 {retry_after} 秒后重试",
+                headers={"Retry-After": str(retry_after)},
+            )
 
     # 自注册强制为 viewer 角色，防止权限提升
     result = await register(body.username, body.password, body.display_name, "viewer")
@@ -150,10 +174,11 @@ async def api_logout(response: Response, authorization: Optional[str] = Header(N
         token = authorization[7:]
     if not token:
         token = request.cookies.get("token") if request else None
+    # 通过 token 解码获取用户信息（中间件跳过了 /api/v1/auth/ 路径，request.state.user 未设置）
+    user = await get_current_user(token) if token else {}
     if token:
         await logout_token(token)
-    user = getattr(request.state, "user", {}) if request else {}
-    await log_operation("logout", user.get("username"), "退出登录", request)
+    await log_operation("logout", user.get("username") if user else None, "退出登录", request)
     response.delete_cookie("token")
     return {"success": True, "message": "已退出登录"}
 
@@ -355,6 +380,8 @@ async def api_update_config(body: dict, authorization: Optional[str] = Header(No
                     old_val = cfg.config_value
                     cfg.config_value = str(value)
                     cfg.update_by = username
+                else:
+                    session.add(SystemConfig(config_key=key, config_value=str(value), config_type="string", description="", update_by=username))
             await session.commit()
         changed_keys = [item.get("key") for item in updates if item.get("key") and item.get("value") is not None]
         await log_operation("update_config", username, f"修改配置: {', '.join(changed_keys)}", request)
@@ -375,6 +402,13 @@ async def _init_default_config():
         ("MAX_CONCURRENT_STREAMS", "10", "int", "最大并发流数"),
         ("WEBHOOK_URL", "", "string", "告警推送 Webhook 地址"),
         ("WEBHOOK_ENABLED", "false", "bool", "是否启用告警推送"),
+        ("EMAIL_ENABLED", "false", "bool", "是否启用邮件通知"),
+        ("EMAIL_SMTP_HOST", "", "string", "SMTP 服务器地址"),
+        ("EMAIL_SMTP_PORT", "587", "int", "SMTP 端口"),
+        ("EMAIL_SMTP_USER", "", "string", "SMTP 用户名"),
+        ("EMAIL_SMTP_PASS", "", "string", "SMTP 密码"),
+        ("EMAIL_FROM", "", "string", "邮件发件人地址"),
+        ("EMAIL_TO", "", "string", "邮件收件人地址"),
     ]
     async with async_session() as session:
         for key, value, ctype, desc in defaults:
@@ -790,3 +824,73 @@ async def api_delete_dataset(dataset_id: int, authorization: Optional[str] = Hea
         return {"success": True, "message": "已删除"}
     except Exception as e:
         return {"success": False, "detail": str(e)}
+
+
+# ══════════════════════════════════════════
+# 权限管理
+# ══════════════════════════════════════════
+
+ALL_PERMISSIONS = [
+    {"key": Permission.VIEW_STREAM, "label": "查看监控流"},
+    {"key": Permission.MANAGE_STREAM, "label": "管理监控流"},
+    {"key": Permission.VIEW_ALARM, "label": "查看告警"},
+    {"key": Permission.MANAGE_ALARM, "label": "管理告警"},
+    {"key": Permission.ANNOTATE, "label": "数据标注"},
+    {"key": Permission.MANAGE_USER, "label": "用户管理"},
+    {"key": Permission.ADMIN, "label": "系统管理"},
+]
+
+
+@router.get("/permissions")
+async def api_get_permissions(request: Request, authorization: Optional[str] = Header(None)):
+    """获取所有角色的权限配置。"""
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+    if not token:
+        token = request.cookies.get("token") if request else None
+    user = await get_current_user(token) if token else None
+    if not user:
+        raise HTTPException(status_code=401, detail="未登录")
+    perms = await get_role_permissions()
+    return {
+        "success": True,
+        "all_permissions": ALL_PERMISSIONS,
+        "roles": {r: perms.get(r, []) for r in VALID_ROLES},
+    }
+
+
+class PermissionUpdateRequest(BaseModel):
+    permissions: List[str] = Field(..., description="该角色拥有的权限标识列表")
+
+
+@router.put("/permissions/{role}")
+async def api_update_permissions(role: str, body: PermissionUpdateRequest, request: Request):
+    """更新指定角色的权限（仅管理员）。"""
+    user = await _require_admin(request)
+    if role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail=f"无效角色: {role}")
+    valid_keys = {p["key"] for p in ALL_PERMISSIONS}
+    invalid = [p for p in body.permissions if p not in valid_keys]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"无效权限标识: {', '.join(invalid)}")
+
+    from app.db import async_session
+    from app.models.role_permission import RolePermission
+    from sqlalchemy import select, delete as sql_delete
+
+    async with async_session() as session:
+        await session.execute(sql_delete(RolePermission).where(RolePermission.role == role))
+        for perm in body.permissions:
+            session.add(RolePermission(role=role, permission=perm))
+        await session.commit()
+
+    invalidate_permission_cache()
+
+    await log_operation(
+        action="update_config",
+        username=user.get("username"),
+        detail={"target": "role_permissions", "role": role, "permissions": body.permissions},
+        request=request,
+    )
+    return {"success": True, "message": f"角色 {role} 权限已更新"}

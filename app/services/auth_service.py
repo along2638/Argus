@@ -19,28 +19,49 @@ logger = get_logger(__name__)
 ITERATIONS = 260000
 
 
+# ── Password Validation (sync cache) ──
+
+_password_rules_cache: Optional[dict] = None
+
+
+def _get_password_rules() -> dict:
+    global _password_rules_cache
+    if _password_rules_cache is not None:
+        return _password_rules_cache
+    _password_rules_cache = {
+        "min_length": 8,
+        "require_uppercase": True,
+        "require_lowercase": True,
+        "require_digit": True,
+        "require_special": True,
+    }
+    return _password_rules_cache
+
+
+def _refresh_password_rules(cfg: dict):
+    global _password_rules_cache
+    def _to_str(v):
+        return str(v).lower() if v is not None else "true"
+    _password_rules_cache = {
+        "min_length": int(cfg.get("password_min_length", 8)),
+        "require_uppercase": _to_str(cfg.get("password_require_uppercase")) == "true",
+        "require_lowercase": _to_str(cfg.get("password_require_lowercase")) == "true",
+        "require_digit": _to_str(cfg.get("password_require_digit")) == "true",
+        "require_special": _to_str(cfg.get("password_require_special")) == "true",
+    }
+
+
 def validate_password(password: str) -> tuple[bool, str]:
-    """Validate password complexity.
-
-    Rules:
-    - At least 8 characters
-    - At least one uppercase letter
-    - At least one lowercase letter
-    - At least one digit
-    - At least one special character (!@#$%^&*...).
-
-    Returns:
-        Tuple of (is_valid, error_message).
-    """
-    if len(password) < 8:
-        return False, "密码长度至少8位"
-    if not any(c.isupper() for c in password):
+    rules = _get_password_rules()
+    if len(password) < rules["min_length"]:
+        return False, f"密码长度至少{rules['min_length']}位"
+    if rules["require_uppercase"] and not any(c.isupper() for c in password):
         return False, "密码必须包含至少一个大写字母"
-    if not any(c.islower() for c in password):
+    if rules["require_lowercase"] and not any(c.islower() for c in password):
         return False, "密码必须包含至少一个小写字母"
-    if not any(c.isdigit() for c in password):
+    if rules["require_digit"] and not any(c.isdigit() for c in password):
         return False, "密码必须包含至少一个数字"
-    if not any(c in "!@#$%^&*()_+-=[]{}|;':\",./<>?" for c in password):
+    if rules["require_special"] and not any(c in "!@#$%^&*()_+-=[]{}|;':\",./<>?" for c in password):
         return False, "密码必须包含至少一个特殊字符"
     return True, ""
 

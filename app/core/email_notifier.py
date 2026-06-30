@@ -41,7 +41,7 @@ class EmailNotifier:
 
             self._enabled = configs.get("EMAIL_ENABLED", "false").lower() == "true"
             self._smtp_host = configs.get("EMAIL_SMTP_HOST", "")
-            self._smtp_port = int(configs.get("EMAIL_SMTP_PORT", "587"))
+            self._smtp_port = int(configs.get("EMAIL_SMTP_PORT") or "587")
             self._smtp_user = configs.get("EMAIL_SMTP_USER", "")
             self._smtp_pass = configs.get("EMAIL_SMTP_PASS", "")
             self._from_addr = configs.get("EMAIL_FROM", self._smtp_user)

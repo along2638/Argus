@@ -18,8 +18,11 @@ from app.models.training_record import TrainingRecord
 from app.models.dataset import Dataset
 from app.models.annotation_image import AnnotationImage
 from app.models.sys_user import SysUser
+from app.models.stream_config import StreamConfig
 from app.services import operation_log_service
+from app.core.client_ip import get_client_ip
 from app.services.auth_service import has_permission, Permission
+from app.core.security_config import get_security_config
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -66,6 +69,16 @@ async def clear_operation_logs(request: Request, before_date: Optional[str] = No
     await _require_admin(request)
     count = await operation_log_service.delete_logs(before_date=before_date)
     return {"success": True, "message": f"已删除 {count} 条日志"}
+
+
+@router.delete("/logs/{log_id}", summary="删除单条操作日志")
+async def delete_operation_log(log_id: int, request: Request):
+    """删除单条操作日志（仅管理员）。"""
+    await _require_admin(request)
+    count = await operation_log_service.delete_log_by_id(log_id)
+    if count == 0:
+        raise HTTPException(status_code=404, detail="日志不存在")
+    return {"success": True, "message": "日志已删除"}
 
 
 # ══════════════════════════════════════════
@@ -231,11 +244,35 @@ async def get_dashboard_stats(request: Request):
         )
         training_status_dist = {row[0]: row[1] for row in training_status_result.all()}
 
+        # 告警严重级别分布
+        severity_result = await session.execute(
+            select(AlarmRecord.severity, func.count(AlarmRecord.id))
+            .group_by(AlarmRecord.severity)
+        )
+        severity_dist = {row[0]: row[1] for row in severity_result.all()}
+
+        # 按流分组告警数 (Top 10)
+        per_stream_result = await session.execute(
+            select(AlarmRecord.stream_id, func.count(AlarmRecord.id))
+            .where(AlarmRecord.stream_id.isnot(None))
+            .group_by(AlarmRecord.stream_id)
+            .order_by(func.count(AlarmRecord.id).desc())
+            .limit(10)
+        )
+        per_stream_alarm = [{"stream_id": row[0], "count": row[1]} for row in per_stream_result.all()]
+
+        # 活跃流数
+        stream_count = await session.scalar(
+            select(func.count(StreamConfig.id)).where(StreamConfig.status == "running")
+        ) or 0
+
     return {
         "alarm": {
             "total": total_alarms,
             "today": today_alarms,
             "type_distribution": alarm_type_distribution,
+            "severity_distribution": severity_dist,
+            "per_stream_alarm": per_stream_alarm,
             "trend_7d": alarm_trend,
         },
         "detection": {
@@ -254,6 +291,9 @@ async def get_dashboard_stats(request: Request):
         "training": {
             "total": total_trainings,
             "status_distribution": training_status_dist,
+        },
+        "stream": {
+            "active": stream_count,
         },
     }
 
@@ -530,3 +570,107 @@ async def delete_dataset(dataset_id: int, request: Request):
         await session.delete(dataset)
         await session.commit()
     return {"success": True, "message": "数据集已删除"}
+
+
+# ══════════════════════════════════════════
+# 安全参数配置
+# ══════════════════════════════════════════
+
+SECURITY_CONFIG_FIELDS = {
+    "login_rate_enabled": {"label": "启用登录频率限制", "type": "bool"},
+    "login_rate_max": {"label": "登录频率限制（次/窗口）", "type": "int", "min": 1, "max": 100},
+    "login_rate_window": {"label": "登录限制窗口（秒）", "type": "int", "min": 10, "max": 3600},
+    "register_rate_enabled": {"label": "启用注册频率限制", "type": "bool"},
+    "register_rate_max": {"label": "注册频率限制（次/窗口）", "type": "int", "min": 1, "max": 50},
+    "register_rate_window": {"label": "注册限制窗口（秒）", "type": "int", "min": 10, "max": 3600},
+    "jwt_expire_minutes": {"label": "JWT 过期时间（分钟）", "type": "int", "min": 5, "max": 43200},
+    "password_min_length": {"label": "密码最小长度", "type": "int", "min": 4, "max": 32},
+    "password_require_uppercase": {"label": "密码要求大写字母", "type": "bool"},
+    "password_require_lowercase": {"label": "密码要求小写字母", "type": "bool"},
+    "password_require_digit": {"label": "密码要求数字", "type": "bool"},
+    "password_require_special": {"label": "密码要求特殊字符", "type": "bool"},
+}
+
+
+class SecurityConfigUpdate(BaseModel):
+    configs: dict = Field(..., description="键值对配置")
+
+
+@router.get("/security-config", summary="获取安全参数配置")
+async def get_security_config(request: Request):
+    """获取所有安全参数的当前值（仅管理员）。"""
+    await _require_admin(request)
+    from app.core.security_config import get_security_config as _get
+    cfg = await _get()
+    items = []
+    for key, meta in SECURITY_CONFIG_FIELDS.items():
+        val = cfg.get(key, "")
+        items.append({
+            "key": key,
+            "label": meta["label"],
+            "type": meta["type"],
+            "value": val,
+            "min": meta.get("min"),
+            "max": meta.get("max"),
+        })
+    return {"success": True, "items": items}
+
+
+@router.put("/security-config", summary="更新安全参数配置")
+async def update_security_config(body: SecurityConfigUpdate, request: Request):
+    """批量更新安全参数（仅管理员）。"""
+    try:
+        user = await _require_admin(request)
+        from app.core.security_config import _DEFAULTS, invalidate_security_cache
+        from app.services.auth_service import _refresh_password_rules, invalidate_permission_cache
+
+        async with async_session() as session:
+            for key, val in body.configs.items():
+                if key not in SECURITY_CONFIG_FIELDS:
+                    continue
+                meta = SECURITY_CONFIG_FIELDS[key]
+                if meta["type"] == "int":
+                    try:
+                        v = int(val)
+                    except (ValueError, TypeError):
+                        raise HTTPException(status_code=400, detail=f"{meta['label']} 必须为整数")
+                    if meta.get("min") is not None and v < meta["min"]:
+                        raise HTTPException(status_code=400, detail=f"{meta['label']} 最小值 {meta['min']}")
+                    if meta.get("max") is not None and v > meta["max"]:
+                        raise HTTPException(status_code=400, detail=f"{meta['label']} 最大值 {meta['max']}")
+                    val = str(v)
+                elif meta["type"] == "bool":
+                    val = "true" if val in (True, "true", "1", "是") else "false"
+
+                result = await session.execute(
+                    select(SystemConfig).where(SystemConfig.config_key == key)
+                )
+                cfg = result.scalar_one_or_none()
+                if cfg:
+                    cfg.config_value = val
+                    cfg.update_by = user.get("username")
+                else:
+                    session.add(SystemConfig(
+                        config_key=key,
+                        config_value=val,
+                        config_type=meta["type"],
+                        description=meta["label"],
+                        create_by=user.get("username"),
+                    ))
+            await session.commit()
+
+        invalidate_security_cache()
+        _refresh_password_rules(body.configs)
+        await operation_log_service.write_log(
+            action="update_config",
+            username=user.get("username"),
+            detail={"target": "security_config", "configs": body.configs},
+            ip_address=get_client_ip(request),
+        )
+        return {"success": True, "message": "安全参数已更新"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))

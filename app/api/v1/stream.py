@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field
 
 from app.core.rate_limiter import RateLimiter
 from app.core.client_ip import get_client_ip
+from app.core.auth_decorator import require_perm
+from app.services.auth_service import Permission
 
 from app.config import settings
 from app.core.detector import detector
@@ -124,6 +126,7 @@ async def _save_stream_config(stream_id: str, stream_url: str, alarm_types: list
 
 
 @router.post("/start", response_model=StreamResponse, summary="启动流处理", description="启动对指定监控流的实时YOLO检测处理")
+@require_perm(Permission.MANAGE_STREAM)
 async def start_stream(request: StreamStartRequest, req: Request = None):
     """启动流处理接口。
 
@@ -184,6 +187,7 @@ async def start_stream(request: StreamStartRequest, req: Request = None):
 
 
 @router.post("/stop", response_model=StreamResponse, summary="停止流处理", description="优雅停止指定流的处理并释放资源")
+@require_perm(Permission.MANAGE_STREAM)
 async def stop_stream(request: StreamStopRequest, req: Request = None):
     """停止流处理接口。
 
@@ -325,6 +329,7 @@ async def delete_alarm(alarm_id: int):
 
 
 @router.delete("/alarms", summary="清空告警记录", description="删除所有告警记录")
+@require_perm(Permission.MANAGE_ALARM)
 async def delete_all_alarms(request: Request):
     """清空所有告警记录接口（仅管理员）。"""
     from app.services.auth_service import has_permission, Permission
@@ -401,25 +406,47 @@ async def detect_image(request: DetectRequest, req: Request = None):
             raise HTTPException(status_code=400, detail=f"不支持的模型: {model_name}")
 
         # 执行检测
-        detections, inference_time = await detector.detect_with_model(
-            frame, model_name, confidence_threshold=request.confidence
-        )
-
-        # 格式化结果
-        results = []
-        for i in range(len(detections)):
-            class_id = int(detections.class_id[i])
-            confidence = float(detections.confidence[i])
-            bbox = detections.xyxy[i].tolist()
-            class_name = detector.get_class_name(model_name, class_id)
-
-            results.append({
-                "class_id": class_id,
-                "class_name": class_name,
-                "confidence": round(confidence, 4),
-                "bbox": [round(x, 1) for x in bbox],
-                "bbox_format": "x1_y1_x2_y2",
-            })
+        if model_name == "helmet":
+            helmet_dets, inference_time = await detector.detect_with_model(
+                frame, "helmet", confidence_threshold=0.01
+            )
+            no_helmet_thresh = request.confidence
+            helmet_thresh = settings.HELMET_CONFIRM_THRESHOLD
+            results = []
+            drawn_boxes = []
+            for i in range(len(helmet_dets)):
+                cid = int(helmet_dets.class_id[i])
+                cname = detector.get_class_name("helmet", cid)
+                conf = float(helmet_dets.confidence[i])
+                bbox = helmet_dets.xyxy[i].tolist()
+                if cname == "helmet":
+                    if conf < helmet_thresh:
+                        continue
+                    results.append({"class_id": cid, "class_name": "helmet", "confidence": round(conf, 4), "bbox": [round(x, 1) for x in bbox], "bbox_format": "x1_y1_x2_y2"})
+                    drawn_boxes.append(bbox)
+                elif cname == "no-helmet":
+                    if conf < no_helmet_thresh:
+                        continue
+                    results.append({"class_id": cid, "class_name": "no-helmet", "confidence": round(conf, 4), "bbox": [round(x, 1) for x in bbox], "bbox_format": "x1_y1_x2_y2"})
+                    drawn_boxes.append(bbox)
+                elif cname == "person":
+                    if conf < 0.05:
+                        continue
+                    px1, py1, px2, py2 = bbox
+                    covered = any((bx1+bx2)/2 >= px1 and (bx1+bx2)/2 <= px2 and (by1+by2)/2 >= py1 and (by1+by2)/2 <= py2 for bx1, by1, bx2, by2 in drawn_boxes)
+                    if not covered:
+                        results.append({"class_id": 1, "class_name": "no-helmet", "confidence": round(conf, 4), "bbox": [round(x, 1) for x in bbox], "bbox_format": "x1_y1_x2_y2"})
+        else:
+            detections, inference_time = await detector.detect_with_model(
+                frame, model_name, confidence_threshold=request.confidence
+            )
+            results = []
+            for i in range(len(detections)):
+                class_id = int(detections.class_id[i])
+                confidence = float(detections.confidence[i])
+                bbox = detections.xyxy[i].tolist()
+                class_name = detector.get_class_name(model_name, class_id)
+                results.append({"class_id": class_id, "class_name": class_name, "confidence": round(confidence, 4), "bbox": [round(x, 1) for x in bbox], "bbox_format": "x1_y1_x2_y2"})
 
         return {
             "success": True,
@@ -468,25 +495,74 @@ async def detect_upload(
             raise HTTPException(status_code=400, detail=f"不支持的模型: {model}")
 
         # 执行检测
-        detections, inference_time = await detector.detect_with_model(
-            frame, model, confidence_threshold=confidence
-        )
+        if model == "helmet":
+            # 安全帽模型：极低阈值拿全部检测，前端滑块控制 no-helmet 阈值
+            helmet_dets, inference_time = await detector.detect_with_model(
+                frame, "helmet", confidence_threshold=0.01
+            )
+            no_helmet_thresh = confidence  # 前端滑块值
+            helmet_thresh = settings.HELMET_CONFIRM_THRESHOLD
 
-        # 格式化结果
-        results = []
-        for i in range(len(detections)):
-            class_id = int(detections.class_id[i])
-            conf = float(detections.confidence[i])
-            bbox = detections.xyxy[i].tolist()
-            class_name = detector.get_class_name(model, class_id)
-
-            results.append({
-                "class_id": class_id,
-                "class_name": class_name,
-                "confidence": round(conf, 4),
-                "bbox": [round(x, 1) for x in bbox],
-                "bbox_format": "x1_y1_x2_y2",
-            })
+            results = []
+            drawn_boxes = []
+            for i in range(len(helmet_dets)):
+                cid = int(helmet_dets.class_id[i])
+                cname = detector.get_class_name("helmet", cid)
+                conf = float(helmet_dets.confidence[i])
+                bbox = helmet_dets.xyxy[i].tolist()
+                if cname == "helmet":
+                    if conf < helmet_thresh:
+                        continue
+                    results.append({
+                        "class_id": cid, "class_name": "helmet",
+                        "confidence": round(conf, 4),
+                        "bbox": [round(x, 1) for x in bbox],
+                        "bbox_format": "x1_y1_x2_y2",
+                    })
+                    drawn_boxes.append(bbox)
+                elif cname == "no-helmet":
+                    if conf < no_helmet_thresh:
+                        continue
+                    results.append({
+                        "class_id": cid, "class_name": "no-helmet",
+                        "confidence": round(conf, 4),
+                        "bbox": [round(x, 1) for x in bbox],
+                        "bbox_format": "x1_y1_x2_y2",
+                    })
+                    drawn_boxes.append(bbox)
+                elif cname == "person":
+                    if conf < 0.05:
+                        continue
+                    px1, py1, px2, py2 = bbox
+                    covered = any(
+                        (bx1+bx2)/2 >= px1 and (bx1+bx2)/2 <= px2 and
+                        (by1+by2)/2 >= py1 and (by1+by2)/2 <= py2
+                        for bx1, by1, bx2, by2 in drawn_boxes
+                    )
+                    if not covered:
+                        results.append({
+                            "class_id": 1, "class_name": "no-helmet",
+                            "confidence": round(conf, 4),
+                            "bbox": [round(x, 1) for x in bbox],
+                            "bbox_format": "x1_y1_x2_y2",
+                        })
+        else:
+            # 单模型检测
+            detections, inference_time = await detector.detect_with_model(
+                frame, model, confidence_threshold=confidence
+            )
+            results = []
+            for i in range(len(detections)):
+                class_id = int(detections.class_id[i])
+                conf = float(detections.confidence[i])
+                bbox = detections.xyxy[i].tolist()
+                class_name = detector.get_class_name(model, class_id)
+                results.append({
+                    "class_id": class_id, "class_name": class_name,
+                    "confidence": round(conf, 4),
+                    "bbox": [round(x, 1) for x in bbox],
+                    "bbox_format": "x1_y1_x2_y2",
+                })
 
         # 上传图片到 MinIO
         image_path = None
