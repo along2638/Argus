@@ -10,19 +10,24 @@
     <script src="/static/loading.js"></script>
     <script src="/static/permissions.js"></script>
     <style>
-        :root{--bg:#f8f7f5;--bg-card:#fff;--bg-card-solid:#fff;--bg-input:#f5f4f2;--border:#e8e6e3;--border-focus:#b8b5b0;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#78716c;--ink-faint:#a8a29e;--accent:#292524;--accent-soft:rgba(26,26,26,0.06);--success:#16a34a;--success-bg:rgba(45,122,79,0.08);--danger:#dc2626;--danger-bg:rgba(179,58,58,0.08);--warning:#d97706;--warning-bg:#fffbeb;--radius:8px;--radius-md:12px;--radius-lg:16px;--shadow:0 1px 3px rgba(0,0,0,0.04),0 8px 32px rgba(0,0,0,0.06);--shadow-sm:0 1px 2px rgba(0,0,0,0.04);--transition:0.2s ease}
+        :root{--bg:#f8f7f5;--bg-card:#fff;--bg-card-solid:#fff;--bg-hover:#f3f2f0;--bg-input:#f5f4f2;--border:#e8e6e3;--border-focus:#b8b5b0;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#78716c;--ink-faint:#a8a29e;--accent:#292524;--accent-soft:rgba(41,37,36,0.06);--success:#16a34a;--success-bg:#f0fdf4;--danger:#dc2626;--danger-bg:#fef2f2;--warning:#d97706;--warning-bg:#fffbeb;--cyan:#0891b2;--cyan-bg:rgba(8,145,178,0.1);--purple:#7c3aed;--purple-bg:rgba(124,58,237,0.1);--radius:8px;--radius-md:12px;--radius-lg:16px;--shadow:0 1px 3px rgba(0,0,0,0.06);--shadow-sm:0 1px 2px rgba(0,0,0,0.04);--transition:0.15s ease}
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family: 'DM Sans', -apple-system, sans-serif;background:var(--bg);min-height:100vh;color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
-        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 30%,rgba(180,170,155,0.08) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 75% 60%,rgba(160,150,135,0.06) 0%,transparent 60%);pointer-events:none;z-index:0}
+        body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);min-height:100vh;color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;position:relative}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 30%,rgba(180,170,155,0.08) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 75% 60%,rgba(160,150,135,0.06) 0%,transparent 60%),radial-gradient(ellipse 90% 60% at 50% 80%,rgba(170,160,145,0.05) 0%,transparent 70%);pointer-events:none;z-index:0}
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:3px}
-        .topbar{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid var(--border);background:var(--bg-card);backdrop-filter:blur(20px)}
+        .app{position:relative;z-index:1;max-width:1800px;margin:0 auto;padding:0 32px 60px}
+        .topbar{display:flex;align-items:center;justify-content:space-between;padding:28px 0;border-bottom:1px solid var(--border);margin-bottom:36px}
         .topbar-left{display:flex;align-items:center;gap:12px}
-        .topbar-logo{width:34px;height:34px;background:var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--bg)}
-        .topbar h1{font-size:1.1rem;font-weight:600}
-        .topbar-right{display:flex;align-items:center;gap:8px}
-        .topbar-btn{color:var(--ink-muted);font-size:0.78rem;text-decoration:none;padding:5px 12px;border-radius:var(--radius);transition:var(--transition);border:1px solid transparent}
-        .topbar-btn:hover{color:var(--ink);border-color:var(--border)}
-        .main{position:relative;z-index:1;max-width:1800px;margin:0 auto;padding:24px 32px 60px}
+        .topbar-logo{width:34px;height:34px;background:var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+        .topbar h1{font-size:1.15rem;font-weight:600;letter-spacing:-0.02em}
+        .topbar-right{display:flex;align-items:center;gap:10px}
+        .topbar-btn{color:var(--ink-muted);font-size:0.78rem;font-weight:500;text-decoration:none;padding:5px 10px;border-radius:6px;transition:var(--transition);border:none;background:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;letter-spacing:0.01em}
+        .topbar-btn:hover{color:var(--ink);background:var(--bg-hover)}
+        .topbar-btn.nav-active{color:var(--ink);background:var(--accent-soft);font-weight:600}
+        .topbar-btn .nav-icon{width:14px;height:14px;opacity:0.55;flex-shrink:0}
+        .topbar-btn:hover .nav-icon{opacity:0.8}
+        .nav-sep{width:1px;height:16px;background:var(--border);margin:0 2px;flex-shrink:0;opacity:0.7}
+        .main{position:relative;z-index:1;padding:0}
         .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);backdrop-filter:blur(20px);overflow:hidden;box-shadow:var(--shadow-sm)}
         .card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
         .card-title{display:flex;align-items:center;gap:8px;font-size:0.84rem;font-weight:600;white-space:nowrap}
@@ -44,7 +49,7 @@
         .role-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:var(--radius);font-size:0.7rem;font-weight:500}
         .role-badge.admin{background:var(--danger-bg);color:var(--danger)}
         .role-badge.operator{background:var(--warning-bg);color:var(--warning)}
-        .role-badge.annotator{background:rgba(8,145,178,0.1);color:#0891b2}
+        .role-badge.annotator{background:var(--cyan-bg);color:var(--cyan)}
         .role-badge.viewer{background:var(--accent-soft);color:var(--ink-muted)}
         .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px}
         .status-dot.active{background:var(--success)}
@@ -73,22 +78,82 @@
         .pager-btns button:hover:not(:disabled){border-color:var(--ink-faint);color:var(--ink)}
         .pager-btns button:disabled{opacity:0.3;cursor:not-allowed}
         .pager-btns button.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+        .search-bar{display:flex;gap:8px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+        .search-input{width:240px;padding:7px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--ink);font-size:0.8rem;font-family:inherit;outline:none;transition:var(--transition)}
+        .search-input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(26,26,26,0.04)}
+        .search-select{padding:7px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--ink);font-size:0.8rem;font-family:inherit;outline:none;cursor:pointer;transition:var(--transition)}
+        .search-select:focus{border-color:var(--border-focus)}
+        .log-table{width:100%;border-collapse:collapse}
+        .log-table th{text-align:left;padding:10px 16px;font-size:0.7rem;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--border);background:var(--bg-input)}
+        .log-table td{padding:10px 16px;font-size:0.8rem;border-bottom:1px solid var(--border);vertical-align:middle}
+        .log-table tr:last-child td{border-bottom:none}
+        .log-table tr:hover td{background:rgba(0,0,0,0.015)}
+        .log-action{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius);font-size:0.7rem;font-weight:500}
+        .log-action.login{background:var(--success-bg);color:var(--success)}
+        .log-action.logout{background:var(--accent-soft);color:var(--ink-muted)}
+        .log-action.register{background:var(--cyan-bg);color:var(--cyan)}
+        .log-action.delete{background:var(--danger-bg);color:var(--danger)}
+        .log-action.update{background:var(--warning-bg);color:var(--warning)}
+        .log-action.other{background:var(--accent-soft);color:var(--ink-muted)}
+        [data-theme="dark"] .modal-overlay{background:rgba(0,0,0,0.6)}
+        [data-theme="dark"] .modal .form-input,[data-theme="dark"] .modal .form-select{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.08);color:#e2e8f0}
+        [data-theme="dark"] .modal .form-input::placeholder{color:#475569}
+        [data-theme="dark"] .toast{background:#1e293b}
+        [data-theme="dark"] .log-table tr:hover td{background:rgba(255,255,255,0.02)}
+        [data-theme="dark"] .search-input,[data-theme="dark"] .search-select{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.08);color:#e2e8f0}
+        [data-theme="dark"] .search-input:focus,[data-theme="dark"] .search-select:focus{border-color:rgba(255,255,255,0.2)}
     </style>
 </head>
 <body>
     <div id="notification" class="toast" style="display:none;"></div>
 
+    <div class="app">
     <header class="topbar">
         <div class="topbar-left">
             <div class="topbar-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-            <h1>Argus 智能监控</h1>
+            <h1>Argus 用户管理</h1>
         </div>
         <div class="topbar-right">
-            <a href="/" class="topbar-btn">监控主页</a>
-            <a href="/static/detect.html" class="topbar-btn">图片检测</a>
-            <a href="/static/annotate.html" class="topbar-btn">手动标注</a>
-            <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-            <button class="topbar-btn" onclick="doLogout()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">退出登录</button>
+            <a href="/" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+                主页
+            </a>
+            <a href="/static/annotate.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                标注
+            </a>
+            <a href="/static/detect.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+                图片检测
+            </a>
+            <a href="/static/dashboard.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                看板
+            </a>
+            <div class="nav-sep"></div>
+            <a href="/static/users.html" class="topbar-btn nav-active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                用户
+            </a>
+            <a href="/static/logs.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                日志
+            </a>
+            <a href="/static/config.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                配置
+            </a>
+            <div class="nav-sep"></div>
+            <a href="/static/training.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+                训练
+            </a>
+            <a href="/static/datasets.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                数据集
+            </a>
+            <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()" style="padding:5px 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
+            <div id="userInfoSlot"></div>
         </div>
     </header>
 
@@ -106,6 +171,21 @@
                 </div>
             </div>
             <div class="card-body">
+                <div class="search-bar">
+                    <input type="text" class="search-input" id="searchInput" placeholder="搜索用户名 / 显示名称..." autocomplete="new-password" oninput="filterUsers()">
+                    <select class="search-select" id="filterRole" onchange="filterUsers()">
+                        <option value="">全部角色</option>
+                        <option value="admin">管理员</option>
+                        <option value="operator">操作员</option>
+                        <option value="annotator">标注员</option>
+                        <option value="viewer">只读用户</option>
+                    </select>
+                    <select class="search-select" id="filterStatus" onchange="filterUsers()">
+                        <option value="">全部状态</option>
+                        <option value="active">启用</option>
+                        <option value="inactive">禁用</option>
+                    </select>
+                </div>
                 <table class="user-table">
                     <thead>
                         <tr>
@@ -124,6 +204,51 @@
                 <div class="pager" id="userPager" style="display:none;">
                     <span id="userPagerInfo"></span>
                     <div class="pager-btns" id="userPagerBtns"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 权限管理 -->
+        <div class="card" style="margin-top:20px">
+            <div class="card-head">
+                <span class="card-title">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    角色权限管理
+                </span>
+                <span style="font-size:0.72rem;color:var(--ink-muted)">修改后立即生效，影响对应角色所有用户</span>
+            </div>
+            <div class="card-body" id="permContainer" style="padding:16px">
+                <div class="empty">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div class="card" style="margin-top:20px">
+            <div class="card-head">
+                <span class="card-title">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    操作日志
+                </span>
+                <button class="btn btn-ghost btn-sm" onclick="loadLogs()">刷新</button>
+            </div>
+            <div class="card-body">
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>操作</th>
+                            <th>用户</th>
+                            <th>详情</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logList">
+                        <tr><td colspan="5"><div class="empty">加载中...</div></td></tr>
+                    </tbody>
+                </table>
+                <div class="pager" id="logPager" style="display:none;">
+                    <span id="logPagerInfo"></span>
+                    <div class="pager-btns" id="logPagerBtns"></div>
                 </div>
             </div>
         </div>
@@ -212,8 +337,10 @@
             </div>
         </div>
     </div>
+    </div>
 
     <script src="/static/confirm.js"></script>
+    <script src="/static/user-info.js"></script>
     <script>
         let currentUserId = null;
         const roleNames = {admin:'管理员',operator:'操作员',annotator:'标注员',viewer:'只读用户'};
@@ -233,35 +360,17 @@
         }
 
         function showErrorModal(msg) {
-            const d = document.createElement('div');
-            d.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;';
-            d.innerHTML = '<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:0.92rem;font-weight:600;color:#1c1917;margin-bottom:8px">' + msg + '</div><button onclick="this.parentElement.parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>';
-            document.body.appendChild(d);
-            d.onclick = function(e) { if (e.target === d) d.remove(); };
-            setTimeout(function() { if (d.parentElement) d.remove(); }, 5000);
+            var overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;';
+            overlay.innerHTML = '<div style="background:var(--bg-card-solid);border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:var(--danger-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:0.92rem;font-weight:600;color:var(--ink);margin-bottom:8px">' + msg + '</div><button onclick="this.closest(\'div[style]\').parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:var(--ink);color:var(--bg);font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>';
+            document.body.appendChild(overlay);
+            overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+            setTimeout(function() { if (overlay.parentElement) overlay.remove(); }, 5000);
         }
 
         function showNotification(msg, type = 'info') {
             if (type === 'error') {
                 showErrorModal(msg);
-            } else {
-                const el = document.getElementById('notification');
-                el.innerHTML = msg;
-                el.className = 'toast ' + type;
-                el.style.display = 'flex';
-                setTimeout(() => el.style.display = 'none', 3000);
-            }
-        }
-
-        function showNotification(msg, type = 'info') {
-            if (type === 'error') {
-                // 错误提示：居中模态框
-                var overlay = document.createElement('div');
-                overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;';
-                overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:1rem;font-weight:600;color:#1c1917;margin-bottom:6px">操作失败</div><div style="font-size:0.82rem;color:#78716c;margin-bottom:20px">' + msg + '</div><button onclick="this.parentElement.parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>';
-                document.body.appendChild(overlay);
-                overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-                setTimeout(function() { if (overlay.parentElement) overlay.remove(); }, 5000);
             } else {
                 var el = document.getElementById('notification');
                 el.innerHTML = msg;
@@ -275,8 +384,25 @@
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
         let allUsers = [];
+        let filteredUsers = [];
         let userPage = 1;
         const USER_PAGE_SIZE = 15;
+
+        function filterUsers() {
+            const q = document.getElementById('searchInput').value.trim().toLowerCase();
+            const role = document.getElementById('filterRole').value;
+            const status = document.getElementById('filterStatus').value;
+            filteredUsers = allUsers.filter(u => {
+                if (q && !u.username.toLowerCase().includes(q) && !(u.display_name || '').toLowerCase().includes(q)) return false;
+                if (role && u.role !== role) return false;
+                if (status === 'active' && !u.is_active) return false;
+                if (status === 'inactive' && u.is_active) return false;
+                return true;
+            });
+            userPage = 1;
+            document.getElementById('userCount').textContent = `共 ${filteredUsers.length} 人` + (filteredUsers.length !== allUsers.length ? ` / ${allUsers.length}` : '');
+            renderUserPage();
+        }
 
         async function loadUsers() {
             try {
@@ -291,8 +417,7 @@
                     return;
                 }
                 allUsers = data.users || [];
-                document.getElementById('userCount').textContent = `共 ${allUsers.length} 人`;
-                renderUserPage();
+                filterUsers();
             } catch (e) {
                 showErrorModal('数据加载失败，请刷新页面重试');
             }
@@ -300,15 +425,16 @@
 
         function renderUserPage() {
             const tbody = document.getElementById('userList');
-            if (!allUsers.length) {
-                tbody.innerHTML = '<tr><td colspan="6"><div class="empty">暂无用户</div></td></tr>';
+            if (!filteredUsers.length) {
+                const hasFilter = document.getElementById('searchInput').value.trim() || document.getElementById('filterRole').value || document.getElementById('filterStatus').value;
+                tbody.innerHTML = `<tr><td colspan="6"><div class="empty">${hasFilter ? '没有匹配的用户' : '暂无用户'}</div></td></tr>`;
                 document.getElementById('userPager').style.display = 'none';
                 return;
             }
-            const totalPages = Math.ceil(allUsers.length / USER_PAGE_SIZE);
+            const totalPages = Math.ceil(filteredUsers.length / USER_PAGE_SIZE);
             if (userPage > totalPages) userPage = totalPages;
             const start = (userPage - 1) * USER_PAGE_SIZE;
-            const pageData = allUsers.slice(start, start + USER_PAGE_SIZE);
+            const pageData = filteredUsers.slice(start, start + USER_PAGE_SIZE);
 
             tbody.innerHTML = pageData.map(u => {
                 const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('zh-CN') : '从未登录';
@@ -338,7 +464,7 @@
             const pager = document.getElementById('userPager');
             if (totalPages > 1) {
                 pager.style.display = 'flex';
-                document.getElementById('userPagerInfo').textContent = `共 ${allUsers.length} 人，第 ${userPage}/${totalPages} 页`;
+                document.getElementById('userPagerInfo').textContent = `共 ${filteredUsers.length} 人，第 ${userPage}/${totalPages} 页`;
                 let btns = `<button ${userPage<=1?'disabled':''} onclick="userPage=1;renderUserPage()">«</button>`;
                 btns += `<button ${userPage<=1?'disabled':''} onclick="userPage--;renderUserPage()">‹</button>`;
                 for (let p = 1; p <= totalPages; p++) {
@@ -460,6 +586,167 @@
         }
 
         loadUsers();
+
+        // ── 权限管理 ──
+        const ROLE_LABELS = {admin:'管理员',operator:'操作员',annotator:'标注员',viewer:'只读用户'};
+        const ROLE_COLORS = {admin:'background:var(--danger-bg);color:var(--danger)',operator:'background:var(--warning-bg);color:var(--warning)',annotator:'background:var(--cyan-bg);color:var(--cyan)',viewer:'background:var(--accent-soft);color:var(--ink-muted)'};
+        let permData = null;
+
+        async function loadPermissions() {
+            try {
+                const resp = await authFetch('/api/v1/auth/permissions');
+                if (resp.status === 401) { window.location.href = '/login'; return; }
+                const data = await resp.json();
+                if (!data.success) { document.getElementById('permContainer').innerHTML = '<div class="empty">加载失败</div>'; return; }
+                permData = data;
+                renderPermissions();
+            } catch (e) { document.getElementById('permContainer').innerHTML = '<div class="empty">网络错误</div>'; }
+        }
+
+        function renderPermissions() {
+            if (!permData) return;
+            const { all_permissions, roles } = permData;
+            const isAdmin = hasPermission('admin');
+            let html = '<div style="display:grid;gap:14px">';
+            for (const [role, perms] of Object.entries(roles)) {
+                const permSet = new Set(perms);
+                html += `<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+                    <div style="padding:12px 16px;background:var(--bg-input);display:flex;align-items:center;justify-content:space-between">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="padding:3px 10px;border-radius:var(--radius);font-size:0.72rem;font-weight:600;${ROLE_COLORS[role]||''}">${ROLE_LABELS[role]||role}</span>
+                            <span style="font-size:0.7rem;color:var(--ink-muted)">${perms.length} 项权限</span>
+                        </div>
+                        ${isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="saveRolePerm('${role}')" id="savePermBtn_${role}" style="display:none">保存</button>` : ''}
+                    </div>
+                    <div style="padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px">`;
+                for (const p of all_permissions) {
+                    const checked = permSet.has(p.key) ? 'checked' : '';
+                    const disabled = isAdmin ? '' : 'disabled';
+                    html += `<label style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius);cursor:${isAdmin?'pointer':'default'};font-size:0.74rem;transition:0.15s;${permSet.has(p.key)?'background:var(--accent-soft);border-color:var(--accent);font-weight:500':''}"
+                        onmouseover="this.style.borderColor='var(--ink-faint)'" onmouseout="this.style.borderColor='${permSet.has(p.key)?'var(--accent)':'var(--border)'}'">
+                        <input type="checkbox" ${checked} ${disabled} data-role="${role}" data-perm="${p.key}"
+                            onchange="onPermChange('${role}')" style="accent-color:var(--ink);width:13px;height:13px">
+                        <span>${p.label}</span>
+                        <span style="font-size:0.6rem;color:var(--ink-faint);font-family:'JetBrains Mono',monospace">${p.key}</span>
+                    </label>`;
+                }
+                html += '</div></div>';
+            }
+            html += '</div>';
+            document.getElementById('permContainer').innerHTML = html;
+        }
+
+        function onPermChange(role) {
+            const btn = document.getElementById('savePermBtn_' + role);
+            if (btn) btn.style.display = '';
+        }
+
+        async function saveRolePerm(role) {
+            const checkboxes = document.querySelectorAll(`input[data-role="${role}"]`);
+            const perms = [];
+            checkboxes.forEach(cb => { if (cb.checked) perms.push(cb.dataset.perm); });
+            try {
+                const resp = await authFetch(`/api/v1/auth/permissions/${role}`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ permissions: perms }),
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    showNotification(`${ROLE_LABELS[role]||role} 权限已更新`, 'success');
+                    loadPermissions();
+                } else {
+                    showErrorModal(data.detail || '保存失败');
+                }
+            } catch (e) { showErrorModal('网络请求失败'); }
+        }
+
+        loadPermissions();
+
+        // ── 操作日志 ──
+        const LOG_ACTION_MAP = {
+            login: { label: '登录', cls: 'login' },
+            logout: { label: '退出', cls: 'logout' },
+            register: { label: '注册', cls: 'register' },
+            delete_user: { label: '删除用户', cls: 'delete' },
+            change_password: { label: '修改密码', cls: 'update' },
+            update_config: { label: '更新配置', cls: 'update' },
+            add_training: { label: '新增训练', cls: 'other' },
+            update_training: { label: '更新训练', cls: 'other' },
+            delete_training: { label: '删除训练', cls: 'delete' },
+        };
+        let allLogs = [];
+        let logPage = 1;
+        const LOG_PAGE_SIZE = 15;
+
+        async function loadLogs() {
+            try {
+                const resp = await authFetch('/api/v1/auth/logs?limit=200');
+                if (resp.status === 403) {
+                    document.getElementById('logList').innerHTML = '<tr><td colspan="5"><div class="empty">权限不足</div></td></tr>';
+                    return;
+                }
+                const data = await resp.json();
+                if (!data.success) {
+                    document.getElementById('logList').innerHTML = '<tr><td colspan="5"><div class="empty">加载失败</div></td></tr>';
+                    return;
+                }
+                allLogs = data.logs || [];
+                logPage = 1;
+                renderLogPage();
+            } catch (e) {
+                document.getElementById('logList').innerHTML = '<tr><td colspan="5"><div class="empty">网络错误</div></td></tr>';
+            }
+        }
+
+        function renderLogPage() {
+            const tbody = document.getElementById('logList');
+            if (!allLogs.length) {
+                tbody.innerHTML = '<tr><td colspan="5"><div class="empty">暂无日志</div></td></tr>';
+                document.getElementById('logPager').style.display = 'none';
+                return;
+            }
+            const totalPages = Math.ceil(allLogs.length / LOG_PAGE_SIZE);
+            if (logPage > totalPages) logPage = totalPages;
+            const start = (logPage - 1) * LOG_PAGE_SIZE;
+            const pageData = allLogs.slice(start, start + LOG_PAGE_SIZE);
+
+            tbody.innerHTML = pageData.map(log => {
+                const info = LOG_ACTION_MAP[log.action] || { label: log.action, cls: 'other' };
+                const time = log.create_time ? new Date(log.create_time).toLocaleString('zh-CN') : '-';
+                const detail = typeof log.detail === 'object' ? JSON.stringify(log.detail) : (log.detail || '-');
+                return `<tr>
+                    <td style="font-size:0.76rem;color:var(--ink-muted);white-space:nowrap">${time}</td>
+                    <td><span class="log-action ${info.cls}">${info.label}</span></td>
+                    <td style="font-weight:500">${log.username || '-'}</td>
+                    <td style="font-size:0.76rem;color:var(--ink-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${detail.replace(/"/g, '&quot;')}">${detail}</td>
+                    <td style="font-size:0.76rem;color:var(--ink-muted);font-family:'JetBrains Mono',monospace">${log.ip_address || '-'}</td>
+                </tr>`;
+            }).join('');
+
+            const pager = document.getElementById('logPager');
+            if (totalPages > 1) {
+                pager.style.display = 'flex';
+                document.getElementById('logPagerInfo').textContent = `共 ${allLogs.length} 条，第 ${logPage}/${totalPages} 页`;
+                let btns = `<button ${logPage<=1?'disabled':''} onclick="logPage=1;renderLogPage()">«</button>`;
+                btns += `<button ${logPage<=1?'disabled':''} onclick="logPage--;renderLogPage()">‹</button>`;
+                for (let p = 1; p <= totalPages; p++) {
+                    if (totalPages > 7 && p > 2 && p < totalPages-1 && Math.abs(p-logPage)>1) {
+                        if (p === 3 || p === totalPages-2) btns += '<button disabled>…</button>';
+                        continue;
+                    }
+                    btns += `<button class="${p===logPage?'active':''}" onclick="logPage=${p};renderLogPage()">${p}</button>`;
+                }
+                btns += `<button ${logPage>=totalPages?'disabled':''} onclick="logPage++;renderLogPage()">›</button>`;
+                btns += `<button ${logPage>=totalPages?'disabled':''} onclick="logPage=${totalPages};renderLogPage()">»</button>`;
+                document.getElementById('logPagerBtns').innerHTML = btns;
+            } else {
+                pager.style.display = 'none';
+            }
+        }
+
+        if (hasPermission('manage_user')) {
+            loadLogs();
+        }
     </script>
 </body>
 </html>

@@ -10,84 +10,315 @@
     <script src="/static/permissions.js"></script>
     <script src="/static/loading.js"></script>
     <style>
-        :root{--bg:#f8f7f5;--bg-card:#fff;--bg-card-solid:#fff;--bg-input:#f5f4f2;--border:#e8e6e3;--border-focus:#b8b5b0;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#78716c;--ink-faint:#a8a29e;--accent:#292524;--accent-soft:rgba(26,26,26,0.06);--success:#16a34a;--success-bg:rgba(45,122,79,0.08);--danger:#dc2626;--danger-bg:rgba(179,58,58,0.08);--radius:8px;--radius-md:12px;--radius-lg:16px;--shadow:0 1px 3px rgba(0,0,0,0.04),0 8px 32px rgba(0,0,0,0.06);--shadow-sm:0 1px 2px rgba(0,0,0,0.04);--transition:0.2s ease}
+        :root{--bg:#f8f7f5;--bg-card:#fff;--bg-card-solid:#fff;--bg-input:#f5f4f2;--border:#e8e6e3;--border-focus:#b8b5b0;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#78716c;--ink-faint:#a8a29e;--accent:#292524;--accent-soft:rgba(26,26,26,0.06);--success:#16a34a;--success-bg:rgba(45,122,79,0.08);--danger:#dc2626;--danger-bg:rgba(179,58,58,0.08);--warning:#d97706;--warning-bg:rgba(251,191,36,0.1);--radius:8px;--radius-md:12px;--radius-lg:16px;--shadow:0 1px 3px rgba(0,0,0,0.04),0 8px 32px rgba(0,0,0,0.06);--shadow-sm:0 1px 2px rgba(0,0,0,0.04);--transition:0.2s ease}
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family: 'DM Sans', -apple-system, sans-serif;background:var(--bg);min-height:100vh;color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+        body{font-family:'DM Sans',-apple-system,sans-serif;background:var(--bg);min-height:100vh;color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
         body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 30%,rgba(180,170,155,0.08) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 75% 60%,rgba(160,150,135,0.06) 0%,transparent 60%);pointer-events:none;z-index:0}
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:3px}
 
-        .topbar{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid var(--border);background:var(--bg-card);backdrop-filter:blur(20px)}
+        .app{position:relative;z-index:1;max-width:1800px;margin:0 auto;padding:0 32px 60px}
+        .topbar{display:flex;align-items:center;justify-content:space-between;padding:28px 0;border-bottom:1px solid var(--border);margin-bottom:36px}
         .topbar-left{display:flex;align-items:center;gap:12px}
         .topbar-logo{width:34px;height:34px;background:var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,0.15)}
-        .topbar h1{font-size:1.1rem;font-weight:600}
-        .topbar-right{display:flex;align-items:center;gap:8px}
-        .topbar-btn{color:var(--ink-muted);font-size:0.78rem;text-decoration:none;padding:5px 12px;border-radius:var(--radius);transition:var(--transition);border:1px solid transparent}
-        .topbar-btn:hover{color:var(--ink);border-color:var(--border)}
+        .topbar h1{font-size:1.15rem;font-weight:600;letter-spacing:-0.02em}
+        .topbar-right{display:flex;align-items:center;gap:10px}
+        .topbar-btn{color:var(--ink-muted);font-size:0.78rem;font-weight:500;text-decoration:none;padding:5px 10px;border-radius:6px;transition:var(--transition);border:none;background:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;letter-spacing:0.01em}
+        .topbar-btn:hover{color:var(--ink);background:var(--bg-hover)}
+        .topbar-btn.nav-active{color:var(--ink);background:var(--accent-soft);font-weight:600}
+        .topbar-btn .nav-icon{width:14px;height:14px;opacity:0.55;flex-shrink:0}
+        .topbar-btn:hover .nav-icon{opacity:0.8}
+        .nav-sep{width:1px;height:16px;background:var(--border);margin:0 2px;flex-shrink:0;opacity:0.7}
 
-        .main{position:relative;z-index:1;max-width:1800px;margin:0 auto;padding:24px 32px 60px}
+        .main{position:relative;z-index:1;padding:0}
 
         .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);backdrop-filter:blur(20px);overflow:hidden;box-shadow:var(--shadow-sm)}
         .card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
         .card-title{display:flex;align-items:center;gap:8px;font-size:0.84rem;font-weight:600}
+        .card-subtitle{font-size:0.72rem;color:var(--ink-muted)}
         .card-body{padding:20px}
 
-        .config-item{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--border)}
-        .config-item:last-child{border-bottom:none}
-        .config-info{flex:1}
-        .config-key{font-size:0.84rem;font-weight:500;font-family:'JetBrains Mono',monospace;color:var(--ink)}
-        .config-desc{font-size:0.72rem;color:var(--ink-muted);margin-top:2px}
-        .config-input{width:160px;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--ink);font-size:0.84rem;font-family:'JetBrains Mono',monospace;transition:var(--transition);outline:none;text-align:right}
-        .config-input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(26,26,26,0.04)}
+        /* ── Status Bar ── */
+        .status-bar{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+        .status-item{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.78rem;flex:1;min-width:180px}
+        .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+        .status-dot.ok{background:var(--success)}
+        .status-dot.warn{background:var(--warning)}
+        .status-dot.err{background:var(--danger)}
+        .status-dot.off{background:var(--ink-faint)}
+        .status-label{color:var(--ink-muted);flex-shrink:0}
+        .status-val{font-weight:600;font-family:'JetBrains Mono',monospace;margin-left:auto}
 
+        /* ── Config Grid ── */
+        .config-group{margin-bottom:16px}
+        .config-group:last-child{margin-bottom:0}
+        .config-group-title{font-size:0.72rem;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;padding-left:2px}
+        .config-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+        .cfg-cell{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);transition:var(--transition)}
+        .cfg-cell:hover{border-color:var(--ink-faint);background:var(--accent-soft)}
+        .cfg-cell-info{flex:1;min-width:0}
+        .cfg-cell-key{font-size:0.76rem;font-weight:500;font-family:'JetBrains Mono',monospace;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .cfg-cell-desc{font-size:0.66rem;color:var(--ink-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .cfg-cell-input{width:120px;padding:5px 8px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--ink);font-size:0.76rem;font-family:'JetBrains Mono',monospace;transition:var(--transition);outline:none;text-align:right;flex-shrink:0}
+        .cfg-cell-input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(26,26,26,0.04)}
+
+        .toggle{position:relative;display:inline-block;width:34px;height:18px;flex-shrink:0}
+        .toggle input{opacity:0;width:0;height:0}
+        .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:9px;cursor:pointer;transition:0.2s}
+        .toggle-slider::before{content:'';position:absolute;width:14px;height:14px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+        .toggle input:checked+.toggle-slider{background:var(--accent)}
+        .toggle input:checked+.toggle-slider::before{transform:translateX(16px)}
+
+        .search-box{display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-input);transition:var(--transition)}
+        .search-box:focus-within{border-color:var(--border-focus);background:var(--bg-card)}
+        .search-box input{border:none;background:none;outline:none;font-size:0.78rem;font-family:inherit;color:var(--ink);width:180px}
+        .search-box input::placeholder{color:var(--ink-faint)}
+        .search-box svg{color:var(--ink-faint);flex-shrink:0}
+
+        /* ── Buttons ── */
         .btn{padding:10px 22px;border:none;border-radius:var(--radius);cursor:pointer;font-size:0.82rem;font-weight:500;font-family:inherit;transition:var(--transition);display:inline-flex;align-items:center;gap:6px}
         .btn:disabled{opacity:0.4;cursor:not-allowed}
         .btn-primary{background:var(--ink);color:var(--bg)}
         .btn-primary:hover:not(:disabled){background:#333;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.12)}
         .btn-ghost{background:transparent;color:var(--ink-muted);border:1px solid var(--border)}
         .btn-ghost:hover{border-color:var(--ink-faint);color:var(--ink)}
-
-        .btn-row{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+        .btn-sm{padding:6px 14px;font-size:0.76rem}
+        .btn-row{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;align-items:center}
+        .unsaved-badge{font-size:0.72rem;color:var(--warning);font-weight:500;display:none;align-items:center;gap:4px}
+        .unsaved-badge.show{display:flex}
 
         .toast{position:fixed;top:20px;right:20px;padding:10px 18px;border-radius:var(--radius);font-size:0.8rem;font-weight:500;z-index:10000;animation:toastIn 0.25s ease;box-shadow:var(--shadow);display:flex;align-items:center;gap:8px;font-family:inherit}
         .toast.success{background:var(--bg-card-solid);color:var(--success);border:1px solid var(--success-bg)}
         .toast.error{background:var(--bg-card-solid);color:var(--danger);border:1px solid var(--danger-bg)}
         @keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
-
         .empty{text-align:center;padding:40px 16px;color:var(--ink-faint);font-size:0.84rem}
         .footer{text-align:center;padding:40px 0 0;color:var(--ink-faint);font-size:0.73rem}
+
+        /* ── Security ── */
+        .sec-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+        .sec-section{margin:0;padding:14px;background:var(--accent-soft);border-radius:var(--radius-md)}
+        .sec-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+        .sec-section-title{font-size:0.82rem;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+        .sec-section-title .icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .sec-section-title .icon.blue{background:#ecfeff;color:#0891b2}
+        .sec-section-title .icon.amber{background:var(--warning-bg);color:var(--warning)}
+        .sec-section-title .icon.purple{background:#ede9fe;color:#7c3aed}
+        .sec-section-title .icon.green{background:var(--success-bg);color:var(--success)}
+        .sec-section-title .icon.rose{background:var(--danger-bg);color:var(--danger)}
+
+        .sec-row{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:8px;transition:var(--transition)}
+        .sec-row:last-child{margin-bottom:0}
+        .sec-row.disabled{opacity:0.35;pointer-events:none}
+        .sec-row:hover{border-color:var(--ink-faint)}
+        .sec-row-info{flex:1;min-width:0}
+        .sec-row-label{font-size:0.82rem;font-weight:500;color:var(--ink)}
+        .sec-row-desc{font-size:0.68rem;color:var(--ink-muted);margin-top:2px}
+
+        .sec-big-val{font-size:1.6rem;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1;color:var(--ink)}
+
+        .sec-chips{display:flex;gap:4px;flex-wrap:wrap}
+        .sec-chip{height:28px;padding:0 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg-card);font-size:0.7rem;cursor:pointer;color:var(--ink-muted);font-family:inherit;transition:0.15s;font-weight:500}
+        .sec-chip:hover{border-color:var(--ink-faint);color:var(--ink)}
+        .sec-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+        .sec-mini-input{width:64px;height:28px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);font-size:0.78rem;font-family:'JetBrains Mono',monospace;text-align:center;outline:none;transition:0.15s}
+        .sec-mini-input:focus{border-color:var(--border-focus)}
+
+        .sec-toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+        .sec-toggle input{opacity:0;width:0;height:0}
+        .sec-toggle-track{position:absolute;inset:0;background:var(--border);border-radius:11px;cursor:pointer;transition:0.25s}
+        .sec-toggle-track::before{content:'';position:absolute;width:18px;height:18px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:0.25s;box-shadow:0 1px 4px rgba(0,0,0,0.15)}
+        .sec-toggle input:checked+.sec-toggle-track{background:var(--success)}
+        .sec-toggle input:checked+.sec-toggle-track::before{transform:translateX(18px)}
+        .sec-toggle-status{font-size:0.66rem;font-weight:500;margin-left:6px}
+        .sec-toggle-status.on{color:var(--success)}
+        .sec-toggle-status.off{color:var(--ink-faint)}
+
+        .pwd-slider-track{width:100%;height:8px;border-radius:4px;background:var(--bg-input);position:relative;overflow:hidden;margin:12px 0 4px}
+        .pwd-slider-fill{height:100%;border-radius:4px;transition:0.3s ease}
+        .pwd-slider-fill.weak{background:linear-gradient(90deg,#dc2626,#f97316)}
+        .pwd-slider-fill.mid{background:linear-gradient(90deg,#f97316,#eab308)}
+        .pwd-slider-fill.strong{background:linear-gradient(90deg,#22c55e,#16a34a)}
+        .pwd-range-input{width:100%;accent-color:var(--ink);height:8px;cursor:pointer;margin:0}
+        .pwd-range-labels{display:flex;justify-content:space-between;font-size:0.6rem;color:var(--ink-faint);font-family:'JetBrains Mono',monospace}
+
+        .pwd-rules{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:14px}
+        .pwd-rule{display:flex;align-items:center;gap:6px;padding:7px 8px;border:1px solid var(--border);border-radius:var(--radius);transition:0.15s}
+        .pwd-rule:hover{border-color:var(--ink-faint)}
+        .pwd-rule.on{background:var(--accent-soft);border-color:var(--accent)}
+        .pwd-rule-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;font-family:'JetBrains Mono',monospace;flex-shrink:0;transition:0.2s}
+        .pwd-rule-icon.off{background:var(--bg-input);color:var(--ink-faint)}
+        .pwd-rule-icon.on{background:var(--accent);color:#fff}
+        .pwd-rule-text{flex:1;min-width:0}
+        .pwd-rule-label{font-size:0.72rem;font-weight:500;color:var(--ink)}
+        .pwd-rule-desc{font-size:0.56rem;color:var(--ink-muted);font-family:'JetBrains Mono',monospace}
+        .pwd-rule input[type="checkbox"]{display:none}
+        .pwd-rule-toggle{position:relative;width:28px;height:16px;flex-shrink:0}
+        .pwd-rule-toggle input{opacity:0;width:0;height:0}
+        .pwd-rule-track{position:absolute;inset:0;background:var(--border);border-radius:8px;cursor:pointer;transition:0.2s}
+        .pwd-rule-track::before{content:'';position:absolute;width:12px;height:12px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:0.2s;box-shadow:0 1px 2px rgba(0,0,0,0.1)}
+        .pwd-rule-toggle input:checked+.pwd-rule-track{background:var(--accent)}
+        .pwd-rule-toggle input:checked+.pwd-rule-track::before{transform:translateX(12px)}
+        .pwd-score{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--radius);background:var(--bg-input);margin-top:8px}
+        .pwd-score-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+        .pwd-score-fill{height:100%;border-radius:2px;transition:0.3s}
+        .pwd-score-text{font-size:0.64rem;font-weight:600;white-space:nowrap}
+
+        /* ── Notification / Webhook / Backup ── */
+        .form-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--border)}
+        .form-row:last-child{border-bottom:none}
+        .form-label{width:120px;flex-shrink:0;font-size:0.78rem;font-weight:500;color:var(--ink)}
+        .form-input{flex:1;padding:7px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--ink);font-size:0.78rem;font-family:'JetBrains Mono',monospace;outline:none;transition:var(--transition)}
+        .form-input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(26,26,26,0.04)}
+        .form-hint{font-size:0.66rem;color:var(--ink-faint);margin-top:2px}
+
+        .backup-actions{display:flex;gap:10px;align-items:center}
+
+        @media(max-width:1100px){.config-grid{grid-template-columns:repeat(2,1fr)}.sec-grid{grid-template-columns:1fr}}
+        @media(max-width:700px){.main{padding:16px 16px 32px}.config-grid{grid-template-columns:1fr}.cfg-cell-input{width:100px}.status-bar{flex-direction:column}.form-row{flex-direction:column;align-items:stretch}.form-label{width:auto}}
     </style>
 </head>
 <body>
     <div id="notification" class="toast" style="display:none;"></div>
 
+    <div class="app">
     <header class="topbar">
         <div class="topbar-left">
             <div class="topbar-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-            <h1>Argus 智能监控</h1>
+            <h1>Argus 系统配置</h1>
         </div>
         <div class="topbar-right">
-            <a href="/" class="topbar-btn">监控主页</a>
-            <a href="/static/detect.html" class="topbar-btn">图片检测</a>
-            <a href="/static/users.html" class="topbar-btn">用户管理</a>
-            <a href="/static/logs.html" class="topbar-btn">操作日志</a>
-            <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-            <button class="topbar-btn" onclick="doLogout()" style="cursor:pointer;border:none;font-family:inherit;background:var(--accent-soft);font-weight:500;">退出登录</button>
+            <a href="/" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+                主页
+            </a>
+            <a href="/static/annotate.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                标注
+            </a>
+            <a href="/static/detect.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+                图片检测
+            </a>
+            <a href="/static/dashboard.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                看板
+            </a>
+            <div class="nav-sep"></div>
+            <a href="/static/users.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                用户
+            </a>
+            <a href="/static/logs.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                日志
+            </a>
+            <a href="/static/config.html" class="topbar-btn nav-active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                配置
+            </a>
+            <div class="nav-sep"></div>
+            <a href="/static/training.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+                训练
+            </a>
+            <a href="/static/datasets.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                数据集
+            </a>
+            <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()" style="padding:5px 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
+            <div id="userInfoSlot"></div>
         </div>
     </header>
 
     <div class="main">
+        <!-- T8: 系统状态概览 -->
+        <div class="status-bar" id="statusBar">
+            <div class="status-item"><span class="status-dot off" id="dotDb"></span><span class="status-label">数据库</span><span class="status-val" id="valDb">检测中…</span></div>
+            <div class="status-item"><span class="status-dot off" id="dotRedis"></span><span class="status-label">Redis</span><span class="status-val" id="valRedis">检测中…</span></div>
+            <div class="status-item"><span class="status-dot off" id="dotGpu"></span><span class="status-label">GPU</span><span class="status-val" id="valGpu">检测中…</span></div>
+            <div class="status-item"><span class="status-dot off" id="dotStream"></span><span class="status-label">活跃流</span><span class="status-val" id="valStream">—</span></div>
+        </div>
+
+        <!-- T3+T4+T5+T6: 系统配置 (搜索/未保存提示/重置确认/分组) -->
         <div class="card">
             <div class="card-head">
                 <span class="card-title">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                     系统配置
                 </span>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <span class="card-subtitle" id="configCount"></span>
+                    <div class="search-box">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" placeholder="搜索配置项…" id="cfgSearch" oninput="filterConfig()">
+                    </div>
+                </div>
             </div>
             <div class="card-body" id="configList">
                 <div class="empty">加载中...</div>
             </div>
         </div>
 
+        <!-- 安全参数 -->
+        <div class="card" style="margin-top:20px;">
+            <div class="card-head">
+                <span class="card-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    安全参数
+                </span>
+                <span class="card-subtitle">修改后立即生效</span>
+            </div>
+            <div class="card-body" id="securityList">
+                <div class="empty">加载中...</div>
+            </div>
+        </div>
+
+        <!-- T8: 邮件通知 -->
+        <div class="card" style="margin-top:20px;">
+            <div class="card-head">
+                <span class="card-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    邮件通知
+                </span>
+                <div style="display:flex;align-items:center">
+                    <label class="sec-toggle"><input type="checkbox" id="emailEnabled" onchange="toggleEmailBody(this.checked);autoSaveEmail()"><span class="sec-toggle-track"></span></label>
+                    <span class="sec-toggle-status" id="emailStatus">已禁用</span>
+                </div>
+            </div>
+            <div class="card-body" id="emailBody" style="opacity:0.3;pointer-events:none">
+                <div class="form-row"><div class="form-label">SMTP 主机</div><div style="flex:1">                        <input class="form-input" id="emailHost" data-cfg="EMAIL_SMTP_HOST" placeholder="smtp.example.com" onchange="autoSaveEmail()"></div></div>
+                <div class="form-row"><div class="form-label">SMTP 端口</div><div style="flex:1"><input class="form-input" id="emailPort" data-cfg="EMAIL_SMTP_PORT" placeholder="587" onchange="autoSaveEmail()"></div></div>
+                <div class="form-row"><div class="form-label">用户名</div><div style="flex:1"><input class="form-input" id="emailUser" data-cfg="EMAIL_SMTP_USER" placeholder="user@example.com" onchange="autoSaveEmail()"></div></div>
+                <div class="form-row"><div class="form-label">密码</div><div style="flex:1"><input class="form-input" id="emailPass" data-cfg="EMAIL_SMTP_PASS" type="password" placeholder="••••••••" onchange="autoSaveEmail()"></div></div>
+                <div class="form-row"><div class="form-label">发件人</div><div style="flex:1"><input class="form-input" id="emailFrom" data-cfg="EMAIL_FROM" placeholder="alert@example.com" onchange="autoSaveEmail()"></div></div>
+                <div class="form-row"><div class="form-label">收件人</div><div style="flex:1"><input class="form-input" id="emailTo" data-cfg="EMAIL_TO" placeholder="admin@example.com (多个用逗号分隔)" onchange="autoSaveEmail()"></div></div>
+            </div>
+        </div>
+
+        <!-- T9: Webhook -->
+        <div class="card" style="margin-top:20px;">
+            <div class="card-head">
+                <span class="card-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                    Webhook 推送
+                </span>
+                <div style="display:flex;align-items:center">
+                    <label class="sec-toggle"><input type="checkbox" id="webhookEnabled" onchange="toggleWebhookBody(this.checked);autoSaveWebhook()"><span class="sec-toggle-track"></span></label>
+                    <span class="sec-toggle-status" id="webhookStatus">已禁用</span>
+                </div>
+            </div>
+            <div class="card-body" id="webhookBody" style="opacity:0.3;pointer-events:none">
+                <div class="form-row">
+                    <div class="form-label">Webhook URL</div>
+                    <div style="flex:1">
+                        <input class="form-input" id="webhookUrl" data-cfg="WEBHOOK_URL" placeholder="https://oapi.dingtalk.com/robot/send?access_token=…" onchange="autoSaveWebhook()">
+                        <div class="form-hint">支持钉钉、企业微信、飞书及通用 JSON Webhook</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- T7: 数据备份 -->
         <div class="card" style="margin-top:20px;">
             <div class="card-head">
                 <span class="card-title">
@@ -95,107 +326,540 @@
                     数据备份
                 </span>
             </div>
-            <div class="card-body" style="padding:20px;">
-                <p style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:12px;">导出所有告警、检测、标注、数据集、训练记录为 JSON 文件。</p>
-                <button class="btn btn-primary" onclick="exportBackup()">导出备份</button>
+            <div class="card-body">
+                <p style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:12px;">导出所有告警、检测、标注、数据集、训练记录为 JSON 文件，或从备份文件恢复。</p>
+                <div class="backup-actions">
+                    <button class="btn btn-primary btn-sm" onclick="exportBackup()">导出备份</button>
+                    <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+                        导入备份
+                        <input type="file" accept=".json" style="display:none" onchange="importBackup(this)">
+                    </label>
+                </div>
             </div>
         </div>
 
         <div class="btn-row">
-            <button class="btn btn-ghost" onclick="loadConfig()">重置</button>
-            <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()">保存配置</button>
+            <span class="unsaved-badge" id="unsavedBadge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                有未保存的更改
+            </span>
+            <button class="btn btn-ghost" onclick="confirmReset()">重置</button>
         </div>
     </div>
-
     <footer class="footer">Argus 智能监控告警系统 v0.1.0</footer>
+    </div>
 
     <script src="/static/confirm.js"></script>
+    <script src="/static/user-info.js"></script>
     <script>
         function authFetch(url, opts = {}) {
             const t = localStorage.getItem('token');
             if (!opts.headers) opts.headers = {};
-            if (t) opts.headers['Authorization'] = 'Bearer ' + t; const csrf = document.cookie.match(/csrf_token=([^;]+)/); if (csrf) opts.headers['X-CSRF-Token'] = csrf[1];
+            if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+            const csrf = document.cookie.match(/csrf_token=([^;]+)/);
+            if (csrf) opts.headers['X-CSRF-Token'] = csrf[1];
             return fetch(url, opts);
         }
+        function showErrorModal(msg) {
+            var o = document.createElement("div");
+            o.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;";
+            o.innerHTML = '<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:1rem;font-weight:600;color:#1c1917;margin-bottom:6px">操作失败</div><div style="font-size:0.82rem;color:#78716c;margin-bottom:20px">' + msg + '</div><button onclick="this.parentElement.parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>';
+            document.body.appendChild(o);
+            o.onclick = function(e) { if (e.target === o) o.remove(); };
+            setTimeout(function() { if (o.parentElement) o.remove(); }, 5000);
+        }
+        function doLogout() { localStorage.removeItem('token'); localStorage.removeItem('user'); fetch('/api/v1/auth/logout', { method: 'POST' }); window.location.href = '/login'; }
+        function showNotification(msg, type = 'info') { const el = document.getElementById('notification'); el.innerHTML = msg; el.className = 'toast ' + type; el.style.display = 'flex'; setTimeout(() => el.style.display = 'none', 3000); }
 
-        function showErrorModal(msg){var o=document.createElement("div");o.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;";o.innerHTML='<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div style="font-size:1rem;font-weight:600;color:#1c1917;margin-bottom:6px">操作失败</div><div style="font-size:0.82rem;color:#78716c;margin-bottom:20px>"+msg+"</div><button onclick="this.parentElement.parentElement.remove()" style="padding:8px 28px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;">知道了</button></div>');document.body.appendChild(o);o.onclick=function(e){if(e.target===o)o.remove()};setTimeout(function(){if(o.parentElement)o.remove()},5000)}
-function doLogout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            fetch('/api/v1/auth/logout', { method: 'POST' });
-            window.location.href = '/login';
+        // ═══ T4: 未保存更改追踪 ═══
+        let _configDirty = false;
+        function markConfigDirty() { _configDirty = true; document.getElementById('unsavedBadge').classList.add('show'); }
+        function clearDirty() { _configDirty = false; document.getElementById('unsavedBadge').classList.remove('show'); }
+
+        // ═══ T5: 重置确认 ═══
+        function confirmReset() {
+            if (!_configDirty) { loadConfig(); loadEmailConfig(); loadWebhookConfig(); return; }
+            var o = document.createElement("div");
+            o.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:99999;display:flex;align-items:center;justify-content:center;";
+            o.innerHTML = '<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div style="width:48px;height:48px;border-radius:50%;background:#fffbeb;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div style="font-size:1rem;font-weight:600;color:#1c1917;margin-bottom:6px">确认重置</div><div style="font-size:0.82rem;color:#78716c;margin-bottom:20px">所有未保存的修改将被丢弃，确定要重置吗？</div><div style="display:flex;gap:10px;justify-content:center"><button onclick="this.closest(\'div[style]\').remove()" style="padding:8px 20px;border:1px solid #e8e6e3;border-radius:8px;background:#fff;color:#78716c;font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit">取消</button><button onclick="doReset()" style="padding:8px 20px;border:none;border-radius:8px;background:#292524;color:#fff;font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit">重置</button></div></div>';
+            document.body.appendChild(o);
+            o.onclick = function(e) { if (e.target === o) o.remove(); };
+        }
+        function doReset() {
+            document.querySelectorAll("div[style*='position:fixed']").forEach(el => { if (el.style.zIndex == 99999) el.remove(); });
+            clearDirty();
+            loadConfig(); loadEmailConfig(); loadWebhookConfig();
+            showNotification('已重置', 'success');
         }
 
-        function showNotification(msg, type = 'info') {
-            const el = document.getElementById('notification');
-            el.innerHTML = msg;
-            el.className = 'toast ' + type;
-            el.style.display = 'flex';
-            setTimeout(() => el.style.display = 'none', 3000);
+        // ═══ 局部自动保存 ═══
+        let _cfgSaveTimer = null;
+        function autoSaveConfig() {
+            markConfigDirty();
+            if (_cfgSaveTimer) clearTimeout(_cfgSaveTimer);
+            _cfgSaveTimer = setTimeout(() => saveSystemConfig(), 600);
         }
+        async function saveSystemConfig() {
+            const configs = [];
+            document.querySelectorAll('.cfg-cell [data-key]').forEach(el => {
+                configs.push({ key: el.dataset.key, value: el.type === 'checkbox' ? String(el.checked) : el.value.trim() });
+            });
+            try {
+                const resp = await authFetch('/api/v1/auth/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs }) });
+                const data = await resp.json();
+                if (data.success) { showNotification('系统配置已保存', 'success'); clearDirty(); }
+                else showErrorModal(data.detail || '保存失败');
+            } catch (e) { showErrorModal('保存失败: ' + e.message); }
+        }
+
+        let _emailSaveTimer = null;
+        function autoSaveEmail() {
+            markConfigDirty();
+            if (_emailSaveTimer) clearTimeout(_emailSaveTimer);
+            _emailSaveTimer = setTimeout(() => saveEmailConfig(), 600);
+        }
+        async function saveEmailConfig() {
+            const configs = [{ key: 'EMAIL_ENABLED', value: String(document.getElementById('emailEnabled').checked) }];
+            document.querySelectorAll('#emailBody .form-input[data-cfg]').forEach(el => {
+                configs.push({ key: el.dataset.cfg, value: el.value.trim() });
+            });
+            try {
+                const resp = await authFetch('/api/v1/auth/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs }) });
+                const data = await resp.json();
+                if (data.success) { showNotification('邮件配置已保存', 'success'); clearDirty(); }
+                else showErrorModal(data.detail || '保存失败');
+            } catch (e) { showErrorModal('保存失败: ' + e.message); }
+        }
+
+        let _whSaveTimer = null;
+        function autoSaveWebhook() {
+            markConfigDirty();
+            if (_whSaveTimer) clearTimeout(_whSaveTimer);
+            _whSaveTimer = setTimeout(() => saveWebhookConfig(), 600);
+        }
+        async function saveWebhookConfig() {
+            const configs = [{ key: 'WEBHOOK_ENABLED', value: String(document.getElementById('webhookEnabled').checked) }];
+            const whUrl = document.getElementById('webhookUrl').value.trim();
+            if (whUrl) configs.push({ key: 'WEBHOOK_URL', value: whUrl });
+            try {
+                const resp = await authFetch('/api/v1/auth/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs }) });
+                const data = await resp.json();
+                if (data.success) { showNotification('Webhook 配置已保存', 'success'); clearDirty(); }
+                else showErrorModal(data.detail || '保存失败');
+            } catch (e) { showErrorModal('保存失败: ' + e.message); }
+        }
+
+        // ═══ T8: 系统状态概览 ═══
+        async function loadSystemStatus() {
+            try {
+                const resp = await fetch('/health');
+                const data = await resp.json();
+                const dbOk = data.db_pool && data.db_pool.pool_size !== undefined;
+                setDot('dotDb', 'valDb', dbOk ? '正常' : '异常', dbOk ? 'ok' : 'err', dbOk ? (data.db_pool.checkedout || 0) + '/' + data.db_pool.pool_size : '—');
+                setDot('dotRedis', 'valRedis', '正常', 'ok', data.queue_depth !== undefined ? '队列 ' + data.queue_depth : '已连接');
+                const gpuOk = data.gpu_available === true;
+                setDot('dotGpu', 'valGpu', gpuOk ? '可用' : '不可用', gpuOk ? 'ok' : 'off', data.gpu ? (data.gpu.memory_used || '—') : 'CPU 模式');
+                const streams = data.active_streams || 0;
+                setDot('dotStream', 'valStream', '正常', streams > 0 ? 'ok' : 'off', streams + ' 路');
+            } catch (e) {
+                setDot('dotDb', 'valDb', '离线', 'err', '—');
+                setDot('dotRedis', 'valRedis', '离线', 'err', '—');
+                setDot('dotGpu', 'valGpu', '离线', 'err', '—');
+                setDot('dotStream', 'valStream', '离线', 'err', '—');
+            }
+        }
+        function setDot(dotId, valId, label, cls, extra) {
+            document.getElementById(dotId).className = 'status-dot ' + cls;
+            document.getElementById(valId).textContent = extra || label;
+        }
+
+        // ═══ T3+T6: 系统配置 (搜索+分组) ═══
+        let _allConfigs = [];
+        const GROUP_MAP = {
+            'EMAIL': '邮件通知', 'WEBHOOK': 'Webhook 推送', 'ALARM': '告警设置',
+            'DETECT': '检测设置', 'ANNOTATION': '标注设置', 'STREAM': '流设置',
+            'MODEL': '模型设置', 'MINIO': '存储设置', 'JWT': '认证设置',
+        };
+        function getGroup(key) {
+            const prefix = key.split('_')[0];
+            return GROUP_MAP[prefix] || '其他配置';
+        }
+        const DEDICATED_KEYS = new Set(['EMAIL_ENABLED','EMAIL_SMTP_HOST','EMAIL_SMTP_PORT','EMAIL_SMTP_USER','EMAIL_SMTP_PASS','EMAIL_FROM','EMAIL_TO','WEBHOOK_ENABLED','WEBHOOK_URL']);
 
         async function loadConfig() {
             try {
                 const resp = await authFetch('/api/v1/auth/config');
                 const data = await resp.json();
                 if (!data.success) { showErrorModal(data.detail || '加载失败'); return; }
-                const configs = data.configs || [];
-                const container = document.getElementById('configList');
-                if (!configs.length) {
-                    container.innerHTML = '<div class="empty">暂无配置</div>';
-                    return;
-                }
-                container.innerHTML = configs.map(c => `
-                    <div class="config-item">
-                        <div class="config-info">
-                            <div class="config-key">${c.key}</div>
-                            <div class="config-desc">${c.description || ''}</div>
-                        </div>
-                        <input class="config-input" data-key="${c.key}" value="${c.value}" ${c.type==='bool'?'placeholder="true / false"':''}>
-                    </div>
-                `).join('');
-            } catch (e) {
-                showErrorModal('加载失败: ' + e.message);
-            }
+                _allConfigs = data.configs || [];
+                renderConfigGrid(_allConfigs);
+            } catch (e) { showErrorModal('加载失败: ' + e.message); }
         }
 
-        async function saveConfig() {
-            const inputs = document.querySelectorAll('.config-input');
-            const configs = Array.from(inputs).map(el => ({
-                key: el.dataset.key,
-                value: el.value.trim()
-            }));
-            try {
-                const resp = await authFetch('/api/v1/auth/config', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ configs }),
+        function renderConfigGrid(configs) {
+            const container = document.getElementById('configList');
+            const countEl = document.getElementById('configCount');
+            if (!configs.length) { container.innerHTML = '<div class="empty">暂无配置</div>'; return; }
+            if (countEl) countEl.textContent = configs.filter(c => !DEDICATED_KEYS.has(c.key)).length + ' 项';
+
+            // T6: 按前缀分组（排除已有独立卡片的 key）
+            const groups = {};
+            configs.filter(c => !DEDICATED_KEYS.has(c.key)).forEach(c => { const g = getGroup(c.key); (groups[g] = groups[g] || []).push(c); });
+
+            let html = '';
+            for (const [groupName, items] of Object.entries(groups)) {
+                html += `<div class="config-group"><div class="config-group-title">${groupName}</div><div class="config-grid">`;
+                items.forEach(c => {
+                    const isBool = c.type === 'bool';
+                    const checked = isBool && (c.value === 'true' || c.value === '1');
+                    const inputHtml = isBool
+                        ? `<label class="toggle"><input type="checkbox" data-key="${c.key}" ${checked?'checked':''} onchange="autoSaveConfig()"><span class="toggle-slider"></span></label>`
+                        : `<input class="cfg-cell-input" data-key="${c.key}" value="${c.value}" onchange="autoSaveConfig()">`;
+                    html += `<div class="cfg-cell"><div class="cfg-cell-info"><div class="cfg-cell-key">${c.key}</div><div class="cfg-cell-desc">${c.description || ''}</div></div>${inputHtml}</div>`;
                 });
-                const data = await resp.json();
-                if (data.success) showNotification('配置已保存', 'success');
-                else showErrorModal(data.detail || '保存失败');
-            } catch (e) {
-                showErrorModal('保存失败: ' + e.message);
+                html += '</div></div>';
             }
+            container.innerHTML = html;
+        }
+
+        function filterConfig() {
+            const q = document.getElementById('cfgSearch').value.trim().toLowerCase();
+            if (!q) { renderConfigGrid(_allConfigs); return; }
+            const filtered = _allConfigs.filter(c => c.key.toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q));
+            renderConfigGrid(filtered);
+        }
+
+        // ═══ T6: 邮件通知配置 ═══
+        async function loadEmailConfig() {
+            try {
+                const resp = await authFetch('/api/v1/auth/config');
+                const data = await resp.json();
+                if (!data.success) return;
+                const map = {};
+                (data.configs || []).forEach(c => map[c.key] = c.value);
+                document.getElementById('emailEnabled').checked = map.EMAIL_ENABLED === 'true';
+                toggleEmailBody(map.EMAIL_ENABLED === 'true');
+                document.querySelectorAll('#emailBody .form-input').forEach(el => { if (el.dataset.cfg && map[el.dataset.cfg] !== undefined) el.value = map[el.dataset.cfg]; });
+            } catch (e) {}
+        }
+        function toggleEmailBody(on) {
+            const body = document.getElementById('emailBody');
+            const status = document.getElementById('emailStatus');
+            body.style.opacity = on ? '' : '0.3';
+            body.style.pointerEvents = on ? '' : 'none';
+            status.className = 'sec-toggle-status ' + (on ? 'on' : 'off');
+            status.textContent = on ? '已启用' : '已禁用';
+        }
+
+        // ═══ T7: Webhook 配置 ═══
+        async function loadWebhookConfig() {
+            try {
+                const resp = await authFetch('/api/v1/auth/config');
+                const data = await resp.json();
+                if (!data.success) return;
+                const map = {};
+                (data.configs || []).forEach(c => map[c.key] = c.value);
+                document.getElementById('webhookEnabled').checked = map.WEBHOOK_ENABLED === 'true';
+                toggleWebhookBody(map.WEBHOOK_ENABLED === 'true');
+                if (map.WEBHOOK_URL) document.getElementById('webhookUrl').value = map.WEBHOOK_URL;
+            } catch (e) {}
+        }
+        function toggleWebhookBody(on) {
+            const body = document.getElementById('webhookBody');
+            const status = document.getElementById('webhookStatus');
+            body.style.opacity = on ? '' : '0.3';
+            body.style.pointerEvents = on ? '' : 'none';
+            status.className = 'sec-toggle-status ' + (on ? 'on' : 'off');
+            status.textContent = on ? '已启用' : '已禁用';
+        }
+
+        // ═══ T7: 导入备份 ═══
+        async function importBackup(input) {
+            const file = input.files[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                const resp = await authFetch('/api/v1/auth/backup/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: text });
+                if (resp.ok) { showNotification('备份已导入', 'success'); }
+                else { const d = await resp.json(); showErrorModal(d.detail || '导入失败'); }
+            } catch (e) { showErrorModal('导入失败: ' + e.message); }
+            input.value = '';
         }
 
         async function exportBackup() {
             try {
                 const resp = await authFetch('/api/v1/auth/backup');
-                if (!resp.ok) { showErrorModal('备份失败，请检查存储空间是否充足'); return; }
+                if (!resp.ok) { showErrorModal('备份失败'); return; }
                 const blob = await resp.blob();
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `argus_backup_${new Date().toISOString().slice(0,10)}.json`;
-                a.click();
-                URL.revokeObjectURL(a.href);
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `argus_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(a.href);
                 showNotification('备份已导出', 'success');
-            } catch (e) {
-                showErrorModal('备份失败，请检查存储空间是否充足');
-            }
+            } catch (e) { showErrorModal('备份失败'); }
         }
 
+        // ═══ 安全参数 ═══
+        const PRESETS = {
+            login_rate_max:     [{v:'3',l:'严格'},{v:'5',l:'标准'},{v:'10',l:'宽松'},{v:'20',l:'不限'}],
+            login_rate_window:  [{v:'60',l:'1 分钟'},{v:'300',l:'5 分钟'},{v:'900',l:'15 分钟'}],
+            register_rate_max:  [{v:'3',l:'标准'},{v:'5',l:'宽松'},{v:'10',l:'不限'}],
+            register_rate_window:[{v:'60',l:'1 分钟'},{v:'300',l:'5 分钟'},{v:'600',l:'10 分钟'}],
+            jwt_expire_minutes: [{v:'60',l:'1 小时'},{v:'480',l:'8 小时'},{v:'1440',l:'24 小时'},{v:'10080',l:'7 天'}],
+            password_min_length:[{v:'6',l:'6 位'},{v:'8',l:'8 位'},{v:'10',l:'10 位'},{v:'12',l:'12 位'},{v:'16',l:'16 位'}],
+        };
+        const RULE_META = {
+            password_require_uppercase: {icon:'A', label:'大写字母', desc:'至少包含一个 A-Z'},
+            password_require_lowercase: {icon:'a', label:'小写字母', desc:'至少包含一个 a-z'},
+            password_require_digit:     {icon:'#', label:'数字',     desc:'至少包含一个 0-9'},
+            password_require_special:   {icon:'!', label:'特殊字符', desc:'至少包含一个 !@#$%^&*'},
+        };
+
+        async function loadSecurityConfig() {
+            try {
+                const resp = await authFetch('/api/v1/admin/security-config');
+                if (resp.status === 401) { window.location.href = '/login'; return; }
+                const data = await resp.json();
+                if (!data.success) { document.getElementById('securityList').innerHTML = '<div class="empty">加载失败</div>'; return; }
+                renderSecurityConfig(data.items);
+            } catch (e) { document.getElementById('securityList').innerHTML = '<div class="empty">网络错误</div>'; }
+        }
+
+        function getVal(items, key) { return items.find(i => i.key === key); }
+
+        function renderSecurityConfig(items) {
+            const g = (key) => getVal(items, key);
+            let html = '';
+
+            const loginOn = g('login_rate_enabled')?.value === 'true';
+            html += `<div class="sec-section">
+                <div class="sec-section-head">
+                    <div class="sec-section-title"><span class="icon blue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>登录安全</div>
+                    <div style="display:flex;align-items:center">
+                        <label class="sec-toggle"><input type="checkbox" data-key="login_rate_enabled" ${loginOn?'checked':''} onchange="toggleSecSection(this,'login')"><span class="sec-toggle-track"></span></label>
+                        <span class="sec-toggle-status ${loginOn?'on':'off'}" id="loginStatus">${loginOn?'已启用':'已禁用'}</span>
+                    </div>
+                </div>
+                <div id="loginBody" style="${loginOn?'':'opacity:0.3;pointer-events:none'}">
+                    <div class="sec-row">
+                        <div class="sec-row-info"><div class="sec-row-label">频率限制</div><div class="sec-row-desc">同一 IP 最大登录次数</div></div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+                            <div class="sec-chips">${PRESETS.login_rate_max.map(p => `<button class="sec-chip${String(g('login_rate_max')?.value)===p.v?' active':''}" onclick="chipPick('login_rate_max','${p.v}',this)">${p.l}</button>`).join('')}</div>
+                            <div style="display:flex;align-items:center;gap:4px"><input class="sec-mini-input" type="number" data-key="login_rate_max" value="${g('login_rate_max')?.value||5}" min="1" max="100" onchange="onSecChange()"><span style="font-size:0.66rem;color:var(--ink-faint)">次</span></div>
+                        </div>
+                    </div>
+                    <div class="sec-row">
+                        <div class="sec-row-info"><div class="sec-row-label">时间窗口</div><div class="sec-row-desc">限制统计的时间范围</div></div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+                            <div class="sec-chips">${PRESETS.login_rate_window.map(p => `<button class="sec-chip${String(g('login_rate_window')?.value)===p.v?' active':''}" onclick="chipPick('login_rate_window','${p.v}',this)">${p.l}</button>`).join('')}</div>
+                            <div style="display:flex;align-items:center;gap:4px"><input class="sec-mini-input" type="number" data-key="login_rate_window" value="${g('login_rate_window')?.value||60}" min="10" max="3600" onchange="onSecChange()"><span style="font-size:0.66rem;color:var(--ink-faint)">秒</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+            const regOn = g('register_rate_enabled')?.value === 'true';
+            html += `<div class="sec-section">
+                <div class="sec-section-head">
+                    <div class="sec-section-title"><span class="icon amber"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></span>注册安全</div>
+                    <div style="display:flex;align-items:center">
+                        <label class="sec-toggle"><input type="checkbox" data-key="register_rate_enabled" ${regOn?'checked':''} onchange="toggleSecSection(this,'register')"><span class="sec-toggle-track"></span></label>
+                        <span class="sec-toggle-status ${regOn?'on':'off'}" id="registerStatus">${regOn?'已启用':'已禁用'}</span>
+                    </div>
+                </div>
+                <div id="registerBody" style="${regOn?'':'opacity:0.3;pointer-events:none'}">
+                    <div class="sec-row">
+                        <div class="sec-row-info"><div class="sec-row-label">频率限制</div><div class="sec-row-desc">同一 IP 最大注册次数</div></div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+                            <div class="sec-chips">${PRESETS.register_rate_max.map(p => `<button class="sec-chip${String(g('register_rate_max')?.value)===p.v?' active':''}" onclick="chipPick('register_rate_max','${p.v}',this)">${p.l}</button>`).join('')}</div>
+                            <div style="display:flex;align-items:center;gap:4px"><input class="sec-mini-input" type="number" data-key="register_rate_max" value="${g('register_rate_max')?.value||3}" min="1" max="50" onchange="onSecChange()"><span style="font-size:0.66rem;color:var(--ink-faint)">次</span></div>
+                        </div>
+                    </div>
+                    <div class="sec-row">
+                        <div class="sec-row-info"><div class="sec-row-label">时间窗口</div><div class="sec-row-desc">限制统计的时间范围</div></div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+                            <div class="sec-chips">${PRESETS.register_rate_window.map(p => `<button class="sec-chip${String(g('register_rate_window')?.value)===p.v?' active':''}" onclick="chipPick('register_rate_window','${p.v}',this)">${p.l}</button>`).join('')}</div>
+                            <div style="display:flex;align-items:center;gap:4px"><input class="sec-mini-input" type="number" data-key="register_rate_window" value="${g('register_rate_window')?.value||60}" min="10" max="3600" onchange="onSecChange()"><span style="font-size:0.66rem;color:var(--ink-faint)">秒</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+            const jwtVal = g('jwt_expire_minutes')?.value || '1440';
+            html += `<div class="sec-section">
+                <div class="sec-section-head">
+                    <div class="sec-section-title"><span class="icon purple"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></span>JWT 与会话</div>
+                </div>
+                <div class="sec-row">
+                    <div class="sec-row-info"><div class="sec-row-label">Token 过期时间</div><div class="sec-row-desc">登录后 Token 有效期</div></div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+                        <div class="sec-chips">${PRESETS.jwt_expire_minutes.map(p => `<button class="sec-chip${String(jwtVal)===p.v?' active':''}" onclick="chipPick('jwt_expire_minutes','${p.v}',this)">${p.l}</button>`).join('')}</div>
+                        <div style="display:flex;align-items:center;gap:4px"><input class="sec-mini-input" type="number" data-key="jwt_expire_minutes" value="${jwtVal}" min="5" max="43200" onchange="onSecChange()"><span style="font-size:0.66rem;color:var(--ink-faint)">分钟</span></div>
+                    </div>
+                </div>
+            </div>`;
+
+            const pwdLen = g('password_min_length')?.value || '8';
+            const n = parseInt(pwdLen);
+            let levelCls = 'strong', levelText = '强';
+            if (n <= 6) { levelCls = 'weak'; levelText = '弱'; }
+            else if (n <= 8) { levelCls = 'mid'; levelText = '中'; }
+            const pct = Math.min(100, ((n - 4) / 28) * 100);
+
+            html += `<div class="sec-section">
+                <div class="sec-section-head">
+                    <div class="sec-section-title"><span class="icon green"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>密码策略</div>
+                </div>
+                <div class="sec-row" style="flex-direction:column;align-items:stretch">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                        <div class="sec-row-label">最小长度</div>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span class="sec-big-val" id="pwdLenVal" style="color:var(--${levelCls==='weak'?'danger':levelCls==='mid'?'warning':'success'})">${pwdLen}</span>
+                            <span style="font-size:0.7rem;color:var(--ink-muted)">位</span>
+                            <span style="font-size:0.66rem;padding:2px 8px;border-radius:4px;font-weight:600;background:var(--${levelCls==='weak'?'danger':levelCls==='mid'?'warning':'success'}-bg);color:var(--${levelCls==='weak'?'danger':levelCls==='mid'?'warning':'success'})" id="pwdLevelBadge">${levelText}</span>
+                        </div>
+                    </div>
+                    <div class="pwd-slider-track"><div class="pwd-slider-fill ${levelCls}" id="pwdFill" style="width:${pct}%"></div></div>
+                    <input type="range" class="pwd-range-input" min="4" max="32" value="${pwdLen}" data-key="password_min_length" oninput="updatePwdLength(this)">
+                    <div class="pwd-range-labels"><span>4 位</span><span>32 位</span></div>
+                    <div class="sec-chips" style="margin-top:10px">${PRESETS.password_min_length.map(p => `<button class="sec-chip${pwdLen===p.v?' active':''}" data-pwd-preset="${p.v}" onclick="chipPickPwd('${p.v}',this)">${p.l}</button>`).join('')}</div>
+                </div>
+                <div style="margin-top:14px">
+                    <div style="font-size:0.76rem;font-weight:500;color:var(--ink-muted);margin-bottom:8px">复杂度要求</div>
+                    <div class="pwd-rules">`;
+            let ruleCount = 0, ruleTotal = 0;
+            for (const [key, meta] of Object.entries(RULE_META)) {
+                ruleTotal++;
+                const item = g(key);
+                const on = item?.value === 'true';
+                if (on) ruleCount++;
+                html += `<label class="pwd-rule${on?' on':''}" onclick="togglePwdRule(this)">
+                    <input type="checkbox" data-key="${key}" ${on?'checked':''}>
+                    <div class="pwd-rule-icon ${on?'on':'off'}">${meta.icon}</div>
+                    <div class="pwd-rule-text">
+                        <div class="pwd-rule-label">${meta.label}</div>
+                        <div class="pwd-rule-desc">${meta.desc}</div>
+                    </div>
+                    <label class="pwd-rule-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${on?'checked':''} onchange="togglePwdRuleFromSwitch(this)"><span class="pwd-rule-track"></span></label>
+                </label>`;
+            }
+            const scorePct = Math.round((ruleCount / ruleTotal) * 100);
+            const scoreColor = ruleCount === ruleTotal ? 'var(--success)' : ruleCount >= 2 ? 'var(--warning)' : 'var(--danger)';
+            const scoreText = ruleCount === ruleTotal ? '全部启用' : ruleCount + '/' + ruleTotal + ' 已启用';
+            html += `</div>
+                <div class="pwd-score">
+                    <span style="font-size:0.66rem;color:var(--ink-muted)">安全评分</span>
+                    <div class="pwd-score-bar"><div class="pwd-score-fill" id="pwdScoreFill" style="width:${scorePct}%;background:${scoreColor}"></div></div>
+                    <span class="pwd-score-text" id="pwdScoreText" style="color:${scoreColor}">${scoreText}</span>
+                </div>
+            </div></div>`;
+
+            document.getElementById('securityList').innerHTML = '<div class="sec-grid">' + html + '</div>';
+        }
+
+        function chipPick(key, val, btn) {
+            const input = document.querySelector(`#securityList input[data-key="${key}"]`);
+            if (input) input.value = val;
+            btn.closest('.sec-chips').querySelectorAll('.sec-chip').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            autoSaveSec();
+        }
+
+        function chipPickPwd(val, btn) {
+            document.querySelector('input[data-key="password_min_length"]').value = val;
+            btn.closest('.sec-chips').querySelectorAll('.sec-chip').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            refreshPwdVisuals(val);
+            autoSaveSec();
+        }
+
+        function updatePwdLength(el) {
+            const val = el.value;
+            document.querySelectorAll('[data-pwd-preset]').forEach(b => b.classList.toggle('active', b.dataset.pwdPreset === String(val)));
+            refreshPwdVisuals(val);
+            autoSaveSec();
+        }
+
+        function refreshPwdVisuals(val) {
+            const n = parseInt(val);
+            const pct = Math.min(100, ((n - 4) / 28) * 100);
+            let cls = 'strong', text = '强';
+            if (n <= 6) { cls = 'weak'; text = '弱'; }
+            else if (n <= 8) { cls = 'mid'; text = '中'; }
+            const fill = document.getElementById('pwdFill');
+            if (fill) { fill.style.width = pct + '%'; fill.className = 'pwd-slider-fill ' + cls; }
+            const valEl = document.getElementById('pwdLenVal');
+            if (valEl) { valEl.textContent = val; valEl.style.color = `var(--${cls==='weak'?'danger':cls==='mid'?'warning':'success'})`; }
+            const badge = document.getElementById('pwdLevelBadge');
+            if (badge) { badge.textContent = text; badge.style.background = `var(--${cls==='weak'?'danger':cls==='mid'?'warning':'success'}-bg)`; badge.style.color = `var(--${cls==='weak'?'danger':cls==='mid'?'warning':'success'})`; }
+        }
+
+        function togglePwdRule(label) {
+            const cb = label.querySelector('input[type="checkbox"]');
+            cb.checked = !cb.checked;
+            const on = cb.checked;
+            label.classList.toggle('on', on);
+            label.querySelector('.pwd-rule-icon').className = 'pwd-rule-icon ' + (on ? 'on' : 'off');
+            const toggle = label.querySelector('.pwd-rule-toggle input');
+            if (toggle) toggle.checked = on;
+            updatePwdScore();
+            autoSaveSec();
+        }
+
+        function togglePwdRuleFromSwitch(cb) {
+            const label = cb.closest('.pwd-rule');
+            const mainCb = label.querySelector('input[type="checkbox"]:not(.pwd-rule-toggle input)');
+            mainCb.checked = cb.checked;
+            label.classList.toggle('on', cb.checked);
+            label.querySelector('.pwd-rule-icon').className = 'pwd-rule-icon ' + (cb.checked ? 'on' : 'off');
+            updatePwdScore();
+            autoSaveSec();
+        }
+
+        function updatePwdScore() {
+            const checks = document.querySelectorAll('#securityList .pwd-rule input[type="checkbox"]:not(.pwd-rule-toggle input)');
+            let total = checks.length, on = 0;
+            checks.forEach(c => { if (c.checked) on++; });
+            const pct = Math.round((on / total) * 100);
+            const color = on === total ? 'var(--success)' : on >= 2 ? 'var(--warning)' : 'var(--danger)';
+            const fill = document.getElementById('pwdScoreFill');
+            const text = document.getElementById('pwdScoreText');
+            if (fill) { fill.style.width = pct + '%'; fill.style.background = color; }
+            if (text) { text.textContent = on === total ? '全部启用' : on + '/' + total + ' 已启用'; text.style.color = color; }
+        }
+
+        function toggleSecSection(cb, section) {
+            const on = cb.checked;
+            const body = document.getElementById(section + 'Body');
+            const status = document.getElementById(section + 'Status');
+            if (body) { body.style.opacity = on ? '' : '0.3'; body.style.pointerEvents = on ? '' : 'none'; }
+            if (status) { status.className = 'sec-toggle-status ' + (on ? 'on' : 'off'); status.textContent = on ? '已启用' : '已禁用'; }
+            autoSaveSec();
+        }
+
+        let _saveTimer = null;
+        function autoSaveSec() {
+            if (_saveTimer) clearTimeout(_saveTimer);
+            _saveTimer = setTimeout(() => saveSecurityConfig(), 500);
+        }
+
+        async function saveSecurityConfig() {
+            const configs = {};
+            document.querySelectorAll('#securityList input[data-key]').forEach(el => {
+                configs[el.dataset.key] = el.type === 'checkbox' ? el.checked : el.value;
+            });
+            try {
+                const resp = await authFetch('/api/v1/admin/security-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configs }) });
+                if (resp.ok) showNotification('安全参数已保存', 'success');
+                else { const d = await resp.json(); showErrorModal(d.detail || '保存失败'); }
+            } catch (e) { showErrorModal('保存失败'); }
+        }
+
+        // ═══ 初始化 ═══
+        loadSystemStatus();
         loadConfig();
+        loadSecurityConfig();
+        loadEmailConfig();
+        loadWebhookConfig();
+        setInterval(loadSystemStatus, 30000);
     </script>
 </body>
 </html>

@@ -56,29 +56,42 @@ docker compose down
 ## Architecture Gotchas
 
 - **ARQ worker runs in-background thread**: `main.py` auto-starts the worker in a `ThreadPoolExecutor`. For production (Docker), worker runs as separate container.
-- **3 ONNX models**: general (yolo11l.onnx), fire_smoke, helmet. Each has independent CLASS_MAPPING in `app/config.py`.
+- **3 ONNX models**: general (yolo11l.onnx), fire_smoke, helmet. Each has independent CLASS_MAPPING and confidence threshold in `app/config.py`.
+- **3 separate confidence thresholds**: general=0.3, fire_smoke=0.01, helmet=0.15 — do not assume one global threshold.
 - **Singleton pattern**: `detector`, `stream_manager`, `alarm_dedup`, `db_service`, `minio_service` are global singletons.
-- **CUDA env setup**: `main.py` sets CUDA PATH before `import onnxruntime` — required for GPU.
+- **CUDA env setup**: `main.py` sets CUDA PATH before `import onnxruntime` — required for GPU. Import order matters.
 - **Dual-frame slicing**: 1FPS fixed sampling + scene change detection (threshold 27.0).
 - **No foreign keys**: All tables use plain BigInteger for references, cascade handled in business code.
-- **JWT blacklisting**: Logout stores token in Redis with TTL matching token expiry.
+- **JWT blacklisting**: Logout stores token in Redis key `jwt:blacklist:{token}` with TTL matching remaining token validity.
 - **ONNX GPU fallback**: CUDA errors suppressed via ONNXRUNTIME_LOG_LEVEL=3, falls back to CPU automatically.
 - **Annotation tool API**: Labeling endpoints (`/api/annotations/*`) are defined directly in `app/main.py`, not in a separate router.
+- **Two DB layers**: `app/db.py` is the SQLAlchemy async engine (primary). `app/services/database.py` is a legacy aiomysql pool layer used only for raw alarm inserts. New code should use `app/db.py` + ORM.
+- **Alarm escalation**: Same alarm type fires N times within 5min window → severity upgrades (normal → important at 3, → critical at 5).
+- **Email notification**: SMTP alarm emails via `app/core/email_notifier.py`, config loaded from `SystemConfig` DB table at startup.
+- **Stream auto-restore**: On startup, `main.py` recovers streams that were `"running"` in `stream_config` table before last shutdown.
+- **Schedule checker**: Background task auto-starts/stops streams based on cron expressions in `StreamConfig.schedule`.
+- **Rate limiting**: Redis-based rate limiter used on login/register endpoints. Key format: `ratelimit:{func_name}:{client_ip}`.
+- **Stream health recording**: Background task (`health_recorder.py`) periodically snapshots stream health status.
+- **Graceful shutdown cascade**: cancel worker → stop all streams → close ARQ pool → close Redis → close MinIO → close detector → close DB pool.
+- **CSRF double-submit cookie**: `csrf.py` middleware; state-changing requests need `X-CSRF-Token` header matching `csrf_token` cookie (exempt for Bearer-only API calls).
+- **WebSocket alarm push**: `/ws/alarms?token=xxx` broadcasts real-time alarm events to connected clients.
+- **Prometheus metrics**: `/metrics` endpoint exposes active streams, queue depth, GPU status.
 
 ## Configuration
 
 All config via `.env` (see `.env.example`):
 
 - **MYSQL_DSN**: MySQL connection string. Password special chars: `#` → `%23`, `$` → `%24`
-- **JWT_SECRET**: JWT signing secret (change in production!)
-- **CONFIDENCE_THRESHOLD**: 0.3 (general), 0.01 (fire_smoke)
+- **JWT_SECRET**: JWT signing secret (default warns at startup, change in production!)
+- **CONFIDENCE_THRESHOLD**: 0.3 (general), 0.01 (fire_smoke), 0.15 (helmet)
 - **ALARM_CLASSES**: person, animal classes, fire, smoke, no-helmet
+- **ALARM_ESCALATION**: window=300s, important=3 hits, critical=5 hits
 - **Models path**: ONNX files at paths in `.env`. Missing model = startup failure.
 - **Alembic DSN escaping**: `alembic/env.py` doubles `%` → `%%` for configparser compatibility. If you change MYSQL_DSN, run `alembic upgrade head` to verify.
 
 ## Testing
 
-- pytest-asyncio with `asyncio_mode = "auto"`
+- pytest-asyncio with `asyncio_mode = "auto"` — no `@pytest.mark.asyncio` needed
 - No global `conftest.py` — fixtures per test file
 - Heavy use of `unittest.mock` for ONNX/Redis/MySQL/MinIO
 - Reset singletons in fixtures: `MultiModelDetector._instance = None`
@@ -94,16 +107,32 @@ All config via `.env` (see `.env.example`):
 
 | File | Role |
 |------|------|
-| `app/main.py` | FastAPI entry, middleware, annotation APIs |
-| `app/config.py` | `Settings` singleton, loads `.env` |
-| `app/db.py` | SQLAlchemy engine, session factory, Base |
-| `app/models/*.py` | 11 ORM models (no foreign keys) |
-| `app/api/v1/stream.py` | REST API: /start, /stop, /list, /alarms, /detect |
-| `app/api/v1/auth.py` | Auth API: login, register, logout, user management |
-| `app/core/stream_processor.py` | StreamProcessor + StreamManager |
-| `app/core/detector.py` | MultiModelDetector, 3 ModelSessions |
-| `app/core/alarm_dedup.py` | Redis SET NX + TTL dedup |
-| `app/services/database.py` | DatabaseService (aiomysql pool + ORM) |
-| `app/services/auth_service.py` | Auth CRUD, PBKDF2, session management |
-| `app/services/worker_tasks.py` | ARQ WorkerSettings + save_alarm |
+| `app/main.py` | FastAPI entry, middleware, annotation APIs (`/api/annotations/*`), ARQ worker bootstrap, stream auto-restore |
+| `app/config.py` | `Settings` singleton, loads `.env`, 3 model CLASS_MAPPINGs, 3 confidence thresholds |
+| `app/db.py` | SQLAlchemy async engine + session factory + table init (primary DB layer) |
+| `app/models/*.py` | 13 exported ORM models (see `__init__.py`), 15 files total (no foreign keys) |
+| `app/api/v1/stream.py` | REST API: /start, /stop, /list, /alarms, /detect, image upload |
+| `app/api/v1/auth.py` | Auth API: login, register, logout, user/role management, datasets, training, permissions |
+| `app/api/v1/admin.py` | Admin API: operation logs, system config, dashboard stats, CSV export, training records |
+| `app/core/stream_processor.py` | StreamProcessor (single stream async task, exponential backoff) + StreamManager (singleton) |
+| `app/core/detector.py` | MultiModelDetector, 3 ModelSessions, dedicated inference thread pool |
+| `app/core/alarm_dedup.py` | Redis SET NX + TTL dedup; key: `alarm:{stream_id}:{class}:{track_id}` |
+| `app/core/alarm_severity.py` | Frequency-based severity escalation (normal → important → critical) |
+| `app/core/alarm_broadcaster.py` | WebSocket alarm push singleton |
+| `app/core/email_notifier.py` | SMTP alarm email notifications (config from SystemConfig DB table) |
+| `app/core/schedule_checker.py` | Cron-based auto-start/stop streams |
+| `app/core/rate_limiter.py` | Redis-based rate limiter decorator for endpoints |
+| `app/core/csrf.py` | Double-submit cookie CSRF protection middleware |
+| `app/core/security_headers.py` | Security headers middleware |
+| `app/core/gpu_monitor.py` | GPU memory/availability monitoring |
+| `app/core/metrics.py` | Prometheus-compatible metrics endpoint |
+| `app/services/database.py` | Legacy aiomysql pool (raw SQL for alarm inserts only) |
+| `app/services/auth_service.py` | Auth CRUD, PBKDF2, JWT blacklist (Redis), session management |
+| `app/services/worker_tasks.py` | ARQ WorkerSettings + save_alarm task |
+| `app/services/operation_log_service.py` | Audit trail writes (async, fire-and-forget) |
 | `scripts/init_db.sql` | SQL DDL (reference only, SQLAlchemy auto-creates) |
+
+## Notes
+
+- **CLAUDE.md has stale references**: mentions PostgreSQL/asyncpg in architecture diagrams — this codebase uses MySQL + aiomysql everywhere. Trust `AGENTS.md` and source code over CLAUDE.md.
+- **Models in gitignored dirs**: `fire_smoke_data/`, `fire_yolo/`, `fire_dataset/`, `Fire-Detection-v2-1/`, `Fire&smoke-detection-*` are training data, gitignored. `scripts/` contains ad-hoc training/test scripts.

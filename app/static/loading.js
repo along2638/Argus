@@ -1,6 +1,7 @@
 /**
  * 全局加载指示器
  * 在页面顶部显示一个细线加载条
+ * 跳过带 { noshow: true } 或后台轮询类请求
  */
 function showLoading() {
     let bar = document.getElementById('globalLoadingBar');
@@ -22,9 +23,11 @@ function hideLoading() {
     }
 }
 
-// 自动拦截 fetch 显示加载条
+// 自动拦截 fetch 显示加载条（跳过 opts._noshow 标记的请求）
 const _origFetch = window.fetch;
 window.fetch = function(...args) {
+    const opts = args[1] || {};
+    if (opts._noshow) return _origFetch.apply(this, args);
     showLoading();
     return _origFetch.apply(this, args).finally(hideLoading);
 };

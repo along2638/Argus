@@ -23,31 +23,60 @@
             --radius: 8px; --radius-lg: 12px;
             --shadow: 0 1px 3px rgba(0,0,0,0.06);
             --transition: 0.15s ease;
+            --primary: #1c1917;
         }
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'DM Sans',-apple-system,sans-serif; background:var(--bg); min-height:100vh; color:var(--ink); -webkit-font-smoothing:antialiased; }
         ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.08); border-radius:2px; }
 
-        .topbar { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; border-bottom:1px solid var(--border); background:var(--bg-panel); }
-        .topbar-left { display:flex; align-items:center; gap:10px; }
-        .topbar-logo { width:28px; height:28px; background:var(--ink); border-radius:6px; display:flex; align-items:center; justify-content:center; }
-        .topbar h1 { font-size:0.92rem; font-weight:600; }
-        .topbar-right { display:flex; align-items:center; gap:4px; }
-        .topbar-btn { font-size:0.75rem; padding:5px 12px; border:none; border-radius:var(--radius); background:transparent; color:var(--ink-3); cursor:pointer; transition:var(--transition); font-family:inherit; }
-        .topbar-btn:hover { background:var(--bg-hover); color:var(--ink); }
-        .topbar-btn.accent { background:var(--accent); color:#fff; }
-        .topbar-btn.accent:hover { background:var(--accent-hover); }
+        .page-wrap{position:relative;z-index:1;max-width:1800px;margin:0 auto;padding:0 32px 60px;width:100%}
+
+        .topbar { display:flex; align-items:center; justify-content:space-between; padding:28px 0; border-bottom:1px solid var(--border); margin-bottom:36px; }
+        .topbar-left { display:flex; align-items:center; gap:12px; }
+        .topbar-logo { width:34px; height:34px; background:var(--ink); border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--bg); box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+        .topbar h1 { font-size:1.15rem; font-weight:600; letter-spacing:-0.02em; }
+        .topbar-right { display:flex; align-items:center; gap:10px; }
+        .topbar-btn { color:var(--ink-muted); font-size:0.78rem; font-weight:500; text-decoration:none; padding:5px 10px; border-radius:6px; transition:var(--transition); border:none; background:none; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; gap:5px; letter-spacing:0.01em; }
+        .topbar-btn:hover { color:var(--ink); background:var(--bg-hover); }
+        .topbar-btn.nav-active { color:var(--ink); background:var(--accent-soft); font-weight:600; }
+        .topbar-btn .nav-icon { width:14px; height:14px; opacity:0.55; flex-shrink:0; }
+        .topbar-btn:hover .nav-icon { opacity:0.8; }
+        .nav-sep { width:1px; height:16px; background:var(--border); margin:0 2px; flex-shrink:0; opacity:0.7; }
 
         .layout { display:flex; height:calc(100vh - 49px); }
 
         .panel-left { width:320px; background:var(--bg-panel); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
-        .panel-left-scroll { flex:1; overflow-y:auto; }
+        .panel-left-scroll { overflow-y:auto; }
+
+        .results { border-top:1px solid var(--border); display:flex; flex-direction:column; height:220px; min-height:140px; flex-shrink:0; }
+        .results-head { padding:6px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+        .results-title { font-size:0.72rem; font-weight:600; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:5px; }
+        .results-title svg { width:12px; height:12px; }
+        .results-meta { display:flex; gap:6px; font-size:0.62rem; color:var(--ink-4); align-items:center; }
+        .results-actions { display:flex; gap:4px; }
+        .results-actions button { font-size:0.62rem; padding:2px 7px; border:1px solid var(--border); border-radius:4px; background:transparent; color:var(--ink-3); cursor:pointer; transition:var(--transition); font-family:inherit; }
+        .results-actions button:hover { border-color:var(--ink-4); color:var(--ink); }
+        .results-body { flex:1; overflow-y:auto; padding:4px 12px; }
+        .det-row { display:flex; gap:6px; padding:3px 0; border-bottom:1px solid var(--border); align-items:center; }
+        .det-row:last-child { border-bottom:none; }
+        .det-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+        .det-label { font-size:0.7rem; font-weight:500; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .det-conf { font-size:0.62rem; color:var(--ink-4); font-family:'JetBrains Mono',monospace; }
+        .det-bar { width:32px; height:3px; background:var(--bg-input); border-radius:2px; overflow:hidden; flex-shrink:0; }
+        .det-bar-fill { height:100%; border-radius:2px; }
+        .results-pager { padding:4px 12px 6px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+        .results-pager span { font-size:0.62rem; color:var(--ink-4); }
+        .results-pager-btns { display:flex; gap:2px; }
+        .results-pager-btns button { min-width:24px; height:22px; border:1px solid var(--border); border-radius:4px; background:var(--bg-input); cursor:pointer; font-size:0.68rem; font-family:inherit; color:var(--ink-3); transition:var(--transition); display:inline-flex; align-items:center; justify-content:center; }
+        .results-pager-btns button:hover:not(:disabled) { border-color:var(--ink-4); color:var(--ink); background:var(--bg-hover); }
+        .results-pager-btns button:disabled { opacity:0.2; cursor:not-allowed; }
+        .results-pager-btns button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
 
         .section { border-bottom:1px solid var(--border); }
         .section-head { padding:12px 16px; font-size:0.72rem; font-weight:600; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.05em; }
         .section-body { padding:0 16px 14px; }
 
-        .upload-area { border:1.5px dashed var(--border); border-radius:var(--radius-lg); padding:18px; text-align:center; cursor:pointer; transition:var(--transition); background:var(--bg-input); }
+        .upload-area { border:1.5px dashed var(--border); border-radius:var(--radius-lg); padding:20px 16px; text-align:center; cursor:pointer; transition:var(--transition); background:var(--bg-input); }
         .upload-area:hover { border-color:var(--ink-4); background:var(--bg-hover); }
         .upload-area.dragover { border-color:var(--accent); background:var(--bg-hover); }
         .upload-area svg { opacity:0.15; }
@@ -60,7 +89,7 @@
         .url-input::placeholder { color:var(--ink-4); }
 
         .cfg-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-        .cfg-label { font-size:0.68rem; font-weight:500; color:var(--ink-3); margin-bottom:4px; }
+        .cfg-label { font-size:0.68rem; font-weight:500; color:var(--ink-3); margin-bottom:4px; display:flex; align-items:center; justify-content:space-between; }
         .cfg-select { position:relative; }
         .cfg-trigger { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); font-size:0.78rem; cursor:pointer; transition:var(--transition); user-select:none; }
         .cfg-trigger:hover { border-color:var(--ink-4); }
@@ -73,7 +102,15 @@
         .cfg-option:hover { background:var(--bg-hover); }
         .cfg-option.active { font-weight:600; background:var(--bg-hover); }
 
-        .btn-detect { width:100%; padding:10px; background:var(--accent); color:#fff; border:none; border-radius:var(--radius); font-size:0.82rem; font-weight:600; cursor:pointer; transition:var(--transition); font-family:inherit; margin-top:12px; }
+        /* Slider */
+        .slider-wrap { margin-top:4px; }
+        input[type="range"] { -webkit-appearance:none; width:100%; height:6px; border-radius:3px; background:var(--border); outline:none; transition:var(--transition); }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid var(--bg-panel); box-shadow:0 1px 4px rgba(0,0,0,0.15); transition:transform 0.1s ease; }
+        input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.15); }
+        input[type="range"]::-webkit-slider-thumb:active { transform:scale(0.95); }
+        input[type="range"]::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid var(--bg-panel); box-shadow:0 1px 4px rgba(0,0,0,0.15); }
+
+        .btn-detect { width:100%; padding:10px; background:var(--accent); color:#fff; border:none; border-radius:var(--radius); font-size:0.82rem; font-weight:600; cursor:pointer; transition:var(--transition); font-family:inherit; margin-top:14px; }
         .btn-detect:hover { background:var(--accent-hover); }
         .btn-detect:disabled { opacity:0.3; cursor:not-allowed; }
         .btn-detect.running { animation:glow 1.5s ease-in-out infinite; }
@@ -87,7 +124,7 @@
         .history-head-actions button.danger:hover { background:var(--red-bg); color:var(--red); }
 
         .history-filter-row { padding:8px 16px; border-bottom:1px solid var(--border); }
-        .history-filter-row select { width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.72rem; background:var(--bg-input); color:var(--ink); font-family:inherit; outline:none; }
+        .history-filter-row .cfg-select { width:100%; }
 
         .history-list { flex:1; overflow-y:auto; padding:4px 8px; }
         .history-item { display:flex; gap:8px; padding:8px; border-radius:var(--radius); cursor:pointer; transition:var(--transition); align-items:center; }
@@ -125,23 +162,6 @@
         .canvas-empty { text-align:center; color:var(--ink-4); }
         .canvas-empty svg { opacity:0.12; }
 
-        .results { background:var(--bg-panel); border-top:1px solid var(--border); display:flex; flex-direction:column; height:180px; min-height:120px; }
-        .results-head { padding:6px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
-        .results-title { font-size:0.75rem; font-weight:600; color:var(--ink-2); display:flex; align-items:center; gap:5px; }
-        .results-title svg { width:12px; height:12px; }
-        .results-meta { display:flex; gap:6px; font-size:0.65rem; color:var(--ink-4); align-items:center; }
-        .results-actions { display:flex; gap:4px; }
-        .results-actions button { font-size:0.65rem; padding:3px 8px; border:1px solid var(--border); border-radius:4px; background:transparent; color:var(--ink-3); cursor:pointer; transition:var(--transition); font-family:inherit; }
-        .results-actions button:hover { border-color:var(--ink-4); color:var(--ink); }
-        .results-body { flex:1; overflow-y:auto; padding:4px 16px; }
-        .det-row { display:flex; gap:8px; padding:4px 0; border-bottom:1px solid var(--border); align-items:center; }
-        .det-row:last-child { border-bottom:none; }
-        .det-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
-        .det-label { font-size:0.72rem; font-weight:500; flex:1; }
-        .det-conf { font-size:0.65rem; color:var(--ink-4); font-family:'JetBrains Mono',monospace; }
-        .det-bar { width:36px; height:3px; background:var(--bg-input); border-radius:2px; overflow:hidden; flex-shrink:0; }
-        .det-bar-fill { height:100%; border-radius:2px; }
-
         .spinner { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--ink); border-radius:50%; animation:spin 0.6s linear infinite; }
         .loading-mask { display:none; position:absolute; inset:0; background:rgba(248,247,245,0.8); z-index:5; align-items:center; justify-content:center; }
         .loading-mask.show { display:flex; }
@@ -159,17 +179,53 @@
 <body>
     <div id="toast" class="toast" style="display:none;"></div>
 
+    <div class="page-wrap">
     <header class="topbar">
         <div class="topbar-left">
-            <div class="topbar-logo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-            <h1>Argus 检测</h1>
+            <div class="topbar-logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <h1>Argus 图片检测</h1>
         </div>
         <div class="topbar-right">
-            <a href="/" class="topbar-btn">主页</a>
-            <a href="/static/annotate.html" class="topbar-btn">标注</a>
-            <a href="/static/users.html" class="topbar-btn">管理</a>
-            <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-            <button class="topbar-btn accent" onclick="doLogout()">退出</button>
+            <a href="/" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+                主页
+            </a>
+            <a href="/static/annotate.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                标注
+            </a>
+            <a href="/static/detect.html" class="topbar-btn nav-active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+                图片检测
+            </a>
+            <a href="/static/dashboard.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                看板
+            </a>
+            <div class="nav-sep"></div>
+            <a href="/static/users.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                用户
+            </a>
+            <a href="/static/logs.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                日志
+            </a>
+            <a href="/static/config.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                配置
+            </a>
+            <div class="nav-sep"></div>
+            <a href="/static/training.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+                训练
+            </a>
+            <a href="/static/datasets.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                数据集
+            </a>
+            <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()" style="padding:5px 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
+            <div id="userInfoSlot"></div>
         </div>
     </header>
 
@@ -190,43 +246,47 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="section">
                     <div class="section-body" style="padding-top:12px;">
-                        <div class="cfg-grid">
-                            <div>
-                                <div class="cfg-label">模型</div>
-                                <div class="cfg-select" id="modelSelectWrap">
-                                    <div class="cfg-trigger" onclick="toggleSelect('modelSelectWrap')">
-                                        <span id="modelSelectText">通用检测</span>
-                                        <span class="chevron"></span>
-                                    </div>
-                                    <div class="cfg-options">
-                                        <div class="cfg-option active" data-value="general" onclick="selectOption('modelSelectWrap',this)">通用检测</div>
-                                        <div class="cfg-option" data-value="fire_smoke" onclick="selectOption('modelSelectWrap',this)">火灾烟雾</div>
-                                        <div class="cfg-option" data-value="helmet" onclick="selectOption('modelSelectWrap',this)">安全帽</div>
-                                    </div>
+                        <div style="margin-bottom:8px;">
+                            <div class="cfg-label">模型</div>
+                            <div class="cfg-select" id="modelSelectWrap">
+                                <div class="cfg-trigger" onclick="toggleSelect('modelSelectWrap')">
+                                    <span id="modelSelectText">通用检测</span>
+                                    <span class="chevron"></span>
                                 </div>
-                            </div>
-                            <div>
-                                <div class="cfg-label">阈值</div>
-                                <div class="cfg-select" id="confSelectWrap">
-                                    <div class="cfg-trigger" onclick="toggleSelect('confSelectWrap')">
-                                        <span id="confSelectText">0.3</span>
-                                        <span class="chevron"></span>
-                                    </div>
-                                    <div class="cfg-options">
-                                        <div class="cfg-option" data-value="0.1" onclick="selectOption('confSelectWrap',this)">0.1</div>
-                                        <div class="cfg-option" data-value="0.25" onclick="selectOption('confSelectWrap',this)">0.25</div>
-                                        <div class="cfg-option active" data-value="0.3" onclick="selectOption('confSelectWrap',this)">0.3</div>
-                                        <div class="cfg-option" data-value="0.5" onclick="selectOption('confSelectWrap',this)">0.5</div>
-                                        <div class="cfg-option" data-value="0.7" onclick="selectOption('confSelectWrap',this)">0.7</div>
-                                    </div>
+                                <div class="cfg-options">
+                                    <div class="cfg-option active" data-value="general" onclick="selectOption('modelSelectWrap',this)">通用检测</div>
+                                    <div class="cfg-option" data-value="fire_smoke" onclick="selectOption('modelSelectWrap',this)">火灾烟雾</div>
+                                    <div class="cfg-option" data-value="helmet" onclick="selectOption('modelSelectWrap',this)">安全帽</div>
                                 </div>
                             </div>
                         </div>
+                        <div class="slider-wrap">
+                            <div class="cfg-label">阈值 <span id="confValue">0.3</span></div>
+                            <input type="range" id="confSlider" min="0.05" max="0.95" step="0.05" value="0.3" oninput="document.getElementById('confValue').textContent=this.value">
+                            <div style="font-size:0.62rem;color:var(--ink-4);margin-top:2px;">调低→多检测（可能误报） 调高→少误报（可能漏检）</div>
+                        </div>
                         <button class="btn-detect" id="detectBtn" disabled onclick="runDetect()">开始检测</button>
                     </div>
+                </div>
+            </div>
+            <div class="results" id="resultsPanel">
+                <div class="results-head">
+                    <span class="results-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>检测结果</span>
+                    <div class="results-meta" id="resultStats"></div>
+                    <div class="results-actions">
+                        <button id="annotateBtn" onclick="goToAnnotate()" style="display:none;">标注</button>
+                        <button id="importBtn" onclick="importAnnotations()" style="display:none;">导入</button>
+                        <button id="exportBtn" onclick="exportCSV()" style="display:none;">CSV</button>
+                    </div>
+                </div>
+                <div class="results-body" id="resultList">
+                    <div style="text-align:center;padding:24px;color:var(--ink-4);font-size:0.72rem;">等待检测</div>
+                </div>
+                <div class="results-pager" id="resultsPager" style="display:none;">
+                    <span id="resultsPagerInfo"></span>
+                    <div class="results-pager-btns" id="resultsPagerBtns"></div>
                 </div>
             </div>
         </aside>
@@ -241,21 +301,6 @@
                 <img id="resultImage">
                 <canvas id="canvas"></canvas>
             </div>
-
-            <div class="results">
-                <div class="results-head">
-                    <span class="results-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>检测结果</span>
-                    <div class="results-meta" id="resultStats"></div>
-                    <div class="results-actions">
-                        <button id="annotateBtn" onclick="goToAnnotate()" style="display:none;">标注</button>
-                        <button id="importBtn" onclick="importAnnotations()" style="display:none;">导入</button>
-                        <button id="exportBtn" onclick="exportCSV()" style="display:none;">CSV</button>
-                    </div>
-                </div>
-                <div class="results-body" id="resultList">
-                    <div style="text-align:center;padding:24px;color:var(--ink-4);font-size:0.72rem;">等待检测</div>
-                </div>
-            </div>
         </div>
 
         <aside class="panel-history">
@@ -268,12 +313,18 @@
                 </div>
             </div>
             <div class="history-filter-row">
-                <select id="historyModelFilter" onchange="historyPage=1;loadHistory()">
-                    <option value="">全部模型</option>
-                    <option value="general">通用检测</option>
-                    <option value="fire_smoke">火灾烟雾</option>
-                    <option value="helmet">安全帽</option>
-                </select>
+                <div class="cfg-select" id="historyModelWrap" style="width:100%;">
+                    <div class="cfg-trigger" onclick="toggleSelect('historyModelWrap')">
+                        <span id="historyModelText">全部模型</span>
+                        <span class="chevron"></span>
+                    </div>
+                    <div class="cfg-options">
+                        <div class="cfg-option active" data-value="" onclick="selectHistoryModel('historyModelWrap',this)">全部模型</div>
+                        <div class="cfg-option" data-value="general" onclick="selectHistoryModel('historyModelWrap',this)">通用检测</div>
+                        <div class="cfg-option" data-value="fire_smoke" onclick="selectHistoryModel('historyModelWrap',this)">火灾烟雾</div>
+                        <div class="cfg-option" data-value="helmet" onclick="selectHistoryModel('historyModelWrap',this)">安全帽</div>
+                    </div>
+                </div>
             </div>
             <div class="history-list" id="historyList">
                 <div style="text-align:center;padding:32px 16px;color:var(--ink-4);font-size:0.75rem;">暂无检测记录</div>
@@ -281,8 +332,10 @@
             <div class="history-pager" id="historyPager" style="display:none;"></div>
         </aside>
     </div>
+    </div>
 
     <script src="/static/confirm.js"></script>
+    <script src="/static/user-info.js"></script>
     <script>
         const $ = id => document.getElementById(id);
         const uploadZone = $('uploadZone'), fileInput = $('fileInput'), detectBtn = $('detectBtn');
@@ -299,6 +352,7 @@
         const resultList = $('resultList'), resultStats = $('resultStats'), historyList = $('historyList');
 
         let currentFile = null, currentResultId = null, detections = [], imageWidth = 0, imageHeight = 0;
+        let detPage = 1, detPageSize = 20;
 
         function authFetch(url, opts = {}) {
             const t = localStorage.getItem('token');
@@ -343,7 +397,7 @@
             const url = $('imageUrl').value.trim();
             if (!url) { notify('请输入图片 URL', 'error'); return; }
             loading.classList.add('show'); detectBtn.disabled = true; detectBtn.classList.add('running'); detectBtn.textContent = '检测中…';
-            authFetch('/api/v1/stream/detect', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({image_url:url,model:getVal('modelSelectWrap'),confidence:parseFloat(getVal('confSelectWrap'))}) })
+            authFetch('/api/v1/stream/detect', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({image_url:url,model:getVal('modelSelectWrap'),confidence:parseFloat($('confSlider').value)}) })
             .then(r => r.json()).then(data => {
                 if (data.success) {
                     const img = new Image(); img.crossOrigin = 'anonymous';
@@ -389,7 +443,7 @@
         async function runDetect() {
             if(!currentFile&&!batchFiles.length) return;
             loading.classList.add('show'); detectBtn.disabled=true; detectBtn.classList.add('running'); detectBtn.textContent='检测中…';
-            const model=getVal('modelSelectWrap'),conf=getVal('confSelectWrap');
+            const model=getVal('modelSelectWrap'),conf=parseFloat($('confSlider').value);
             const files=batchFiles.length>1?batchFiles:[currentFile]; batchResults=[];
             for(const file of files){const fd=new FormData();fd.append('file',file);fd.append('model',model);fd.append('confidence',conf);
                 try{const r=await authFetch('/api/v1/stream/detect/upload',{method:'POST',body:fd});const d=await r.json();
@@ -405,24 +459,45 @@
             $('exportBtn').style.display=data.detections.length?'':'none';
             $('annotateBtn').style.display=(currentFile&&data.detections.length)?'':'none';
             $('importBtn').style.display=(currentResultId&&data.detections.length)?'':'none';
-            if(!data.detections.length){resultList.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-4);font-size:0.72rem;">未检测到目标</div>';return;}
-            resultList.innerHTML=data.detections.map(d=>{
+            detPage=1;
+            renderDetPage();
+        }
+
+        function renderDetPage() {
+            const total=detections.length, totalPages=Math.ceil(total/detPageSize);
+            if(totalPages<=1){$('resultsPager').style.display='none';}
+            else{$('resultsPager').style.display='flex';$('resultsPagerInfo').textContent=detPage+'/'+totalPages+'页 · 共'+total+'条';
+                let btns='';btns+='<button '+(detPage<=1?'disabled':'')+' onclick="goDetPage('+(detPage-1)+')">‹</button>';
+                const start=Math.max(1,Math.min(detPage-2,totalPages-4)),end=Math.min(totalPages,start+4);
+                for(let i=start;i<=end;i++)btns+='<button class="'+(i===detPage?'on':'')+'" onclick="goDetPage('+i+')">'+i+'</button>';
+                btns+='<button '+(detPage>=totalPages?'disabled':'')+' onclick="goDetPage('+(detPage+1)+')">›</button>';
+                $('resultsPagerBtns').innerHTML=btns;}
+            if(!total){resultList.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-4);font-size:0.72rem;">未检测到目标</div>';return;}
+            const start=(detPage-1)*detPageSize, page=detections.slice(start,start+detPageSize);
+            resultList.innerHTML=page.map(d=>{
                 const c=d.confidence,cls=c>=0.7?'#16a34a':c>=0.4?'#d97706':'#dc2626';
                 const dot=d.class_name.includes('fire')?'#dc2626':d.class_name.includes('smoke')?'#78716c':d.class_name==='person'?'#16a34a':d.class_name==='helmet'?'#0891b2':d.class_name==='no-helmet'?'#ea580c':'#d97706';
                 return '<div class="det-row"><div class="det-dot" style="background:'+dot+'"></div><span class="det-label">'+d.class_name+'</span><span class="det-conf">'+(c*100).toFixed(1)+'%</span><div class="det-bar"><div class="det-bar-fill" style="width:'+c*100+'%;background:'+cls+'"></div></div></div>';
             }).join('');
         }
+        function goDetPage(p){detPage=p;renderDetPage();}
 
         function goToAnnotate(){if(!currentFile)return;const fd=new FormData();fd.append('file',currentFile);authFetch('/api/annotations/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.success)location.href='/static/annotate.html?image='+encodeURIComponent(d.filename);else notify('准备标注失败','error');}).catch(()=>notify('请求失败','error'));}
         async function importAnnotations(){if(!currentResultId)return;try{const r=await authFetch('/api/v1/stream/detect/'+currentResultId+'/import-annotations',{method:'POST'});const d=await r.json();if(d.success)notify('已导入 '+d.count+' 个标注框','ok');else notify(d.message||'导入失败','error');}catch(e){notify('请求失败','error');}}
         function exportCSV(){if(!batchResults.length&&!detections.length)return;let csv='filename,class_name,confidence,bbox_x1,bbox_y1,bbox_x2,bbox_y2\n';if(batchResults.length>1){batchResults.forEach(r=>{(r.detections||[]).forEach(d=>{csv+=r.filename+','+d.class_name+','+d.confidence.toFixed(4)+','+d.bbox.join(',')+'\n';});});}else{const f=currentFile?currentFile.name:'unknown';detections.forEach(d=>{csv+=f+','+d.class_name+','+d.confidence.toFixed(4)+','+d.bbox.join(',')+'\n';});}const b=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='detection_'+new Date().toISOString().slice(0,19).replace(/[:-]/g,'')+'.csv';a.click();URL.revokeObjectURL(a.href);notify('CSV 已导出','ok');}
 
         let historyPage=1,historyPageSize=10;
-        function selectHistoryModel(el){document.getElementById('historyModelFilter').value=el.target.value;historyPage=1;loadHistory();}
-        $('historyModelFilter').addEventListener('change',()=>{historyPage=1;loadHistory();});
+        function selectHistoryModel(wrapId,el){
+            const wrap=$(wrapId);
+            wrap.querySelectorAll('.cfg-option').forEach(o=>o.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById(wrapId.replace('Wrap','Text')).textContent=el.textContent;
+            wrap.classList.remove('open');
+            historyPage=1;loadHistory();
+        }
 
         async function loadHistory(){
-            try{const model=$('historyModelFilter').value,offset=(historyPage-1)*historyPageSize;
+            try{const model=document.querySelector('#historyModelWrap .cfg-option.active')?.dataset.value||'',offset=(historyPage-1)*historyPageSize;
             let url='/api/v1/stream/detect/history?limit='+historyPageSize+'&offset='+offset;if(model)url+='&model='+model;
             const r=await authFetch(url),d=await r.json(),items=d.items||[],total=d.total||0,tp=Math.ceil(total/historyPageSize);
             if(historyPage>tp)historyPage=tp||1;
@@ -437,7 +512,7 @@
             }else pager.style.display='none';}catch(e){}
         }
         async function deleteHistory(id){if(!await showConfirm('确定删除？'))return;try{await authFetch('/api/v1/stream/detect/'+id,{method:'DELETE'});notify('已删除','ok');if(currentResultId===id){currentResultId=null;detections=[];resultImage.style.display='none';imageEmpty.style.display='';ctx.clearRect(0,0,canvas.width,canvas.height);resultList.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-4);font-size:0.72rem;">等待检测</div>';resultStats.innerHTML='';}loadHistory();}catch(e){}}
-        async function exportHistory(){const model=$('historyModelFilter').value;try{let url='/api/v1/stream/detect/history?limit=1000';if(model)url+='&model='+model;const r=await authFetch(url),d=await r.json(),items=d.items||[];if(!items.length){notify('无数据','ok');return;}let csv='id,filename,model_name,detections_count,detected_at\n';items.forEach(r=>{csv+=r.id+',"'+(r.filename||'')+'",'+r.model_name+','+r.detections_count+','+(r.detected_at||'')+'\n';});const b=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='detect_history_'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href);notify('已导出 '+items.length+' 条','ok');}catch(e){notify('导出失败','error');}}
+        async function exportHistory(){const model=document.querySelector('#historyModelWrap .cfg-option.active')?.dataset.value||'';try{let url='/api/v1/stream/detect/history?limit=1000';if(model)url+='&model='+model;const r=await authFetch(url),d=await r.json(),items=d.items||[];if(!items.length){notify('无数据','ok');return;}let csv='id,filename,model_name,detections_count,detected_at\n';items.forEach(r=>{csv+=r.id+',"'+(r.filename||'')+'",'+r.model_name+','+r.detections_count+','+(r.detected_at||'')+'\n';});const b=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='detect_history_'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href);notify('已导出 '+items.length+' 条','ok');}catch(e){notify('导出失败','error');}}
         async function clearHistory(){if(!await showConfirm('确定清空所有检测记录？'))return;try{await authFetch('/api/v1/stream/detect',{method:'DELETE'});notify('已清空','ok');currentResultId=null;detections=[];resultImage.style.display='none';imageEmpty.style.display='';ctx.clearRect(0,0,canvas.width,canvas.height);resultList.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-4);font-size:0.72rem;">等待检测</div>';resultStats.innerHTML='';loadHistory();}catch(e){}}
         async function loadDetail(id){loading.classList.add('show');try{const r=await authFetch('/api/v1/stream/detect/'+id),d=await r.json();currentResultId=id;detections=d.detections||[];if(d.image_path){const src='/api/v1/stream/image/'+d.image_path;resultImage.src=src;resultImage.style.display='block';imageEmpty.style.display='none';resultImage.onload=()=>{imageWidth=resultImage.naturalWidth;imageHeight=resultImage.naturalHeight;resizeCanvas();drawDetections();};}renderResults({detections:d.detections,detections_count:d.detections_count,inference_time_ms:d.inference_time_ms,model:d.model_name});loadHistory();}catch(e){notify('加载失败','error');}finally{loading.classList.remove('show');}}
 
