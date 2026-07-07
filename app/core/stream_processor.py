@@ -596,11 +596,24 @@ class StreamProcessor:
 
             result = await detector.detect_helmet_combined(detect_frame)
 
-            logger.info("helmet_combined_debug",
-                        stream_id=self.stream_id,
-                        person_count=len(result["person_boxes"]),
-                        helmet_count=len(result["helmet_boxes"]),
-                        inference_ms=round(result["inference_ms"], 1))
+            person_count = len(result["person_boxes"])
+            helmet_count = len(result["helmet_boxes"])
+            matched_count = len(result["matched"])
+            no_helmet_count = len(result["no_helmet"])
+
+            # 只在有检测结果时打 info 日志，没人时只打 debug
+            if person_count > 0:
+                logger.info("helmet_combined_debug",
+                            stream_id=self.stream_id,
+                            person_count=person_count,
+                            helmet_count=helmet_count,
+                            matched=matched_count,
+                            no_helmet=no_helmet_count,
+                            inference_ms=round(result["inference_ms"], 1))
+            else:
+                logger.debug("helmet_combined_no_person",
+                             stream_id=self.stream_id,
+                             inference_ms=round(result["inference_ms"], 1))
 
             # 画戴帽子的人（绿色）
             for m in result["matched"]:
