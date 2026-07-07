@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # 火灾/烟雾检测模型
     FIRE_SMOKE_MODEL_PATH: str = "./models/onnx/fire_smoke_v2.onnx"
     # 安全帽检测模型
-    HELMET_MODEL_PATH: str = "./models/onnx/helmet_fp16.onnx"
+    HELMET_MODEL_PATH: str = "./models/onnx/helmet_final.onnx"
 
     # Application Configuration
     APP_HOST: str = "0.0.0.0"
@@ -40,9 +40,9 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_STREAMS: int = 10
     CONFIDENCE_THRESHOLD: float = 0.3  # 通用检测阈值
     FIRE_SMOKE_CONFIDENCE_THRESHOLD: float = 0.01  # 火灾烟雾检测需要较低阈值
-    HELMET_CONFIDENCE_THRESHOLD: float = 0.15  # no-helmet 检测阈值
-    HELMET_CONFIRM_THRESHOLD: float = 0.4    # helmet 确认阈值
-    NMS_THRESHOLD: float = 0.7  # 非极大值抑制阈值
+    HELMET_CONFIDENCE_THRESHOLD: float = 0.10  # no-helmet 检测阈值（ONNX 输出置信度偏低，需降低）
+    HELMET_CONFIRM_THRESHOLD: float = 0.25    # helmet 确认阈值（降低以提高召回率）
+    NMS_THRESHOLD: float = 0.3  # 非极大值抑制阈值
 
     # Alarm Configuration
     ALARM_COOLDOWN_TTL: int = 30  # seconds
@@ -88,7 +88,6 @@ class Settings(BaseSettings):
     HELMET_CLASS_MAPPING: Dict[str, str] = Field(default={
         "0": "helmet",      # 佩戴安全帽
         "1": "no-helmet",   # 未佩戴安全帽（头部）
-        "2": "person",      # 人
     })
 
     # Only trigger alarm for these classes

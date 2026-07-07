@@ -587,74 +587,137 @@ class StreamProcessor:
         full_frame: np.ndarray,
         alarm_detections: list,
     ) -> None:
-        """安全帽模型一次推理：helmet / no-helmet / person，person 兜底未戴帽。"""
+        """安全帽检测：通用模型检测人 + 安全帽模型检测帽子，差集 = 没戴帽。
+
+        逻辑：
+        1. 通用模型检测所有人（person）
+        2. 安全帽模型检测所有帽子（helmet）
+        3. 对每个人，检查是否有帽子与其重叠
+        4. 没有帽子重叠的人 = 未戴安全帽 → 告警
+        """
         try:
-            helmet_detections, _ = await detector.detect_with_model(
-                detect_frame, "helmet", confidence_threshold=0.01
-            )
+            import cv2
+            import numpy as np
 
             ox, oy = roi_offset
-            h, w = full_frame.shape[:2]
+            fh, fw = full_frame.shape[:2]
 
-            drawn_boxes = []
-            if len(helmet_detections) > 0:
-                for i in range(len(helmet_detections)):
-                    cid = helmet_detections.class_id[i]
-                    cname = detector.get_class_name("helmet", cid)
-                    conf = float(helmet_detections.confidence[i])
-                    bbox = helmet_detections.xyxy[i].copy()
-                    bbox[0] += ox; bbox[1] += oy; bbox[2] += ox; bbox[3] += oy
-                    x1, y1, x2, y2 = map(int, bbox)
-                    x1 = max(0, min(x1, w)); y1 = max(0, min(y1, h))
-                    x2 = max(0, min(x2, w)); y2 = max(0, min(y2, h))
-                    if x2 <= x1 or y2 <= y1:
+            # 并行运行两个模型
+            (person_result, _), (helmet_result, _) = await asyncio.gather(
+                detector.detect_with_model(detect_frame, "general", confidence_threshold=0.3),
+                detector.detect_with_model(detect_frame, "helmet", confidence_threshold=0.01),
+            )
+
+            logger.info("helmet_combined_debug",
+                        stream_id=self.stream_id,
+                        person_count=len(person_result),
+                        helmet_count=len(helmet_result))
+
+            # 提取 person 检测结果（class_id=0 是 person）
+            person_boxes = []
+            for i in range(len(person_result)):
+                cid = int(person_result.class_id[i])
+                cname = detector.get_class_name("general", cid)
+                if cname != "person":
+                    continue
+                conf = float(person_result.confidence[i])
+                bbox = person_result.xyxy[i].copy()
+                # 偏移回全帧坐标
+                bbox[0] += ox; bbox[1] += oy; bbox[2] += ox; bbox[3] += oy
+                x1, y1, x2, y2 = map(int, bbox)
+                x1 = max(0, min(x1, fw)); y1 = max(0, min(y1, fh))
+                x2 = max(0, min(x2, fw)); y2 = max(0, min(y2, fh))
+                if x2 <= x1 or y2 <= y1:
+                    continue
+                # 过滤太小的人体
+                bbox_area = (x2 - x1) * (y2 - y1)
+                frame_area = fw * fh
+                if bbox_area / frame_area < 0.02:
+                    continue
+                person_boxes.append((x1, y1, x2, y2, conf))
+
+            if not person_boxes:
+                return
+
+            # 提取 helmet 检测结果（class_id=0 是 helmet）
+            helmet_boxes = []
+            for i in range(len(helmet_result)):
+                cid = int(helmet_result.class_id[i])
+                cname = detector.get_class_name("helmet", cid)
+                if cname != "helmet":
+                    continue
+                conf = float(helmet_result.confidence[i])
+                if conf < settings.HELMET_CONFIRM_THRESHOLD:
+                    continue
+                bbox = helmet_result.xyxy[i].copy()
+                bbox[0] += ox; bbox[1] += oy; bbox[2] += ox; bbox[3] += oy
+                x1, y1, x2, y2 = map(int, bbox)
+                x1 = max(0, min(x1, fw)); y1 = max(0, min(y1, fh))
+                x2 = max(0, min(x2, fw)); y2 = max(0, min(y2, fh))
+                if x2 <= x1 or y2 <= y1:
+                    continue
+                helmet_boxes.append((x1, y1, x2, y2, conf))
+
+            logger.info("helmet_combined_filtered",
+                        stream_id=self.stream_id,
+                        person_boxes=len(person_boxes),
+                        helmet_boxes=len(helmet_boxes))
+
+            # 一对一贪心匹配：每个帽子只匹配一个人（最近的）
+            matched_persons = set()
+            matched_helmets = set()
+            person_helmet_map = {}  # person_index -> helmet_index
+
+            for pi, (px1, py1, px2, py2, pconf) in enumerate(person_boxes):
+                head_top = py1
+                head_bottom = py1 + (py2 - py1) * 0.4
+                best_hj = -1
+                best_dist = float('inf')
+                for hi, (hx1, hy1, hx2, hy2, hconf) in enumerate(helmet_boxes):
+                    if hi in matched_helmets:
                         continue
+                    hcx = (hx1 + hx2) / 2
+                    hcy = (hy1 + hy2) / 2
+                    if px1 <= hcx <= px2 and head_top <= hcy <= head_bottom:
+                        dist = abs(hcx - (px1 + px2) / 2) + abs(hcy - (py1 + py2) / 2) * 0.3
+                        if dist < best_dist:
+                            best_dist = dist
+                            best_hj = hi
+                if best_hj >= 0:
+                    person_helmet_map[pi] = best_hj
+                    matched_helmets.add(best_hj)
 
-                    if cname == "helmet":
-                        if conf < settings.HELMET_CONFIRM_THRESHOLD:
-                            continue
-                        color = (0, 255, 0)
-                        label = f"helmet {conf:.1%}"
-                        drawn_boxes.append((x1, y1, x2, y2))
-                    elif cname == "no-helmet":
-                        if conf < settings.HELMET_CONFIDENCE_THRESHOLD:
-                            continue
-                        color = (0, 0, 255)
-                        label = f"no-helmet {conf:.1%}"
-                        drawn_boxes.append((x1, y1, x2, y2))
-                    elif cname == "person":
-                        if conf < 0.05:
-                            continue
-                        covered = any(
-                            (dx1+dx2)/2 >= x1 and (dx1+dx2)/2 <= x2 and
-                            (dy1+dy2)/2 >= y1 and (dy1+dy2)/2 <= y2
-                            for dx1, dy1, dx2, dy2 in drawn_boxes
-                        )
-                        if covered:
-                            continue
-                        color = (0, 0, 255)
-                        label = f"no-helmet {conf:.1%}"
-                    else:
-                        continue
+            # 根据匹配结果画框
+            for pi, (px1, py1, px2, py2, pconf) in enumerate(person_boxes):
+                has_helmet = pi in person_helmet_map
 
-                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                if has_helmet:
+                    # 戴了帽子，画绿色框
+                    cv2.rectangle(annotated_frame, (px1, py1), (px2, py2), (0, 200, 0), 2)
+                    label = f"helmet {pconf:.0%}"
                     (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-                    cv2.rectangle(annotated_frame, (x1, y1 - lh - 10), (x1 + lw, y1), color, -1)
-                    cv2.putText(annotated_frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                    cv2.rectangle(annotated_frame, (px1, py1 - lh - 10), (px1 + lw, py1), (0, 200, 0), -1)
+                    cv2.putText(annotated_frame, label, (px1, py1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                else:
+                    # 没戴帽子，画红色框 + 告警
+                    cv2.rectangle(annotated_frame, (px1, py1), (px2, py2), (0, 0, 255), 2)
+                    label = f"no-helmet {pconf:.0%}"
+                    (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                    cv2.rectangle(annotated_frame, (px1, py1 - lh - 10), (px1 + lw, py1), (0, 0, 255), -1)
+                    cv2.putText(annotated_frame, label, (px1, py1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
-                    if cname == "no-helmet" or (cname == "person" and not covered):
-                        ncx = (x1 + x2) // 2
-                        ncy = (y1 + y2) // 2
-                        should_alarm = await alarm_dedup.should_trigger_alarm(
-                            self.stream_id, "no-helmet", -1, position=(ncx, ncy)
-                        )
-                        if should_alarm:
-                            alarm_detections.append({
-                                "alarm_type": "helmet",
-                                "class_name": "no-helmet",
-                                "confidence": conf,
-                                "track_id": -1,
-                            })
+                    ncx = (px1 + px2) // 2
+                    ncy = (py1 + py2) // 2
+                    should_alarm = await alarm_dedup.should_trigger_alarm(
+                        self.stream_id, "no-helmet", -1, position=(ncx, ncy)
+                    )
+                    if should_alarm:
+                        alarm_detections.append({
+                            "alarm_type": "helmet",
+                            "class_name": "no-helmet",
+                            "confidence": pconf,
+                            "track_id": -1,
+                        })
 
         except Exception as e:
             logger.error("helmet_combined_detect_error", stream_id=self.stream_id, error=str(e))

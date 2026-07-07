@@ -57,7 +57,7 @@ docker compose down
 
 - **ARQ worker runs in-background thread**: `main.py` auto-starts the worker in a `ThreadPoolExecutor`. For production (Docker), worker runs as separate container.
 - **3 ONNX models**: general (yolo11l.onnx), fire_smoke, helmet. Each has independent CLASS_MAPPING and confidence threshold in `app/config.py`.
-- **3 separate confidence thresholds**: general=0.3, fire_smoke=0.01, helmet=0.15 — do not assume one global threshold.
+- **3 separate confidence thresholds**: general=0.3, fire_smoke=0.01, helmet=0.25 — do not assume one global threshold.
 - **Singleton pattern**: `detector`, `stream_manager`, `alarm_dedup`, `db_service`, `minio_service` are global singletons.
 - **CUDA env setup**: `main.py` sets CUDA PATH before `import onnxruntime` — required for GPU. Import order matters.
 - **Dual-frame slicing**: 1FPS fixed sampling + scene change detection (threshold 27.0).
@@ -83,7 +83,7 @@ All config via `.env` (see `.env.example`):
 
 - **MYSQL_DSN**: MySQL connection string. Password special chars: `#` → `%23`, `$` → `%24`
 - **JWT_SECRET**: JWT signing secret (default warns at startup, change in production!)
-- **CONFIDENCE_THRESHOLD**: 0.3 (general), 0.01 (fire_smoke), 0.15 (helmet)
+- **CONFIDENCE_THRESHOLD**: 0.3 (general), 0.01 (fire_smoke), 0.25 (helmet no-helmet阈值), 0.40 (helmet 确认阈值)
 - **ALARM_CLASSES**: person, animal classes, fire, smoke, no-helmet
 - **ALARM_ESCALATION**: window=300s, important=3 hits, critical=5 hits
 - **Models path**: ONNX files at paths in `.env`. Missing model = startup failure.
@@ -130,6 +130,9 @@ All config via `.env` (see `.env.example`):
 | `app/services/auth_service.py` | Auth CRUD, PBKDF2, JWT blacklist (Redis), session management |
 | `app/services/worker_tasks.py` | ARQ WorkerSettings + save_alarm task |
 | `app/services/operation_log_service.py` | Audit trail writes (async, fire-and-forget) |
+| `app/core/auth_decorator.py` | `require_perm(perm)` — permission decorator for endpoints |
+| `app/core/batch_analyzer.py` | Batch video analysis — process multiple video files, HTML report |
+| `app/models/role_permission.py` | RBAC role→permission mapping (imported in `db.py`, not exported from `models/__init__`) |
 | `scripts/init_db.sql` | SQL DDL (reference only, SQLAlchemy auto-creates) |
 
 ## Notes

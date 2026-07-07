@@ -37,12 +37,8 @@ class ModelSession:
             # 抑制 ONNX Runtime C++ 层的红色报错，改用中文提示
             os.environ["ONNXRUNTIME_LOG_LEVEL"] = "3"  # 仅 ERROR
 
-            # 尝试 CUDA，失败则回退 CPU
-            providers_to_try = []
-            available = ort.get_available_providers()
-            if "CUDAExecutionProvider" in available:
-                providers_to_try.append("CUDAExecutionProvider")
-            providers_to_try.append("CPUExecutionProvider")
+            # 强制使用 CPU（GTX 1080 + cuDNN 9 不兼容）
+            providers_to_try = ["CPUExecutionProvider"]
 
             for provider in providers_to_try:
                 try:
@@ -63,7 +59,7 @@ class ModelSession:
                     self.input_shape = (input_meta.shape[2], input_meta.shape[3])
 
                     actual = sess.get_providers()
-                    used_provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in actual else "CPUExecutionProvider"
+                    used_provider = "CPUExecutionProvider"
 
                     dummy = np.random.randn(1, 3, self.input_shape[0], self.input_shape[1]).astype(np.float32)
 
@@ -77,17 +73,11 @@ class ModelSession:
                         devnull.close()
 
                     self.session = sess
-                    if provider == "CUDAExecutionProvider" and used_provider == "CUDAExecutionProvider":
-                        logger.info("gpu_ready", model=self.model_name)
-                    else:
-                        logger.info("cpu_fallback", model=self.model_name, reason="GPU 不兼容，已切换 CPU 推理")
+                    logger.info("cpu_ready", model=self.model_name)
                     break
 
                 except Exception:
-                    # stderr already restored by finally block above
-                    if provider == "CUDAExecutionProvider":
-                        print(f"[提示] {self.model_name}: GPU 不可用，自动切换 CPU 推理")
-                    else:
+                    if provider == "CPUExecutionProvider":
                         raise
 
         return self.session
@@ -154,7 +144,7 @@ class MultiModelDetector:
     ONNX_CONFIDENCE_SCALE: Dict[str, float] = {
         "general": 1.0,
         "fire_smoke": 3.7,
-        "helmet": 1.0,
+        "helmet": 2.0,
     }
 
     def _postprocess(
@@ -173,13 +163,30 @@ class MultiModelDetector:
         """
         raw = output[0]
 
+        if raw.size == 0 or raw.shape[0] == 0:
+            return sv.Detections.empty()
+
         # Auto-detect transposed format: [C, N] where C > 6 and C << N
         if raw.ndim == 2 and raw.shape[1] > 6 and raw.shape[0] < raw.shape[1]:
             raw = raw.T
 
         num_cols = raw.shape[1]
 
+        # 区分两种 6 列格式：
+        # [x1,y1,x2,y2,conf,class_id] → class_id 列是离散整数 (0,1,2...)
+        # [cx,cy,w,h,score0,score1]   → 最后一列是连续浮点 (0.0~1.0)
         if num_cols == 6:
+            col5 = raw[:, 5]
+            is_class_id_format = (
+                len(col5) > 0
+                and np.all(col5 == col5.astype(int))
+                and col5.max() <= 10
+                and col5.min() >= 0
+            )
+        else:
+            is_class_id_format = False
+
+        if is_class_id_format:
             # Format: [x1, y1, x2, y2, conf, class_id]
             boxes = raw[:, :4]
             scores = raw[:, 4]
@@ -277,18 +284,9 @@ class MultiModelDetector:
             # Get input name
             input_name = session.get_inputs()[0].name
 
-            # Run inference (with CUDA→CPU fallback)
+            # Run inference
             start_time = time.time()
-            try:
-                outputs = session.run(None, {input_name: blob})
-            except Exception:
-                # CUDA 推理失败（如 GPU 架构不兼容），回退到 CPU
-                cpu_session = ort.InferenceSession(
-                    model.model_path, providers=["CPUExecutionProvider"]
-                )
-                model.session = cpu_session
-                session = cpu_session
-                outputs = cpu_session.run(None, {input_name: blob})
+            outputs = session.run(None, {input_name: blob})
             inference_time = (time.time() - start_time) * 1000  # ms
 
             # Get number of classes from model output

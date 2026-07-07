@@ -19,7 +19,7 @@ os.environ["PATH"] = ";".join(_cuda_dirs) + ";" + os.environ.get("PATH", "")
 os.environ["ONNXRUNTIME_LOG_LEVEL"] = "3"
 
 import onnxruntime as ort
-from fastapi import FastAPI, Request, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -72,6 +72,12 @@ async def run_arq_worker():
     # shutdown 统一由 lifespan 管理，避免重复调用
 
 
+async def _load_email_config():
+    """Load email notification config (for parallel startup)."""
+    from app.core.email_notifier import email_notifier
+    await email_notifier.load_config()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown."""
@@ -83,38 +89,33 @@ async def lifespan(app: FastAPI):
     print_status("YOLO 监控告警系统 v0.1.0 启动中...", "info")
     print_status("=" * 50, "info")
 
-    # Initialize services
+    # Initialize services (parallel where possible)
     print_status("正在初始化数据库连接...", "info")
     await db_service.init_db()
     print_status("[OK] MySQL 连接成功 (SQLAlchemy + aiomysql)", "success")
 
-    print_status("正在创建默认管理员账号...", "info")
-    await create_default_admin()
-    print_status("[OK] 默认管理员已就绪", "success")
+    # MinIO, Redis, admin, email config — no dependencies between them, run in parallel
+    print_status("正在并行初始化 MinIO / Redis / 管理员 / 邮件配置...", "info")
+    results = await asyncio.gather(
+        minio_service.ensure_bucket(),
+        alarm_dedup.get_redis(),
+        create_default_admin(),
+        _load_email_config(),
+        return_exceptions=True,
+    )
+    for r in results:
+        if isinstance(r, Exception):
+            print_status(f"  [WARN] 初始化异常: {r}", "warning")
+    print_status("[OK] 并行初始化完成", "success")
 
-    print_status("正在初始化 MinIO 存储...", "info")
-    await minio_service.ensure_bucket()
-    print_status("[OK] MinIO 连接成功", "success")
-
-    print_status("正在初始化 Redis 缓存...", "info")
-    await alarm_dedup.get_redis()
-    print_status("[OK] Redis 连接成功", "success")
-
-    # Start ARQ Worker in background
+    # Start ARQ Worker in background (non-blocking, no sleep)
     print_status("正在启动 ARQ Worker...", "info")
     worker_task = asyncio.create_task(run_arq_worker())
-    await asyncio.sleep(1)  # Give worker time to start
     print_status("[OK] ARQ Worker 已启动", "success")
 
-    # Start stream health recorder
+    # Start background tasks (fire and forget)
     from app.core.health_recorder import record_stream_health
     health_task = asyncio.create_task(record_stream_health(stream_manager))
-
-    # Load email notification config
-    from app.core.email_notifier import email_notifier
-    await email_notifier.load_config()
-
-    # Start schedule checker for auto-start/stop streams
     from app.core.schedule_checker import check_schedules
     schedule_task = asyncio.create_task(check_schedules(stream_manager))
 
@@ -378,8 +379,8 @@ ANNOTATE_DIR = Path(__file__).parent.parent / "fire_smoke_data" / "to_annotate"
 LABELS_DIR = Path(__file__).parent.parent / "fire_yolo" / "train"
 
 @app.get("/api/annotations/files")
-async def list_annotate_files():
-    """列出待标注的图片文件（优先从数据库读取）"""
+async def list_annotate_files(model_type: str = None):
+    """列出待标注的图片文件，支持按 model_type 筛选"""
     files = []
 
     # 从数据库读取已记录的图片
@@ -389,26 +390,32 @@ async def list_annotate_files():
         from sqlalchemy import select
 
         async with async_session() as session:
-            result = await session.execute(
-                select(AnnotationImage.filename, AnnotationImage.is_annotated, AnnotationImage.box_count)
-                .order_by(AnnotationImage.id)
+            stmt = select(
+                AnnotationImage.filename, AnnotationImage.is_annotated,
+                AnnotationImage.box_count, AnnotationImage.model_type,
             )
-            db_files = {r[0]: {"is_annotated": r[1], "box_count": r[2]} for r in result.all()}
+            if model_type:
+                stmt = stmt.where(AnnotationImage.model_type == model_type)
+            stmt = stmt.order_by(AnnotationImage.id)
+            result = await session.execute(stmt)
+            db_files = {r[0]: {"is_annotated": r[1], "box_count": r[2], "model_type": r[3]} for r in result.all()}
     except Exception:
         db_files = {}
 
-    # 扫描目录
-    if ANNOTATE_DIR.exists():
+    # 扫描目录（仅在无筛选时）
+    if not model_type and ANNOTATE_DIR.exists():
         for f in sorted(ANNOTATE_DIR.iterdir()):
             if f.suffix.lower() in ('.jpg', '.jpeg', '.png'):
                 name = f.name
                 if name in db_files:
-                    files.append({"name": name, "annotated": db_files[name]["is_annotated"], "box_count": db_files[name]["box_count"]})
+                    files.append({"name": name, "annotated": db_files[name]["is_annotated"], "box_count": db_files[name]["box_count"], "model_type": db_files[name]["model_type"]})
                 else:
-                    # Fallback: check label file
                     lbl_name = f.stem + ".txt"
                     lbl_path = LABELS_DIR / "labels" / lbl_name
-                    files.append({"name": name, "annotated": lbl_path.exists(), "box_count": 0})
+                    files.append({"name": name, "annotated": lbl_path.exists(), "box_count": 0, "model_type": None})
+    else:
+        for name, info in db_files.items():
+            files.append({"name": name, "annotated": info["is_annotated"], "box_count": info["box_count"], "model_type": info["model_type"]})
 
     return {"files": files}
 
@@ -473,6 +480,7 @@ async def save_annotation(data: dict, request: Request = None):
     filename = data.get("filename", "")
     content = data.get("content", "")
     dataset_name = data.get("dataset_name", "default")
+    model_type = data.get("model_type")
 
     # 保存到训练集标注目录
     lbl_name = Path(filename).stem + ".txt"
@@ -523,6 +531,8 @@ async def save_annotation(data: dict, request: Request = None):
                 image.width = img_w
                 image.height = img_h
                 image.dataset_name = dataset_name
+                if model_type:
+                    image.model_type = model_type
                 image.is_annotated = True
                 image.box_count = box_count
                 image.update_by = username
@@ -531,7 +541,7 @@ async def save_annotation(data: dict, request: Request = None):
                 image = AnnotationImage(
                     filename=filename, file_path=file_path, file_size=file_size,
                     width=img_w, height=img_h, dataset_name=dataset_name,
-                    is_annotated=True, box_count=box_count, create_by=username,
+                    model_type=model_type, is_annotated=True, box_count=box_count, create_by=username,
                 )
                 session.add(image)
                 await session.flush()
@@ -542,7 +552,7 @@ async def save_annotation(data: dict, request: Request = None):
             )
 
             if content.strip():
-                class_map = {0: "fire", 1: "smoke"}
+                class_map = {0: "fire", 1: "smoke", 2: "person", 3: "no-helmet"}
                 for line in content.strip().splitlines():
                     parts = line.strip().split()
                     if len(parts) >= 5:
@@ -564,7 +574,7 @@ async def save_annotation(data: dict, request: Request = None):
 
 
 @app.post("/api/annotations/upload")
-async def upload_to_annotate(file: UploadFile = File(...)):
+async def upload_to_annotate(file: UploadFile = File(...), model_type: str = Form(None)):
     """上传图片到待标注目录（用于检测→标注联动）"""
     safe_name = Path(file.filename).name
     if '..' in safe_name or '/' in safe_name or '\\' in safe_name:
@@ -576,7 +586,150 @@ async def upload_to_annotate(file: UploadFile = File(...)):
     content = await file.read()
     with open(dst, "wb") as f:
         f.write(content)
+
+    # 写入数据库，带上模型类型
+    try:
+        from app.db import async_session
+        from app.models.annotation_image import AnnotationImage
+        from sqlalchemy import select
+        async with async_session() as session:
+            result = await session.execute(
+                select(AnnotationImage).where(AnnotationImage.filename == safe_name)
+            )
+            img = result.scalar_one_or_none()
+            if img:
+                if model_type:
+                    img.model_type = model_type
+            else:
+                session.add(AnnotationImage(
+                    filename=safe_name, file_path=str(dst),
+                    file_size=len(content), model_type=model_type,
+                ))
+            await session.commit()
+    except Exception:
+        pass
+
     return {"success": True, "filename": safe_name}
+
+
+@app.post("/api/annotations/classify")
+async def classify_annotation_image(data: dict):
+    """用三个模型检测图片，返回所属模型分类"""
+    filename = data.get("filename", "")
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="非法文件名")
+    img_path = (ANNOTATE_DIR / filename).resolve()
+    if not str(img_path).startswith(str(ANNOTATE_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="非法文件名")
+    if not img_path.exists():
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    import cv2
+    frame = await asyncio.to_thread(cv2.imread, str(img_path))
+    if frame is None:
+        raise HTTPException(status_code=400, detail="无法读取图片")
+
+    result_type = "general"
+    result_classes = []
+    for model_name in ["fire_smoke", "helmet", "general"]:
+        try:
+            dets, _ = await detector.detect_with_model(frame, model_name)
+            if len(dets) > 0:
+                classes = [detector.get_class_name(model_name, int(c)) for c in dets.class_id]
+                if model_name == "fire_smoke":
+                    result_type = "fire_smoke"
+                    result_classes = classes
+                    break
+                elif model_name == "helmet":
+                    result_type = "helmet"
+                    result_classes = classes
+                    break
+                else:
+                    result_classes = classes
+        except Exception:
+            continue
+
+    # 写入数据库
+    try:
+        from app.db import async_session
+        from app.models.annotation_image import AnnotationImage
+        from sqlalchemy import select
+        async with async_session() as session:
+            result = await session.execute(
+                select(AnnotationImage).where(AnnotationImage.filename == filename)
+            )
+            image = result.scalar_one_or_none()
+            if image:
+                image.model_type = result_type
+                await session.commit()
+    except Exception as e:
+        logger.error("classify_db_error", filename=filename, error=str(e))
+
+    return {"success": True, "model_type": result_type, "classes": list(set(result_classes))}
+
+
+@app.post("/api/annotations/classify-all")
+async def classify_all_annotation_images():
+    """批量分类所有待标注图片"""
+    if not ANNOTATE_DIR.exists():
+        return {"success": True, "classified": 0}
+
+    import cv2
+    from app.db import async_session
+    from app.models.annotation_image import AnnotationImage
+    from sqlalchemy import select
+
+    classified = 0
+    for f in sorted(ANNOTATE_DIR.iterdir()):
+        if f.suffix.lower() not in ('.jpg', '.jpeg', '.png'):
+            continue
+
+        # 跳过已分类的
+        try:
+            async with async_session() as session:
+                existing = await session.execute(
+                    select(AnnotationImage).where(AnnotationImage.filename == f.name)
+                )
+                img = existing.scalar_one_or_none()
+                if img and img.model_type:
+                    continue
+        except Exception:
+            pass
+
+        frame = await asyncio.to_thread(cv2.imread, str(f))
+        if frame is None:
+            continue
+
+        model_type = "general"
+        for model_name in ["fire_smoke", "helmet", "general"]:
+            try:
+                dets, _ = await detector.detect_with_model(frame, model_name)
+                if len(dets) > 0:
+                    model_type = model_name
+                    break
+            except Exception:
+                continue
+
+        try:
+            async with async_session() as session:
+                result = await session.execute(
+                    select(AnnotationImage).where(AnnotationImage.filename == f.name)
+                )
+                img = result.scalar_one_or_none()
+                if img:
+                    img.model_type = model_type
+                else:
+                    session.add(AnnotationImage(
+                        filename=f.name, file_path=str(f),
+                        file_size=f.stat().st_size if f.exists() else 0,
+                        model_type=model_type,
+                    ))
+                await session.commit()
+                classified += 1
+        except Exception:
+            continue
+
+    return {"success": True, "classified": classified}
 
 
 @app.get("/metrics", summary="Prometheus 指标", include_in_schema=False)

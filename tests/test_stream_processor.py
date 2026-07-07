@@ -72,38 +72,48 @@ class TestStreamProcessor:
 
     @pytest.mark.asyncio
     async def test_process_frame_with_detections(self, mock_frame):
-        """Test frame processing with mock detections."""
-        # Use only helmet alarm type so only helmet model is used
+        """Test frame processing with mock detections — new logic: person - helmet = no-helmet."""
         processor = StreamProcessor(
             "test-stream", "rtsp://test.com/stream",
             alarm_types=["helmet"],
         )
 
-        # Mock detector
-        mock_detections = MagicMock()
-        mock_detections.__len__ = MagicMock(return_value=1)
-        mock_detections.class_id = np.array([1])  # class 1 = no-helmet in helmet model
-        mock_detections.confidence = np.array([0.85])
-        mock_detections.tracker_id = np.array([1])
-        mock_detections.xyxy = np.array([[10, 20, 100, 200]])
+        # Mock person detections (general model)
+        mock_person_dets = MagicMock()
+        mock_person_dets.__len__ = MagicMock(return_value=1)
+        mock_person_dets.class_id = np.array([0])  # class 0 = person
+        mock_person_dets.confidence = np.array([0.9])
+        mock_person_dets.tracker_id = np.array([None])
+        mock_person_dets.xyxy = np.array([[100, 50, 300, 400]])  # large enough
+
+        # Mock helmet detections (helmet model) — empty, no helmet found
+        mock_helmet_dets = MagicMock()
+        mock_helmet_dets.__len__ = MagicMock(return_value=0)
 
         with patch("app.core.stream_processor.detector") as mock_detector, \
              patch("app.core.stream_processor.alarm_dedup") as mock_dedup, \
              patch("app.core.stream_processor.minio_service") as mock_minio, \
              patch("app.core.stream_processor.enqueue_alarm_task") as mock_enqueue:
 
-            mock_detector.detect_with_model = AsyncMock(return_value=(mock_detections, 15.5))
-            mock_detector.get_class_name = MagicMock(return_value="no-helmet")
+            async def fake_detect(frame, model_name, confidence_threshold=None):
+                if model_name == "general":
+                    return (mock_person_dets, 10.0)
+                else:
+                    return (mock_helmet_dets, 8.0)
+
+            mock_detector.detect_with_model = AsyncMock(side_effect=fake_detect)
+            mock_detector.get_class_name = MagicMock(return_value="person")
             mock_dedup.should_trigger_alarm = AsyncMock(return_value=True)
             mock_minio.upload_image = AsyncMock(return_value="2024/01/01/test-stream/test.jpg")
             mock_enqueue.return_value = AsyncMock()
 
             await processor._process_frame(mock_frame)
 
-            # Verify detector was called with the helmet model
-            mock_detector.detect_with_model.assert_called_once()
-            call_args = mock_detector.detect_with_model.call_args
-            assert call_args[0][1] == "helmet"  # model_name
+            # Verify detector was called twice: general + helmet
+            assert mock_detector.detect_with_model.call_count == 2
+            call_models = [call[0][1] for call in mock_detector.detect_with_model.call_args_list]
+            assert "general" in call_models
+            assert "helmet" in call_models
 
     @pytest.mark.asyncio
     async def test_process_frame_no_detections(self, mock_frame):
@@ -113,13 +123,16 @@ class TestStreamProcessor:
             alarm_types=["helmet"],
         )
 
-        mock_detections = MagicMock()
-        mock_detections.__len__ = MagicMock(return_value=0)
+        mock_empty = MagicMock()
+        mock_empty.__len__ = MagicMock(return_value=0)
 
         with patch("app.core.stream_processor.detector") as mock_detector, \
              patch("app.core.stream_processor.alarm_dedup") as mock_dedup:
 
-            mock_detector.detect_with_model = AsyncMock(return_value=(mock_detections, 10.0))
+            async def fake_detect(frame, model_name, confidence_threshold=None):
+                return (mock_empty, 10.0)
+
+            mock_detector.detect_with_model = AsyncMock(side_effect=fake_detect)
             mock_dedup.should_trigger_alarm = AsyncMock(return_value=False)
 
             # Should not raise
@@ -243,16 +256,19 @@ class TestStreamProcessorROI:
             roi=(10, 10, 100, 100),
         )
 
-        mock_detections = MagicMock()
-        mock_detections.__len__ = MagicMock(return_value=0)
+        mock_empty = MagicMock()
+        mock_empty.__len__ = MagicMock(return_value=0)
 
         with patch("app.core.stream_processor.detector") as mock_detector:
-            mock_detector.detect_with_model = AsyncMock(return_value=(mock_detections, 10.0))
+            async def fake_detect(frame, model_name, confidence_threshold=None):
+                return (mock_empty, 10.0)
+
+            mock_detector.detect_with_model = AsyncMock(side_effect=fake_detect)
 
             await processor._process_frame(mock_frame)
 
             # Verify detector was called with cropped frame
-            call_args = mock_detector.detect_with_model.call_args
+            call_args = mock_detector.detect_with_model.call_args_list[0]
             cropped_frame = call_args[0][0]
             # Cropped frame should be smaller than original
             assert cropped_frame.shape[0] <= mock_frame.shape[0]
@@ -266,15 +282,18 @@ class TestStreamProcessorROI:
             alarm_types=["helmet"],
         )
 
-        mock_detections = MagicMock()
-        mock_detections.__len__ = MagicMock(return_value=0)
+        mock_empty = MagicMock()
+        mock_empty.__len__ = MagicMock(return_value=0)
 
         with patch("app.core.stream_processor.detector") as mock_detector:
-            mock_detector.detect_with_model = AsyncMock(return_value=(mock_detections, 10.0))
+            async def fake_detect(frame, model_name, confidence_threshold=None):
+                return (mock_empty, 10.0)
+
+            mock_detector.detect_with_model = AsyncMock(side_effect=fake_detect)
 
             await processor._process_frame(mock_frame)
 
-            call_args = mock_detector.detect_with_model.call_args
+            call_args = mock_detector.detect_with_model.call_args_list[0]
             passed_frame = call_args[0][0]
             assert passed_frame.shape == mock_frame.shape
 
