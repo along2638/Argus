@@ -408,8 +408,8 @@ async def detect_image(request: DetectRequest, req: Request = None):
         # 执行检测
         if model_name == "helmet":
             (person_dets, t1), (helmet_dets, t2) = await asyncio.gather(
-                detector.detect_person_lightweight(frame, confidence_threshold=0.3),
-                detector.detect_helmet_lightweight(frame, confidence_threshold=0.01),
+                detector.detect_with_model(frame, "general", confidence_threshold=0.3),
+                detector.detect_with_model(frame, "helmet", confidence_threshold=0.01),
             )
             inference_time = t1 + t2
 
@@ -532,8 +532,8 @@ async def detect_upload(
         # 执行检测
         if model == "helmet":
             (person_dets, t1), (helmet_dets, t2) = await asyncio.gather(
-                detector.detect_person_lightweight(frame, confidence_threshold=0.3),
-                detector.detect_helmet_lightweight(frame, confidence_threshold=0.01),
+                detector.detect_with_model(frame, "general", confidence_threshold=0.3),
+                detector.detect_with_model(frame, "helmet", confidence_threshold=0.01),
             )
             inference_time = t1 + t2
 
