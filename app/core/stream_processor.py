@@ -67,6 +67,7 @@ class StreamProcessor:
         # 状态追踪：running / error / reconnecting
         self._status = "idle"
         self._error_message = ""
+        self._last_person_count = 0  # 上次检测到的人数，用于自适应采样
 
         print_status(f"流 {stream_id} 启用检测类型: {', '.join(self.alarm_types)}", "info")
 
@@ -253,6 +254,12 @@ class StreamProcessor:
             frame_count = 0
             frame_timeout = 30
 
+            # 自适应采样：连续无人帧数 → 降低检测频率
+            empty_frame_count = 0
+            EMPTY_THRESHOLD = 5  # 连续 5 帧无人后降低频率
+            NORMAL_INTERVAL = 1.0  # 正常：每 1 秒检测
+            SLOW_INTERVAL = 5.0    # 降频：每 5 秒检测
+
             while self._running:
                 try:
                     frame = await asyncio.wait_for(frame_queue.get(), timeout=frame_timeout)
@@ -286,8 +293,11 @@ class StreamProcessor:
                 except Exception:
                     pass
 
-                # Strategy 1: Fixed time sampling (every 1 second)
-                should_process = (current_time - last_sample_time) >= (1.0 / 1.0)
+                # 自适应采样间隔：连续无人时降低频率
+                detect_interval = SLOW_INTERVAL if empty_frame_count >= EMPTY_THRESHOLD else NORMAL_INTERVAL
+
+                # Strategy 1: Fixed time sampling
+                should_process = (current_time - last_sample_time) >= detect_interval
 
                 # Strategy 2: Scene change detection using frame difference
                 if not should_process and prev_frame_gray is not None:
@@ -297,6 +307,7 @@ class StreamProcessor:
                     del diff
                     if score > scene_threshold:
                         should_process = True
+                        empty_frame_count = 0  # 场景变化重置计数器
                         logger.debug("scene_change_detected", stream_id=self.stream_id, score=round(float(score), 2))
                     prev_frame_gray = gray
                 elif prev_frame_gray is None:
@@ -305,6 +316,11 @@ class StreamProcessor:
                 if should_process:
                     last_sample_time = current_time
                     await self._process_frame(img)
+                    # 更新空帧计数器
+                    if self._last_person_count > 0:
+                        empty_frame_count = 0
+                    else:
+                        empty_frame_count += 1
                     if frame_count <= 3:
                         logger.info("frame_processed", stream_id=self.stream_id, frame_num=frame_count)
 
@@ -597,6 +613,7 @@ class StreamProcessor:
             result = await detector.detect_helmet_combined(detect_frame)
 
             person_count = len(result["person_boxes"])
+            self._last_person_count = person_count  # 更新计数，供自适应采样使用
             helmet_count = len(result["helmet_boxes"])
             matched_count = len(result["matched"])
             no_helmet_count = len(result["no_helmet"])
