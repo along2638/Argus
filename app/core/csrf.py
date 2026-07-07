@@ -66,6 +66,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if not request.cookies.get("token"):
             return await call_next(request)
 
+        # Skip if using Bearer token auth (Authorization header present)
+        if request.headers.get("Authorization", "").startswith("Bearer "):
+            return await call_next(request)
+
         # Validate CSRF token
         cookie_token = request.cookies.get("csrf_token", "")
         header_token = request.headers.get("X-CSRF-Token", "")
