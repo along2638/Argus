@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # 安全帽检测模型
     HELMET_MODEL_PATH: str = "./models/onnx/helmet_final.onnx"
 
+    # 安全帽检测专用轻量模型（提速用）
+    HELMET_PERSON_MODEL_PATH: str = "./models/onnx/yolov11n.onnx"  # Nano 模型检测人（10MB vs 97MB）
+    HELMET_FP16_MODEL_PATH: str = "./models/onnx/helmet_fp16.onnx"  # FP16 安全帽模型（50MB vs 99MB）
+
     # Application Configuration
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000

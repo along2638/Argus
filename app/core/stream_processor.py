@@ -602,16 +602,18 @@ class StreamProcessor:
             ox, oy = roi_offset
             fh, fw = full_frame.shape[:2]
 
-            # 并行运行两个模型
-            (person_result, _), (helmet_result, _) = await asyncio.gather(
-                detector.detect_with_model(detect_frame, "general", confidence_threshold=0.3),
-                detector.detect_with_model(detect_frame, "helmet", confidence_threshold=0.01),
+            # 并行运行两个轻量模型（Nano 检测人 + FP16 检测帽子）
+            (person_result, t1), (helmet_result, t2) = await asyncio.gather(
+                detector.detect_person_lightweight(detect_frame, confidence_threshold=0.3),
+                detector.detect_helmet_lightweight(detect_frame, confidence_threshold=0.01),
             )
 
             logger.info("helmet_combined_debug",
                         stream_id=self.stream_id,
                         person_count=len(person_result),
-                        helmet_count=len(helmet_result))
+                        helmet_count=len(helmet_result),
+                        person_ms=round(t1, 1),
+                        helmet_ms=round(t2, 1))
 
             # 提取 person 检测结果（class_id=0 是 person）
             person_boxes = []

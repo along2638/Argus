@@ -98,6 +98,9 @@ class MultiModelDetector:
             "fire_smoke": ModelSession(settings.FIRE_SMOKE_MODEL_PATH, "火灾烟雾模型"),
             "helmet": ModelSession(settings.HELMET_MODEL_PATH, "安全帽模型"),
         }
+        # 安全帽检测专用轻量模型
+        self._helmet_person_model = ModelSession(settings.HELMET_PERSON_MODEL_PATH, "安全帽-人检测(Nano)")
+        self._helmet_fp16_model = ModelSession(settings.HELMET_FP16_MODEL_PATH, "安全帽模型(FP16)")
         self._class_mapping: Dict[str, Dict[str, str]] = {
             "general": settings.CLASS_MAPPING,
             "fire_smoke": settings.FIRE_SMOKE_CLASS_MAPPING,
@@ -108,6 +111,8 @@ class MultiModelDetector:
         """Release all ONNX sessions and GPU memory."""
         for model in self._models.values():
             model.close()
+        self._helmet_person_model.close()
+        self._helmet_fp16_model.close()
         logger.info("detector_sessions_closed")
 
     def _preprocess(self, frame: np.ndarray, input_shape: Tuple[int, int], model_name: str = "") -> Tuple[np.ndarray, Tuple[float, float]]:
@@ -322,6 +327,48 @@ class MultiModelDetector:
                 detections.tracker_id = tracker_ids
 
         return detections, inference_time
+
+    async def detect_person_lightweight(
+        self,
+        frame: np.ndarray,
+        confidence_threshold: float = 0.3,
+    ) -> Tuple[sv.Detections, float]:
+        """用 Nano 模型快速检测人（安全帽检测专用，速度提升 5-10 倍）。"""
+        model = self._helmet_person_model
+        session = model.get_session()
+        loop = asyncio.get_running_loop()
+
+        def _run():
+            blob, scale = self._preprocess(frame, model.input_shape, "general")
+            input_name = session.get_inputs()[0].name
+            start = time.time()
+            outputs = session.run(None, {input_name: blob})
+            inf_time = (time.time() - start) * 1000
+            num_classes = outputs[0].shape[1] - 4
+            return self._postprocess(outputs[0], scale, confidence_threshold, num_classes, "general"), inf_time
+
+        return await loop.run_in_executor(_inference_executor, _run)
+
+    async def detect_helmet_lightweight(
+        self,
+        frame: np.ndarray,
+        confidence_threshold: float = 0.01,
+    ) -> Tuple[sv.Detections, float]:
+        """用 FP16 模型快速检测安全帽（速度提升约 2 倍）。"""
+        model = self._helmet_fp16_model
+        session = model.get_session()
+        loop = asyncio.get_running_loop()
+
+        def _run():
+            blob, scale = self._preprocess(frame, model.input_shape, "helmet")
+            input_name = session.get_inputs()[0].name
+            start = time.time()
+            outputs = session.run(None, {input_name: blob})
+            inf_time = (time.time() - start) * 1000
+            num_classes = outputs[0].shape[1] - 4
+            return self._postprocess(outputs[0], scale, confidence_threshold, num_classes, "helmet"), inf_time
+
+        return await loop.run_in_executor(_inference_executor, _run)
 
     async def detect_all(
         self,
