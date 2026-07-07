@@ -389,14 +389,10 @@ class MultiModelDetector:
         """
         import asyncio
 
-        # 并行运行两个模型
-        (person_dets, t1), (helmet_dets, t2) = await asyncio.gather(
-            self.detect_with_model(frame, "general", confidence_threshold=person_threshold),
-            self.detect_with_model(frame, "helmet", confidence_threshold=helmet_threshold),
-        )
-
         img_h, img_w = frame.shape[:2]
-        helmet_thresh = settings.HELMET_CONFIRM_THRESHOLD
+
+        # 先跑通用模型检测人
+        person_dets, t1 = await self.detect_with_model(frame, "general", confidence_threshold=person_threshold)
 
         # 提取 person 框
         person_boxes = []
@@ -415,7 +411,20 @@ class MultiModelDetector:
                 continue
             person_boxes.append((x1, y1, x2, y2, conf))
 
-        # 提取 helmet 框
+        # 没检测到人，跳过安全帽模型
+        if not person_boxes:
+            return {
+                "person_boxes": [],
+                "helmet_boxes": [],
+                "matched": [],
+                "no_helmet": [],
+                "inference_ms": t1,
+            }
+
+        # 有人才跑安全帽模型
+        helmet_dets, t2 = await self.detect_with_model(frame, "helmet", confidence_threshold=helmet_threshold)
+
+        helmet_thresh = settings.HELMET_CONFIRM_THRESHOLD
         helmet_boxes = []
         for i in range(len(helmet_dets)):
             cid = int(helmet_dets.class_id[i])
