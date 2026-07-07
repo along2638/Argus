@@ -435,9 +435,17 @@ class MultiModelDetector:
         # 一对一贪心匹配
         matched_helmets = set()
         person_helmet_map = {}
+        head_not_visible = []
         for pi, (px1, py1, px2, py2, pconf) in enumerate(person_boxes):
+            # 头部区域 = 人体框上方 40%
             head_top = py1
             head_bottom = py1 + (py2 - py1) * 0.4
+
+            # 头部不在画面内（人只有下半身可见），跳过判定
+            if head_top < img_h * 0.02:
+                head_not_visible.append(pi)
+                continue
+
             best_hj = -1
             best_dist = float('inf')
             for hi, (hx1, hy1, hx2, hy2, hconf) in enumerate(helmet_boxes):
@@ -457,6 +465,8 @@ class MultiModelDetector:
         matched = []
         no_helmet = []
         for pi, pb in enumerate(person_boxes):
+            if pi in head_not_visible:
+                continue  # 头部不在画面内，不判定
             if pi in person_helmet_map:
                 matched.append({"person": pb, "helmet": helmet_boxes[person_helmet_map[pi]]})
             else:
