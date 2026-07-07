@@ -370,6 +370,106 @@ class MultiModelDetector:
 
         return await loop.run_in_executor(_inference_executor, _run)
 
+    async def detect_helmet_combined(
+        self,
+        frame: np.ndarray,
+        person_threshold: float = 0.3,
+        helmet_threshold: float = 0.01,
+    ) -> dict:
+        """安全帽检测：通用模型检测人 + 安全帽模型检测帽子，差集 = 没戴帽。
+
+        Returns:
+            {
+                "person_boxes": [(x1, y1, x2, y2, conf), ...],
+                "helmet_boxes": [(x1, y1, x2, y2, conf), ...],
+                "matched": [{"person": tuple, "helmet": tuple}, ...],
+                "no_helmet": [{"person": tuple}, ...],
+                "inference_ms": float,
+            }
+        """
+        import asyncio
+
+        # 并行运行两个模型
+        (person_dets, t1), (helmet_dets, t2) = await asyncio.gather(
+            self.detect_with_model(frame, "general", confidence_threshold=person_threshold),
+            self.detect_with_model(frame, "helmet", confidence_threshold=helmet_threshold),
+        )
+
+        img_h, img_w = frame.shape[:2]
+        helmet_thresh = settings.HELMET_CONFIRM_THRESHOLD
+
+        # 提取 person 框
+        person_boxes = []
+        for i in range(len(person_dets)):
+            cid = int(person_dets.class_id[i])
+            cname = self.get_class_name("general", cid)
+            if cname != "person":
+                continue
+            conf = float(person_dets.confidence[i])
+            x1, y1, x2, y2 = map(int, person_dets.xyxy[i].tolist())
+            x1 = max(0, min(x1, img_w)); y1 = max(0, min(y1, img_h))
+            x2 = max(0, min(x2, img_w)); y2 = max(0, min(y2, img_h))
+            if x2 <= x1 or y2 <= y1:
+                continue
+            if (x2 - x1) * (y2 - y1) / (img_w * img_h) < 0.02:
+                continue
+            person_boxes.append((x1, y1, x2, y2, conf))
+
+        # 提取 helmet 框
+        helmet_boxes = []
+        for i in range(len(helmet_dets)):
+            cid = int(helmet_dets.class_id[i])
+            cname = self.get_class_name("helmet", cid)
+            if cname != "helmet":
+                continue
+            conf = float(helmet_dets.confidence[i])
+            if conf < helmet_thresh:
+                continue
+            x1, y1, x2, y2 = map(int, helmet_dets.xyxy[i].tolist())
+            x1 = max(0, min(x1, img_w)); y1 = max(0, min(y1, img_h))
+            x2 = max(0, min(x2, img_w)); y2 = max(0, min(y2, img_h))
+            if x2 <= x1 or y2 <= y1:
+                continue
+            helmet_boxes.append((x1, y1, x2, y2, conf))
+
+        # 一对一贪心匹配
+        matched_helmets = set()
+        person_helmet_map = {}
+        for pi, (px1, py1, px2, py2, pconf) in enumerate(person_boxes):
+            head_top = py1
+            head_bottom = py1 + (py2 - py1) * 0.4
+            best_hj = -1
+            best_dist = float('inf')
+            for hi, (hx1, hy1, hx2, hy2, hconf) in enumerate(helmet_boxes):
+                if hi in matched_helmets:
+                    continue
+                hcx = (hx1 + hx2) / 2
+                hcy = (hy1 + hy2) / 2
+                if px1 <= hcx <= px2 and head_top <= hcy <= head_bottom:
+                    dist = abs(hcx - (px1 + px2) / 2) + abs(hcy - (py1 + py2) / 2) * 0.3
+                    if dist < best_dist:
+                        best_dist = dist
+                        best_hj = hi
+            if best_hj >= 0:
+                person_helmet_map[pi] = best_hj
+                matched_helmets.add(best_hj)
+
+        matched = []
+        no_helmet = []
+        for pi, pb in enumerate(person_boxes):
+            if pi in person_helmet_map:
+                matched.append({"person": pb, "helmet": helmet_boxes[person_helmet_map[pi]]})
+            else:
+                no_helmet.append({"person": pb})
+
+        return {
+            "person_boxes": person_boxes,
+            "helmet_boxes": helmet_boxes,
+            "matched": matched,
+            "no_helmet": no_helmet,
+            "inference_ms": t1 + t2,
+        }
+
     async def detect_all(
         self,
         frame: np.ndarray,

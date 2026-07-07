@@ -78,30 +78,21 @@ class TestStreamProcessor:
             alarm_types=["helmet"],
         )
 
-        # Mock person detections (general model)
-        mock_person_dets = MagicMock()
-        mock_person_dets.__len__ = MagicMock(return_value=1)
-        mock_person_dets.class_id = np.array([0])  # class 0 = person
-        mock_person_dets.confidence = np.array([0.9])
-        mock_person_dets.tracker_id = np.array([None])
-        mock_person_dets.xyxy = np.array([[100, 50, 300, 400]])  # large enough
-
-        # Mock helmet detections (helmet model) — empty, no helmet found
-        mock_helmet_dets = MagicMock()
-        mock_helmet_dets.__len__ = MagicMock(return_value=0)
+        # Mock unified detection result
+        mock_result = {
+            "person_boxes": [(100, 50, 300, 400, 0.9)],
+            "helmet_boxes": [],
+            "matched": [],
+            "no_helmet": [{"person": (100, 50, 300, 400, 0.9)}],
+            "inference_ms": 18.0,
+        }
 
         with patch("app.core.stream_processor.detector") as mock_detector, \
              patch("app.core.stream_processor.alarm_dedup") as mock_dedup, \
              patch("app.core.stream_processor.minio_service") as mock_minio, \
              patch("app.core.stream_processor.enqueue_alarm_task") as mock_enqueue:
 
-            async def fake_detect(frame, model_name, confidence_threshold=None):
-                if model_name == "general":
-                    return (mock_person_dets, 10.0)
-                else:
-                    return (mock_helmet_dets, 8.0)
-
-            mock_detector.detect_with_model = AsyncMock(side_effect=fake_detect)
+            mock_detector.detect_helmet_combined = AsyncMock(return_value=mock_result)
             mock_detector.get_class_name = MagicMock(return_value="person")
             mock_dedup.should_trigger_alarm = AsyncMock(return_value=True)
             mock_minio.upload_image = AsyncMock(return_value="2024/01/01/test-stream/test.jpg")
@@ -109,8 +100,8 @@ class TestStreamProcessor:
 
             await processor._process_frame(mock_frame)
 
-            # Verify detector was called twice: general + helmet
-            assert mock_detector.detect_with_model.call_count == 2
+            # Verify unified method was called
+            mock_detector.detect_helmet_combined.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_process_frame_no_detections(self, mock_frame):
@@ -253,21 +244,16 @@ class TestStreamProcessorROI:
             roi=(10, 10, 100, 100),
         )
 
-        mock_empty = MagicMock()
-        mock_empty.__len__ = MagicMock(return_value=0)
+        mock_result = {"person_boxes": [], "helmet_boxes": [], "matched": [], "no_helmet": [], "inference_ms": 10.0}
 
         with patch("app.core.stream_processor.detector") as mock_detector:
-            async def fake_detect(frame, model_name, confidence_threshold=None):
-                return (mock_empty, 10.0)
-
-            mock_detector.detect_with_model = AsyncMock(side_effect=fake_detect)
+            mock_detector.detect_helmet_combined = AsyncMock(return_value=mock_result)
 
             await processor._process_frame(mock_frame)
 
             # Verify detector was called with cropped frame
-            call_args = mock_detector.detect_with_model.call_args_list[0]
+            call_args = mock_detector.detect_helmet_combined.call_args_list[0]
             cropped_frame = call_args[0][0]
-            # Cropped frame should be smaller than original
             assert cropped_frame.shape[0] <= mock_frame.shape[0]
             assert cropped_frame.shape[1] <= mock_frame.shape[1]
 
@@ -279,18 +265,14 @@ class TestStreamProcessorROI:
             alarm_types=["helmet"],
         )
 
-        mock_empty = MagicMock()
-        mock_empty.__len__ = MagicMock(return_value=0)
+        mock_result = {"person_boxes": [], "helmet_boxes": [], "matched": [], "no_helmet": [], "inference_ms": 10.0}
 
         with patch("app.core.stream_processor.detector") as mock_detector:
-            async def fake_detect(frame, model_name, confidence_threshold=None):
-                return (mock_empty, 10.0)
-
-            mock_detector.detect_with_model = AsyncMock(side_effect=fake_detect)
+            mock_detector.detect_helmet_combined = AsyncMock(return_value=mock_result)
 
             await processor._process_frame(mock_frame)
 
-            call_args = mock_detector.detect_with_model.call_args_list[0]
+            call_args = mock_detector.detect_helmet_combined.call_args_list[0]
             passed_frame = call_args[0][0]
             assert passed_frame.shape == mock_frame.shape
 

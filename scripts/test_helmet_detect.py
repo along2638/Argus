@@ -29,103 +29,24 @@ def detect_helmet(image_path, debug=False):
 
     import asyncio
 
-    async def _detect():
-        # 使用轻量模型：Nano 检测人 + FP16 检测帽子
-        return await asyncio.gather(
-            detector.detect_person_lightweight(frame, confidence_threshold=0.3),
-            detector.detect_helmet_lightweight(frame, confidence_threshold=0.01),
-        )
-
     start = time.time()
-    results = asyncio.run(_detect())
+    result = asyncio.run(detector.detect_helmet_combined(frame))
     total_ms = (time.time() - start) * 1000
-    (person_dets, t1), (helmet_dets, t2) = results
-
-    img_h, img_w = frame.shape[:2]
-    helmet_thresh = settings.HELMET_CONFIRM_THRESHOLD
 
     if debug:
-        print(f"  [DEBUG] 图片尺寸: {img_w}x{img_h}")
-        print(f"  [DEBUG] 推理耗时: 人={t1:.1f}ms 帽子={t2:.1f}ms 总计={total_ms:.1f}ms")
-        print(f"  [DEBUG] 通用模型原始检测: {len(person_dets)} 个")
-        for i in range(len(person_dets)):
-            cid = int(person_dets.class_id[i])
-            cname = detector.get_class_name("general", cid)
-            conf = float(person_dets.confidence[i])
-            bbox = person_dets.xyxy[i].tolist()
-            area_ratio = (bbox[2]-bbox[0]) * (bbox[3]-bbox[1]) / (img_w * img_h)
-            print(f"    {cname} conf={conf:.3f} bbox={[int(x) for x in bbox]} area={area_ratio:.4f}")
-        print(f"  [DEBUG] 安全帽模型原始检测: {len(helmet_dets)} 个")
-        for i in range(len(helmet_dets)):
-            cid = int(helmet_dets.class_id[i])
-            cname = detector.get_class_name("helmet", cid)
-            conf = float(helmet_dets.confidence[i])
-            bbox = helmet_dets.xyxy[i].tolist()
-            print(f"    {cname} conf={conf:.3f} bbox={[int(x) for x in bbox]}")
+        print(f"  [DEBUG] 图片尺寸: {frame.shape[1]}x{frame.shape[0]}")
+        print(f"  [DEBUG] 推理耗时: {result['inference_ms']:.1f}ms (含后处理总计 {total_ms:.1f}ms)")
+        print(f"  [DEBUG] 人检测: {len(result['person_boxes'])} 个")
+        for pb in result["person_boxes"]:
+            print(f"    person conf={pb[4]:.3f} bbox={list(pb[:4])}")
+        print(f"  [DEBUG] 帽子检测: {len(result['helmet_boxes'])} 个")
+        for hb in result["helmet_boxes"]:
+            print(f"    helmet conf={hb[4]:.3f} bbox={list(hb[:4])}")
+        print(f"  [DEBUG] 匹配结果: helmet={len(result['matched'])}, no-helmet={len(result['no_helmet'])}")
 
-    # 提取 person 框
-    person_boxes = []
-    for i in range(len(person_dets)):
-        cid = int(person_dets.class_id[i])
-        cname = detector.get_class_name("general", cid)
-        if cname != "person":
-            continue
-        conf = float(person_dets.confidence[i])
-        bbox = person_dets.xyxy[i].tolist()
-        x1, y1, x2, y2 = bbox
-        if (x2 - x1) * (y2 - y1) / (img_w * img_h) < 0.02:
-            continue
-        person_boxes.append({"conf": conf, "bbox": bbox})
-
-    # 提取 helmet 框
-    helmet_boxes = []
-    for i in range(len(helmet_dets)):
-        cid = int(helmet_dets.class_id[i])
-        cname = detector.get_class_name("helmet", cid)
-        if cname != "helmet":
-            continue
-        conf = float(helmet_dets.confidence[i])
-        if conf < helmet_thresh:
-            continue
-        bbox = helmet_dets.xyxy[i].tolist()
-        helmet_boxes.append({"conf": conf, "bbox": bbox})
-
-    if debug:
-        print(f"  [DEBUG] 过滤后: person={len(person_boxes)}, helmet={len(helmet_boxes)}")
-        for pb in person_boxes:
-            print(f"    person: bbox={[int(x) for x in pb['bbox']]}")
-        for hb in helmet_boxes:
-            print(f"    helmet: bbox={[int(x) for x in hb['bbox']]} conf={hb['conf']:.3f}")
-
-    # 一对一贪心匹配
-    matched_helmets = set()
-    person_helmet_map = {}
-    for pi, pb in enumerate(person_boxes):
-        px1, py1, px2, py2 = pb["bbox"]
-        head_top = py1
-        head_bottom = py1 + (py2 - py1) * 0.4
-        best_hj = -1
-        best_dist = float('inf')
-        for hi, hb in enumerate(helmet_boxes):
-            if hi in matched_helmets:
-                continue
-            hx1, hy1, hx2, hy2 = hb["bbox"]
-            hcx = (hx1 + hx2) / 2
-            hcy = (hy1 + hy2) / 2
-            if px1 <= hcx <= px2 and head_top <= hcy <= head_bottom:
-                dist = abs(hcx - (px1 + px2) / 2) + abs(hcy - (py1 + py2) / 2) * 0.3
-                if dist < best_dist:
-                    best_dist = dist
-                    best_hj = hi
-        if best_hj >= 0:
-            person_helmet_map[pi] = best_hj
-            matched_helmets.add(best_hj)
-
-    # 统计结果
-    helmet_count = len(person_helmet_map)
-    no_helmet_count = len(person_boxes) - helmet_count
-
-    return len(person_boxes), helmet_count, no_helmet_count
+    helmet_count = len(result["matched"])
+    no_helmet_count = len(result["no_helmet"])
+    return len(result["person_boxes"]), helmet_count, no_helmet_count
 
 
 def main():

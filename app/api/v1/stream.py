@@ -407,70 +407,15 @@ async def detect_image(request: DetectRequest, req: Request = None):
 
         # 执行检测
         if model_name == "helmet":
-            (person_dets, t1), (helmet_dets, t2) = await asyncio.gather(
-                detector.detect_with_model(frame, "general", confidence_threshold=0.3),
-                detector.detect_with_model(frame, "helmet", confidence_threshold=0.01),
-            )
-            inference_time = t1 + t2
-
-            img_h, img_w = frame.shape[:2]
-            helmet_thresh = settings.HELMET_CONFIRM_THRESHOLD
-
-            person_boxes = []
-            for i in range(len(person_dets)):
-                cid = int(person_dets.class_id[i])
-                cname = detector.get_class_name("general", cid)
-                if cname != "person":
-                    continue
-                conf = float(person_dets.confidence[i])
-                bbox = person_dets.xyxy[i].tolist()
-                x1, y1, x2, y2 = bbox
-                if (x2 - x1) * (y2 - y1) / (img_w * img_h) < 0.02:
-                    continue
-                person_boxes.append({"conf": conf, "bbox": bbox})
-
-            helmet_boxes = []
-            for i in range(len(helmet_dets)):
-                cid = int(helmet_dets.class_id[i])
-                cname = detector.get_class_name("helmet", cid)
-                if cname != "helmet":
-                    continue
-                conf = float(helmet_dets.confidence[i])
-                if conf < helmet_thresh:
-                    continue
-                bbox = helmet_dets.xyxy[i].tolist()
-                helmet_boxes.append({"conf": conf, "bbox": bbox})
-
-            matched_helmets = set()
-            person_helmet_map = {}
-            for pi, pb in enumerate(person_boxes):
-                px1, py1, px2, py2 = pb["bbox"]
-                head_top = py1
-                head_bottom = py1 + (py2 - py1) * 0.4
-                best_hj = -1
-                best_dist = float('inf')
-                for hi, hb in enumerate(helmet_boxes):
-                    if hi in matched_helmets:
-                        continue
-                    hx1, hy1, hx2, hy2 = hb["bbox"]
-                    hcx = (hx1 + hx2) / 2
-                    hcy = (hy1 + hy2) / 2
-                    if px1 <= hcx <= px2 and head_top <= hcy <= head_bottom:
-                        dist = abs(hcx - (px1 + px2) / 2) + abs(hcy - (py1 + py2) / 2) * 0.3
-                        if dist < best_dist:
-                            best_dist = dist
-                            best_hj = hi
-                if best_hj >= 0:
-                    person_helmet_map[pi] = best_hj
-                    matched_helmets.add(best_hj)
-
+            result = await detector.detect_helmet_combined(frame)
+            inference_time = result["inference_ms"]
             results = []
-            for pi, pb in enumerate(person_boxes):
-                if pi in person_helmet_map:
-                    hb = helmet_boxes[person_helmet_map[pi]]
-                    results.append({"class_id": 0, "class_name": "helmet", "confidence": round(hb["conf"], 4), "bbox": [round(x, 1) for x in hb["bbox"]], "bbox_format": "x1_y1_x2_y2"})
-                else:
-                    results.append({"class_id": 1, "class_name": "no-helmet", "confidence": round(pb["conf"], 4), "bbox": [round(x, 1) for x in pb["bbox"]], "bbox_format": "x1_y1_x2_y2"})
+            for m in result["matched"]:
+                hb = m["helmet"]
+                results.append({"class_id": 0, "class_name": "helmet", "confidence": round(hb[4], 4), "bbox": [round(x, 1) for x in hb[:4]], "bbox_format": "x1_y1_x2_y2"})
+            for m in result["no_helmet"]:
+                pb = m["person"]
+                results.append({"class_id": 1, "class_name": "no-helmet", "confidence": round(pb[4], 4), "bbox": [round(x, 1) for x in pb[:4]], "bbox_format": "x1_y1_x2_y2"})
         else:
             detections, inference_time = await detector.detect_with_model(
                 frame, model_name, confidence_threshold=request.confidence
@@ -531,70 +476,15 @@ async def detect_upload(
 
         # 执行检测
         if model == "helmet":
-            (person_dets, t1), (helmet_dets, t2) = await asyncio.gather(
-                detector.detect_with_model(frame, "general", confidence_threshold=0.3),
-                detector.detect_with_model(frame, "helmet", confidence_threshold=0.01),
-            )
-            inference_time = t1 + t2
-
-            img_h, img_w = frame.shape[:2]
-            helmet_thresh = settings.HELMET_CONFIRM_THRESHOLD
-
-            person_boxes = []
-            for i in range(len(person_dets)):
-                cid = int(person_dets.class_id[i])
-                cname = detector.get_class_name("general", cid)
-                if cname != "person":
-                    continue
-                conf = float(person_dets.confidence[i])
-                bbox = person_dets.xyxy[i].tolist()
-                x1, y1, x2, y2 = bbox
-                if (x2 - x1) * (y2 - y1) / (img_w * img_h) < 0.02:
-                    continue
-                person_boxes.append({"conf": conf, "bbox": bbox})
-
-            helmet_boxes = []
-            for i in range(len(helmet_dets)):
-                cid = int(helmet_dets.class_id[i])
-                cname = detector.get_class_name("helmet", cid)
-                if cname != "helmet":
-                    continue
-                conf = float(helmet_dets.confidence[i])
-                if conf < helmet_thresh:
-                    continue
-                bbox = helmet_dets.xyxy[i].tolist()
-                helmet_boxes.append({"conf": conf, "bbox": bbox})
-
-            matched_helmets = set()
-            person_helmet_map = {}
-            for pi, pb in enumerate(person_boxes):
-                px1, py1, px2, py2 = pb["bbox"]
-                head_top = py1
-                head_bottom = py1 + (py2 - py1) * 0.4
-                best_hj = -1
-                best_dist = float('inf')
-                for hi, hb in enumerate(helmet_boxes):
-                    if hi in matched_helmets:
-                        continue
-                    hx1, hy1, hx2, hy2 = hb["bbox"]
-                    hcx = (hx1 + hx2) / 2
-                    hcy = (hy1 + hy2) / 2
-                    if px1 <= hcx <= px2 and head_top <= hcy <= head_bottom:
-                        dist = abs(hcx - (px1 + px2) / 2) + abs(hcy - (py1 + py2) / 2) * 0.3
-                        if dist < best_dist:
-                            best_dist = dist
-                            best_hj = hi
-                if best_hj >= 0:
-                    person_helmet_map[pi] = best_hj
-                    matched_helmets.add(best_hj)
-
+            result = await detector.detect_helmet_combined(frame)
+            inference_time = result["inference_ms"]
             results = []
-            for pi, pb in enumerate(person_boxes):
-                if pi in person_helmet_map:
-                    hb = helmet_boxes[person_helmet_map[pi]]
-                    results.append({"class_id": 0, "class_name": "helmet", "confidence": round(hb["conf"], 4), "bbox": [round(x, 1) for x in hb["bbox"]], "bbox_format": "x1_y1_x2_y2"})
-                else:
-                    results.append({"class_id": 1, "class_name": "no-helmet", "confidence": round(pb["conf"], 4), "bbox": [round(x, 1) for x in pb["bbox"]], "bbox_format": "x1_y1_x2_y2"})
+            for m in result["matched"]:
+                hb = m["helmet"]
+                results.append({"class_id": 0, "class_name": "helmet", "confidence": round(hb[4], 4), "bbox": [round(x, 1) for x in hb[:4]], "bbox_format": "x1_y1_x2_y2"})
+            for m in result["no_helmet"]:
+                pb = m["person"]
+                results.append({"class_id": 1, "class_name": "no-helmet", "confidence": round(pb[4], 4), "bbox": [round(x, 1) for x in pb[:4]], "bbox_format": "x1_y1_x2_y2"})
         else:
             # 单模型检测
             detections, inference_time = await detector.detect_with_model(
