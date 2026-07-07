@@ -254,11 +254,11 @@ class StreamProcessor:
             frame_count = 0
             frame_timeout = 30
 
-            # 自适应采样：连续无人帧数 → 降低检测频率
+            # 自适应采样：连续无人帧数 → 指数退避拉长间隔
             empty_frame_count = 0
-            EMPTY_THRESHOLD = 5  # 连续 5 帧无人后降低频率
-            NORMAL_INTERVAL = 1.0  # 正常：每 1 秒检测
-            SLOW_INTERVAL = 5.0    # 降频：每 5 秒检测
+            BASE_INTERVAL = 1.0     # 基础间隔：1 秒
+            MAX_INTERVAL = 60.0     # 最大间隔：60 秒
+            BACKOFF_FACTOR = 2.0    # 每次翻倍
 
             while self._running:
                 try:
@@ -293,8 +293,8 @@ class StreamProcessor:
                 except Exception:
                     pass
 
-                # 自适应采样间隔：连续无人时降低频率
-                detect_interval = SLOW_INTERVAL if empty_frame_count >= EMPTY_THRESHOLD else NORMAL_INTERVAL
+                # 自适应采样间隔：连续无人时指数退避
+                detect_interval = min(BASE_INTERVAL * (BACKOFF_FACTOR ** empty_frame_count), MAX_INTERVAL)
 
                 # Strategy 1: Fixed time sampling
                 should_process = (current_time - last_sample_time) >= detect_interval
