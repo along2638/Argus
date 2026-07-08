@@ -144,26 +144,98 @@
         }
 
         /* ── Sidebar ── */
-        .form-select {
+
+
+        /* ── 自定义下拉框 ── */
+        .custom-select {
+            position: relative;
             width: 100%;
-            padding: 8px 12px;
+            font-family: inherit;
+        }
+        .custom-select-trigger {
+            width: 100%;
+            padding: 8px 30px 8px 12px;
             background: var(--bg-input);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
             color: var(--ink);
             font-size: 0.82rem;
             font-family: inherit;
-            transition: var(--transition);
-            outline: none;
             cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8580' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            padding-right: 30px;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            user-select: none;
+            outline: none;
         }
-        .form-select:hover { border-color: var(--ink-faint); }
-        .form-select:focus { border-color: var(--border-focus); }
+        .custom-select-trigger:hover { border-color: var(--ink-faint); }
+        .custom-select.open .custom-select-trigger { border-color: var(--border-focus); }
+        .custom-select-trigger::after {
+            content: '';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0; height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid var(--ink-faint);
+            pointer-events: none;
+            transition: transform 0.15s ease;
+        }
+        .custom-select.open .custom-select-trigger::after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+        .custom-select-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: var(--bg-card-solid);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            z-index: 100;
+            max-height: 240px;
+            overflow-y: auto;
+            padding: 4px;
+            display: none;
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+        .custom-select.open .custom-select-dropdown {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .custom-select-option {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            color: var(--ink);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: background 0.1s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .custom-select-option:hover {
+            background: var(--accent-soft);
+        }
+        .custom-select-option.selected {
+            background: var(--ink);
+            color: var(--bg);
+        }
+        .custom-select-option .opt-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
 
         .sidebar {
             width: 280px;
@@ -241,6 +313,19 @@
             font-size: 0.68rem;
             color: var(--ink-faint);
         }
+
+        .model-badge {
+            font-size: 0.6rem;
+            font-weight: 500;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .model-badge--general { background: rgba(99,102,241,0.12); color: #6366f1; }
+        .model-badge--fire_smoke { background: rgba(239,68,68,0.12); color: #ef4444; }
+        .model-badge--helmet { background: rgba(245,158,11,0.12); color: #f59e0b; }
+        .file-item.active .model-badge { background: rgba(255,255,255,0.2); color: #fff; }
 
         /* ── Main Area ── */
         .main-area {
@@ -473,6 +558,10 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
                 数据集
             </a>
+            <a href="/static/guide.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                说明
+            </a>
             <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()" style="padding:5px 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
             <div id="userInfoSlot"></div>
         </div>
@@ -485,6 +574,19 @@
                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                     待标注图片
                 </span>
+                <button class="topbar-btn" onclick="classifyAll()" title="自动分类全部图片" style="padding:3px 8px;font-size:0.7rem;border:1px solid var(--border);border-radius:6px;">分类</button>
+            </div>
+            <div style="padding:8px 8px 0;">
+                <div class="custom-select" id="modelFilterWrap">
+                    <div class="custom-select-trigger" onclick="toggleSelect(this)">全部类型</div>
+                    <div class="custom-select-dropdown">
+                        <div class="custom-select-option selected" data-value="" onclick="selectOption(this)">全部类型</div>
+                        <div class="custom-select-option" data-value="general" onclick="selectOption(this)"><span class="opt-dot" style="background:#6366f1"></span>通用 (person/animal)</div>
+                        <div class="custom-select-option" data-value="fire_smoke" onclick="selectOption(this)"><span class="opt-dot" style="background:#ef4444"></span>火灾烟雾 (fire/smoke)</div>
+                        <div class="custom-select-option" data-value="helmet" onclick="selectOption(this)"><span class="opt-dot" style="background:#f59e0b"></span>安全帽 (helmet)</div>
+                        <div class="custom-select-option" data-value="unclassified" onclick="selectOption(this)"><span class="opt-dot" style="background:#999"></span>未分类</div>
+                    </div>
+                </div>
             </div>
             <div class="file-scroll" id="fileList"></div>
         </aside>
@@ -495,10 +597,10 @@
                 <button class="btn btn-ghost" onclick="nextImage()">下一张 →</button>
                 <div class="toolbar-sep"></div>
                 <div class="form-group" style="margin-bottom:0;min-width:120px;">
-                    <select id="classSelect" class="form-select" style="padding:7px 10px;font-size:0.78rem;border-radius:var(--radius);background:var(--bg-input);border:1px solid var(--border);color:var(--ink);font-family:inherit;cursor:pointer;">
-                        <option value="0">fire</option>
-                        <option value="1">smoke</option>
-                    </select>
+                    <div class="custom-select" id="classSelectWrap" style="min-width:120px;">
+                        <div class="custom-select-trigger" onclick="toggleSelect(this)">暂无标注类别</div>
+                        <div class="custom-select-dropdown"></div>
+                    </div>
                 </div>
                 <button class="btn btn-success" onclick="saveAnnotation()">保存标注</button>
                 <button class="btn btn-danger" onclick="deleteLastBox()">删除框</button>
@@ -557,6 +659,7 @@
         let panX = 0, panY = 0;
         let isPanning = false;
         let panStartX, panStartY;
+        let allClasses = [];
 
         async function doLogout() {
             localStorage.removeItem('token');
@@ -593,35 +696,37 @@
                 return;
             }
             boxes = undoHistory.pop();
+            updateClassDropdown();
             renderBoxes();
             updateBoxCount();
             showNotification(`已撤销，剩余 ${boxes.length} 个框`, 'info');
         }
 
-        async function loadFiles() {
+        async function loadFiles(modelType) {
             // 加载标注类别
             try {
                 const clsResp = await authFetch('/api/v1/auth/annotation-classes');
                 const clsData = await clsResp.json();
                 if (clsData.success && clsData.classes) {
-                    const sel = document.getElementById('classSelect');
-                    sel.innerHTML = clsData.classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                    allClasses = clsData.classes;
                 }
             } catch {}
 
-            const response = await authFetch('/api/annotations/files');
+            let url = '/api/annotations/files';
+            if (modelType) url += '?model_type=' + encodeURIComponent(modelType);
+            const response = await authFetch(url);
             const data = await response.json();
             images = data.files;
             updateProgress();
             renderFileList();
 
-            // 检查 URL 参数，直接加载指定图片
+            // 检查 URL 参数，直接加载指定图片（跳过标注状态检查）
             const urlParams = new URLSearchParams(window.location.search);
             const targetImage = urlParams.get('image');
             if (targetImage) {
                 const idx = images.findIndex(f => f.name === targetImage);
                 if (idx >= 0) {
-                    loadImage(idx);
+                    loadImage(idx, true);
                     return;
                 }
             }
@@ -629,24 +734,52 @@
             if (images.length > 0) loadImage(0);
         }
 
+        const MODEL_LABELS = { general: '通用', fire_smoke: '火灾烟雾', helmet: '安全帽' };
+
         function renderFileList() {
-            const pending = images.filter(f => !f.annotated);
-            fileList.innerHTML = pending.map((file, i) => {
+            const hasUrlImage = new URLSearchParams(window.location.search).get('image');
+            const list = hasUrlImage ? images : images.filter(f => !f.annotated);
+            fileList.innerHTML = list.map((file, i) => {
                 const realIndex = images.indexOf(file);
                 const cls = realIndex === currentIndex ? 'active' : '';
-                return `<div class="file-item ${cls}" onclick="saveAnnotation();loadImage(${realIndex})">
-                    <div class="file-dot"></div>
+                const mt = file.model_type;
+                const badge = mt ? `<span class="model-badge model-badge--${mt}">${MODEL_LABELS[mt] || mt}</span>` : '';
+                const dotCls = file.annotated ? 'done' : '';
+                return `<div class="file-item ${cls}" onclick="saveAnnotation();loadImage(${realIndex}, true)">
+                    <div class="file-dot ${dotCls}"></div>
                     <span class="file-name">${file.name}</span>
+                    ${badge}
                 </div>`;
             }).join('');
-            if (pending.length === 0) {
+            if (list.length === 0) {
                 fileList.innerHTML = '<div class="canvas-empty" style="padding:40px 20px;"><div class="canvas-empty-text">所有图片已标注完成</div></div>';
             }
         }
 
-        function loadImage(index) {
+        function filterByModel() {
+            const val = getSelectValue('modelFilterWrap');
+            loadFiles(val || undefined);
+        }
+
+        async function classifyAll() {
+            showNotification('正在分类图片，请稍候…', 'info');
+            try {
+                const resp = await authFetch('/api/annotations/classify-all', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    showNotification(`分类完成：${data.classified} 张图片`, 'success');
+                    filterByModel();
+                } else {
+                    showErrorModal('分类失败');
+                }
+            } catch (e) {
+                showErrorModal('分类异常：' + e.message);
+            }
+        }
+
+        function loadImage(index, force) {
             if (index < 0 || index >= images.length) return;
-            if (images[index].annotated) {
+            if (images[index].annotated && !force) {
                 const pending = images.filter(f => !f.annotated);
                 if (pending.length > 0) {
                     loadImage(images.indexOf(pending[0]));
@@ -690,8 +823,81 @@
             } catch (e) {
                 console.error('Load boxes error:', e);
             }
+            // 根据当前图片已有标注的类别过滤下拉框选项
+            updateClassDropdown();
             renderBoxes();
             updateBoxCount();
+        }
+
+        // ── 自定义下拉框通用逻辑 ──
+        function toggleSelect(trigger) {
+            const wrap = trigger.parentElement;
+            const isOpen = wrap.classList.contains('open');
+            // 先关闭所有下拉
+            document.querySelectorAll('.custom-select.open').forEach(el => el.classList.remove('open'));
+            if (!isOpen) wrap.classList.add('open');
+        }
+
+        function selectOption(opt) {
+            const wrap = opt.closest('.custom-select');
+            const trigger = wrap.querySelector('.custom-select-trigger');
+            wrap.querySelectorAll('.custom-select-option').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            trigger.innerHTML = opt.innerHTML;
+            wrap.classList.remove('open');
+            if (wrap.id === 'modelFilterWrap') filterByModel();
+        }
+
+        function setSelectValue(wrapId, value) {
+            const wrap = document.getElementById(wrapId);
+            const opts = wrap.querySelectorAll('.custom-select-option');
+            opts.forEach(o => {
+                o.classList.toggle('selected', o.dataset.value == value);
+                if (o.dataset.value == value) {
+                    wrap.querySelector('.custom-select-trigger').innerHTML = o.innerHTML;
+                }
+            });
+        }
+
+        function getSelectValue(wrapId) {
+            const wrap = document.getElementById(wrapId);
+            const sel = wrap.querySelector('.custom-select-option.selected');
+            return sel ? sel.dataset.value : '';
+        }
+
+        // 点击外部关闭下拉
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.custom-select')) {
+                document.querySelectorAll('.custom-select.open').forEach(el => el.classList.remove('open'));
+            }
+        });
+
+        function updateClassDropdown() {
+            const wrap = document.getElementById('classSelectWrap');
+            const dd = wrap.querySelector('.custom-select-dropdown');
+            const prevVal = getSelectValue('classSelectWrap');
+
+            // 已用类别排前面，其余追加在后面
+            const usedIds = [...new Set(boxes.map(b => b.class_id))];
+            const usedClasses = usedIds.map(id => allClasses.find(c => c.id === id)).filter(Boolean);
+            const restClasses = allClasses.filter(c => !usedIds.includes(c.id));
+            const classes = [...usedClasses, ...restClasses];
+
+            dd.innerHTML = classes.map((c, i) => {
+                const sel = (prevVal == c.id || (!prevVal && i === 0)) ? ' selected' : '';
+                const used = usedIds.includes(c.id) ? ' font-weight:600;' : '';
+                return `<div class="custom-select-option${sel}" data-value="${c.id}" style="${used}">${c.name}${usedIds.includes(c.id) ? ' ✓' : ''}</div>`;
+            }).join('');
+            dd.querySelectorAll('.custom-select-option').forEach(o => {
+                o.onclick = () => selectOption(o);
+            });
+            const first = dd.querySelector('.custom-select.selected') || dd.querySelector('.custom-select-option');
+            if (first) wrap.querySelector('.custom-select-trigger').innerHTML = first.innerHTML;
+        }
+
+        function getSelectedClassId() {
+            const v = getSelectValue('classSelectWrap');
+            return parseInt(v) || 0;
         }
 
         function renderBoxes() {
@@ -702,11 +908,9 @@
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0);
-            // 从下拉框构建类别映射
+            // 从全量类别列表构建映射，确保所有框都能正确显示标签
             const classMap = {};
-            document.getElementById('classSelect').querySelectorAll('option').forEach(opt => {
-                classMap[opt.value] = opt.textContent;
-            });
+            allClasses.forEach(c => { classMap[c.id] = c.name; });
             boxes.forEach((box, i) => {
                 ctx.strokeStyle = 'rgba(45,122,79,0.9)';
                 ctx.lineWidth = Math.max(1, 2 / zoom);
@@ -729,7 +933,6 @@
 
         canvas.onmousedown = (e) => {
             if (e.button === 1 || (e.button === 0 && e.altKey)) {
-                // 中键或 Alt+左键 = 平移
                 isPanning = true;
                 panStartX = e.clientX - panX;
                 panStartY = e.clientY - panY;
@@ -743,7 +946,7 @@
             startX = (e.clientX - rect.left - panX) / zoom * scaleX;
             startY = (e.clientY - rect.top - panY) / zoom * scaleY;
             isDrawing = true;
-            const classId = parseInt(document.getElementById('classSelect').value);
+            const classId = getSelectedClassId();
             currentBox = { x: startX, y: startY, w: 0, h: 0, class_id: classId };
         };
 
@@ -787,6 +990,7 @@
                 if (currentBox.w < 0) { currentBox.x += currentBox.w; currentBox.w = -currentBox.w; }
                 if (currentBox.h < 0) { currentBox.y += currentBox.h; currentBox.h = -currentBox.h; }
                 boxes.push(currentBox);
+                updateClassDropdown();
                 showNotification(`已添加框 ${boxes.length}`, 'success');
             }
             currentBox = null;
@@ -801,6 +1005,12 @@
             else if (e.key === 'ArrowLeft') prevImage();
             else if (e.key === 'Delete') deleteLastBox();
             else if (e.key === '0') { zoom = 1; panX = 0; panY = 0; renderBoxes(); }
+            else if (e.key >= '1' && e.key <= '9') {
+                const idx = parseInt(e.key) - 1;
+                const wrap = document.getElementById('classSelectWrap');
+                const opts = wrap.querySelectorAll('.custom-select-option');
+                if (idx < opts.length) selectOption(opts[idx]);
+            }
         };
 
         canvas.addEventListener('wheel', (e) => {
@@ -819,24 +1029,26 @@
 
         function nextImage() {
             saveAnnotation();
-            const pending = images.filter(f => !f.annotated);
-            if (pending.length > 0) {
-                const next = images.indexOf(pending[0]);
-                loadImage(next);
+            for (let i = currentIndex + 1; i < images.length; i++) {
+                if (!images[i].annotated) { loadImage(i); return; }
             }
+            // 没有后面的了，找第一张未标注的
+            const first = images.findIndex(f => !f.annotated);
+            if (first >= 0 && first !== currentIndex) loadImage(first);
         }
         function prevImage() {
             saveAnnotation();
-            const pending = images.filter(f => !f.annotated);
-            if (pending.length > 0) {
-                const prev = images.indexOf(pending[pending.length - 1]);
-                loadImage(prev);
+            for (let i = currentIndex - 1; i >= 0; i--) {
+                if (!images[i].annotated) { loadImage(i); return; }
             }
+            const last = images.map((f, i) => ({ f, i })).filter(x => !x.f.annotated).pop();
+            if (last && last.i !== currentIndex) loadImage(last.i);
         }
         function deleteLastBox() {
             if (boxes.length > 0) {
                 saveUndoState();
                 boxes.pop();
+                updateClassDropdown();
                 renderBoxes();
                 updateBoxCount();
                 showNotification(`已删除，剩余 ${boxes.length} 个框`, 'info');
@@ -844,7 +1056,7 @@
         }
 
         async function saveAnnotation() {
-            if (!images[currentIndex]) return;
+            if (!images[currentIndex] || !img) return;
             const imgW = img.width;
             const imgH = img.height;
             const yoloLines = boxes.map(box => {
@@ -862,7 +1074,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         filename: images[currentIndex].name,
-                        content: yoloLines.join('\n')
+                        content: yoloLines.join('\n'),
+                        model_type: images[currentIndex].model_type || null
                     })
                 });
                 const result = await response.json();
@@ -871,10 +1084,6 @@
                     renderFileList();
                     updateProgress();
                     showNotification(`已保存: ${images[currentIndex].name}`, 'success');
-                    const pending = images.filter(f => !f.annotated);
-                    if (pending.length > 0) {
-                        setTimeout(() => loadImage(images.indexOf(pending[0])), 500);
-                    }
                 } else {
                     showErrorModal('保存失败，请检查网络或权限');
                 }

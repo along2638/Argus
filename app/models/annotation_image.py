@@ -13,6 +13,7 @@ class AnnotationImage(Base):
     width = Column(Integer, comment="图片宽度(像素)")
     height = Column(Integer, comment="图片高度(像素)")
     source = Column(String(32), default="upload", comment="来源: upload/capture/url")
+    model_type = Column(String(32), comment="模型分类: general/fire_smoke/helmet")
     dataset_name = Column(String(128), comment="所属数据集名称")
     split = Column(String(16), default="train", comment="数据集划分: train/val/test")
     is_annotated = Column(Boolean, default=False, comment="是否已标注")

@@ -420,7 +420,7 @@ async def _init_default_config():
         if not exists.scalar_one_or_none():
             session.add(SystemConfig(
                 config_key="ANNOTATION_CLASSES",
-                config_value='[{"id":0,"name":"fire"},{"id":1,"name":"smoke"}]',
+                config_value='[{"id":0,"name":"fire"},{"id":1,"name":"smoke"},{"id":2,"name":"person"},{"id":3,"name":"no-helmet"}]',
                 config_type="json",
                 description="标注类别列表 JSON 格式",
             ))
@@ -689,10 +689,10 @@ async def api_get_annotation_classes(authorization: Optional[str] = Header(None)
             if cfg and cfg.config_value:
                 classes = json.loads(cfg.config_value)
             else:
-                classes = [{"id": 0, "name": "fire"}, {"id": 1, "name": "smoke"}]
+                classes = [{"id": 0, "name": "fire"}, {"id": 1, "name": "smoke"}, {"id": 2, "name": "person"}, {"id": 3, "name": "no-helmet"}]
         return {"success": True, "classes": classes}
     except Exception as e:
-        return {"success": True, "classes": [{"id": 0, "name": "fire"}, {"id": 1, "name": "smoke"}]}
+        return {"success": True, "classes": [{"id": 0, "name": "fire"}, {"id": 1, "name": "smoke"}, {"id": 2, "name": "person"}, {"id": 3, "name": "no-helmet"}]}
 
 
 @router.get("/backup")

@@ -57,11 +57,11 @@
         .results-actions button { font-size:0.62rem; padding:2px 7px; border:1px solid var(--border); border-radius:4px; background:transparent; color:var(--ink-3); cursor:pointer; transition:var(--transition); font-family:inherit; }
         .results-actions button:hover { border-color:var(--ink-4); color:var(--ink); }
         .results-body { flex:1; overflow-y:auto; padding:4px 12px; }
-        .det-row { display:flex; gap:6px; padding:3px 0; border-bottom:1px solid var(--border); align-items:center; }
+        .det-row { display:flex; gap:6px; padding:3px 0; border-bottom:1px solid var(--border); align-items:center; min-width:0; }
         .det-row:last-child { border-bottom:none; }
         .det-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
-        .det-label { font-size:0.7rem; font-weight:500; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .det-conf { font-size:0.62rem; color:var(--ink-4); font-family:'JetBrains Mono',monospace; }
+        .det-label { font-size:0.7rem; font-weight:500; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .det-conf { font-size:0.62rem; color:var(--ink-4); font-family:'JetBrains Mono',monospace; flex-shrink:0; white-space:nowrap; }
         .det-bar { width:32px; height:3px; background:var(--bg-input); border-radius:2px; overflow:hidden; flex-shrink:0; }
         .det-bar-fill { height:100%; border-radius:2px; }
         .results-pager { padding:4px 12px 6px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
@@ -223,6 +223,10 @@
             <a href="/static/datasets.html" class="topbar-btn">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
                 数据集
+            </a>
+            <a href="/static/guide.html" class="topbar-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                说明
             </a>
             <button id="themeToggle" class="topbar-btn" onclick="toggleTheme()" style="padding:5px 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></button>
             <div id="userInfoSlot"></div>
@@ -482,7 +486,7 @@
         }
         function goDetPage(p){detPage=p;renderDetPage();}
 
-        function goToAnnotate(){if(!currentFile)return;const fd=new FormData();fd.append('file',currentFile);authFetch('/api/annotations/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.success)location.href='/static/annotate.html?image='+encodeURIComponent(d.filename);else notify('准备标注失败','error');}).catch(()=>notify('请求失败','error'));}
+        function goToAnnotate(){if(!currentFile)return;const fd=new FormData();fd.append('file',currentFile);fd.append('model_type',getVal('modelSelectWrap'));authFetch('/api/annotations/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.success)location.href='/static/annotate.html?image='+encodeURIComponent(d.filename);else notify('准备标注失败','error');}).catch(()=>notify('请求失败','error'));}
         async function importAnnotations(){if(!currentResultId)return;try{const r=await authFetch('/api/v1/stream/detect/'+currentResultId+'/import-annotations',{method:'POST'});const d=await r.json();if(d.success)notify('已导入 '+d.count+' 个标注框','ok');else notify(d.message||'导入失败','error');}catch(e){notify('请求失败','error');}}
         function exportCSV(){if(!batchResults.length&&!detections.length)return;let csv='filename,class_name,confidence,bbox_x1,bbox_y1,bbox_x2,bbox_y2\n';if(batchResults.length>1){batchResults.forEach(r=>{(r.detections||[]).forEach(d=>{csv+=r.filename+','+d.class_name+','+d.confidence.toFixed(4)+','+d.bbox.join(',')+'\n';});});}else{const f=currentFile?currentFile.name:'unknown';detections.forEach(d=>{csv+=f+','+d.class_name+','+d.confidence.toFixed(4)+','+d.bbox.join(',')+'\n';});}const b=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='detection_'+new Date().toISOString().slice(0,19).replace(/[:-]/g,'')+'.csv';a.click();URL.revokeObjectURL(a.href);notify('CSV 已导出','ok');}
 
