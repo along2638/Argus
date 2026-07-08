@@ -19,13 +19,12 @@ os.environ["PATH"] = ";".join(_cuda_dirs) + ";" + os.environ.get("PATH", "")
 os.environ["ONNXRUNTIME_LOG_LEVEL"] = "3"
 
 import onnxruntime as ort
-from fastapi import FastAPI, Request, UploadFile, File, Form, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.stream import router as stream_router
 from app.api.v1.auth import router as auth_router
-from app.api.v1.admin import router as admin_router
 from app.config import settings
 from app.core.alarm_dedup import alarm_dedup
 from app.core.detector import detector
@@ -63,7 +62,7 @@ async def run_arq_worker():
 
     _arq_executor = ThreadPoolExecutor(max_workers=1)
     try:
-        loop = asyncio.get_running_loop()
+        loop = asyncio.get_event_loop()
         await loop.run_in_executor(_arq_executor, _run_worker)
     except asyncio.CancelledError:
         logger.info("arq_worker_cancelled")
@@ -72,52 +71,37 @@ async def run_arq_worker():
     # shutdown 统一由 lifespan 管理，避免重复调用
 
 
-async def _load_email_config():
-    """Load email notification config (for parallel startup)."""
-    from app.core.email_notifier import email_notifier
-    await email_notifier.load_config()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown."""
     # Startup
     setup_logging()
-    health_task = None
-    schedule_task = None
 
     print_status("YOLO 监控告警系统 v0.1.0 启动中...", "info")
     print_status("=" * 50, "info")
 
-    # Initialize services (parallel where possible)
+    # Initialize services
     print_status("正在初始化数据库连接...", "info")
     await db_service.init_db()
     print_status("[OK] MySQL 连接成功 (SQLAlchemy + aiomysql)", "success")
 
-    # MinIO, Redis, admin, email config — no dependencies between them, run in parallel
-    print_status("正在并行初始化 MinIO / Redis / 管理员 / 邮件配置...", "info")
-    results = await asyncio.gather(
-        minio_service.ensure_bucket(),
-        alarm_dedup.get_redis(),
-        create_default_admin(),
-        _load_email_config(),
-        return_exceptions=True,
-    )
-    for r in results:
-        if isinstance(r, Exception):
-            print_status(f"  [WARN] 初始化异常: {r}", "warning")
-    print_status("[OK] 并行初始化完成", "success")
+    print_status("正在创建默认管理员账号...", "info")
+    await create_default_admin()
+    print_status("[OK] 默认管理员: admin / admin123", "success")
 
-    # Start ARQ Worker in background (non-blocking, no sleep)
+    print_status("正在初始化 MinIO 存储...", "info")
+    await minio_service.ensure_bucket()
+    print_status("[OK] MinIO 连接成功", "success")
+
+    print_status("正在初始化 Redis 缓存...", "info")
+    await alarm_dedup.get_redis()
+    print_status("[OK] Redis 连接成功", "success")
+
+    # Start ARQ Worker in background
     print_status("正在启动 ARQ Worker...", "info")
     worker_task = asyncio.create_task(run_arq_worker())
+    await asyncio.sleep(1)  # Give worker time to start
     print_status("[OK] ARQ Worker 已启动", "success")
-
-    # Start background tasks (fire and forget)
-    from app.core.health_recorder import record_stream_health
-    health_task = asyncio.create_task(record_stream_health(stream_manager))
-    from app.core.schedule_checker import check_schedules
-    schedule_task = asyncio.create_task(check_schedules(stream_manager))
 
     # Log GPU availability
     providers = ort.get_available_providers()
@@ -126,41 +110,6 @@ async def lifespan(app: FastAPI):
         print_status("[OK] GPU 加速可用 (CUDA)", "success")
     else:
         print_status("[WARN] GPU 不可用，使用 CPU 推理", "warning")
-
-    # 自动恢复上次运行的流
-    print_status("正在恢复历史流配置...", "info")
-    try:
-        from app.db import async_session
-        from app.models.stream_config import StreamConfig
-        from sqlalchemy import select
-
-        async with async_session() as session:
-            result = await session.execute(
-                select(StreamConfig).where(StreamConfig.status == "running")
-            )
-            running_configs = result.scalars().all()
-            restored = 0
-            for cfg in running_configs:
-                try:
-                    r = await stream_manager.start_stream(
-                        stream_id=cfg.stream_id,
-                        stream_url=cfg.stream_url,
-                        validate=False,  # 恢复时跳过验证，避免阻塞启动
-                        alarm_types=cfg.alarm_types or ["helmet", "fire", "intrusion"],
-                    )
-                    if r["success"]:
-                        restored += 1
-                        print_status(f"  [OK] 已恢复流: {cfg.stream_id}", "success")
-                    else:
-                        print_status(f"  [FAIL] 恢复流 {cfg.stream_id} 失败: {r['message']}", "warning")
-                except Exception as e:
-                    print_status(f"  [FAIL] 恢复流 {cfg.stream_id} 异常: {e}", "warning")
-            if running_configs:
-                print_status(f"流恢复完成: {restored}/{len(running_configs)}", "info")
-            else:
-                print_status("无需恢复的流", "info")
-    except Exception as e:
-        print_status(f"流恢复跳过: {e}", "warning")
 
     print_status("=" * 50, "info")
     print_status(f"服务已就绪: http://localhost:{settings.APP_PORT}", "success")
@@ -178,21 +127,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     print_status("正在关闭服务...", "warning")
-    if health_task:
-        health_task.cancel()
-    if schedule_task:
-        schedule_task.cancel()
     worker_task.cancel()
-    if health_task:
-        try:
-            await health_task
-        except asyncio.CancelledError:
-            pass
-    if schedule_task:
-        try:
-            await schedule_task
-        except asyncio.CancelledError:
-            pass
     try:
         await worker_task
     except asyncio.CancelledError:
@@ -200,8 +135,6 @@ async def lifespan(app: FastAPI):
     await stream_manager.stop_all()
     await close_arq_pool()
     await alarm_dedup.close()
-    from app.core.rate_limiter import RateLimiter
-    await RateLimiter.close()
     minio_service.close()
     detector.close()
     await db_service.close()
@@ -218,16 +151,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # CSRF protection middleware
 from app.core.csrf import CSRFMiddleware
 app.add_middleware(CSRFMiddleware)
@@ -239,40 +162,6 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Include routers
 app.include_router(stream_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
-app.include_router(admin_router, prefix="/api/v1")
-
-# WebSocket endpoint for real-time alarm push
-from app.core.alarm_broadcaster import alarm_broadcaster
-
-
-@app.websocket("/ws/alarms")
-async def websocket_alarms(websocket: WebSocket):
-    """WebSocket endpoint for real-time alarm notifications.
-
-    Authentication: pass token as query param ?token=xxx (required).
-    """
-    token = websocket.query_params.get("token")
-    if not token:
-        await websocket.close(code=4001, reason="Token required")
-        return
-
-    from app.services.auth_service import get_current_user
-    user = await get_current_user(token)
-    if not user:
-        await websocket.close(code=4001, reason="Invalid token")
-        return
-
-    await alarm_broadcaster.connect(websocket)
-    try:
-        while True:
-            # Keep connection alive; clients may send pings
-            data = await websocket.receive_text()
-            if data == "ping":
-                await websocket.send_text('{"type":"pong"}')
-    except WebSocketDisconnect:
-        await alarm_broadcaster.disconnect(websocket)
-    except Exception:
-        await alarm_broadcaster.disconnect(websocket)
 
 # Mount static files
 static_dir = Path(__file__).parent / "static"
@@ -282,48 +171,6 @@ if static_dir.exists():
 # Public paths (no auth required)
 PUBLIC_PATHS = {"/login", "/static/login.html", "/health", "/docs", "/redoc", "/openapi.json"}
 
-
-# ── 全局异常处理 ──
-@app.exception_handler(404)
-async def not_found_handler(request: Request, exc):
-    return HTMLResponse(content="""
-    <html><head><title>404</title>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>body{font-family:'DM Sans',-apple-system,sans-serif;background:#f8f7f5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#1c1917}
-    .box{text-align:center}.code{font-size:4rem;font-weight:700;color:#d6d3d1;margin-bottom:12px}
-    .msg{font-size:1rem;color:#78716c;margin-bottom:20px}.link{color:#1c1917;text-decoration:none;padding:8px 20px;border:1px solid #e8e6e3;border-radius:8px;font-size:0.82rem;transition:0.15s}
-    .link:hover{border-color:#a8a29e;background:#f3f2f0}</style></head>
-    <body><div class="box"><div class="code">404</div><div class="msg">页面不存在</div><a href="/" class="link">返回主页</a></div></body></html>
-    """, status_code=404)
-
-
-@app.exception_handler(500)
-async def server_error_handler(request: Request, exc):
-    return HTMLResponse(content="""
-    <html><head><title>500</title>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>body{font-family:'DM Sans',-apple-system,sans-serif;background:#f8f7f5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#1c1917}
-    .box{text-align:center}.code{font-size:4rem;font-weight:700;color:#fca5a5;margin-bottom:12px}
-    .msg{font-size:1rem;color:#78716c;margin-bottom:20px}.link{color:#1c1917;text-decoration:none;padding:8px 20px;border:1px solid #e8e6e3;border-radius:8px;transition:0.15s}
-    .link:hover{border-color:#a8a29e;background:#f3f2f0}</style></head>
-    <body><div class="box"><div class="code">500</div><div class="msg">服务器内部错误</div><a href="/" class="link">返回主页</a></div></body></html>
-    """, status_code=500)
-
-# 需要记录操作日志的 API — key=(method, path), value=action name
-# 新增需要审计的接口时，在此字典中添加映射即可
-_LOG_ACTION_MAP = {
-    ("POST", "/api/v1/stream/start"): "stream_start",
-    ("POST", "/api/v1/stream/stop"): "stream_stop",
-    ("POST", "/api/v1/stream/detect/upload"): "detect_upload",
-    ("POST", "/api/v1/stream/detect"): "detect_url",
-    ("DELETE", "/api/v1/stream/alarms"): "alarm_clear",
-    ("POST", "/api/v1/auth/login"): "login",
-    ("POST", "/api/v1/auth/register"): "register",
-    ("POST", "/api/v1/auth/logout"): "logout",
-    ("POST", "/api/annotations/save"): "annotation_save",
-}
-
-
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
@@ -331,6 +178,7 @@ async def auth_middleware(request: Request, call_next):
     if (path in PUBLIC_PATHS
         or path.startswith("/api/v1/auth/")
         or path.startswith("/static/")
+        or path.startswith("/api/annotations/")
         or path.startswith("/docs")
         or path.startswith("/redoc")
         or path.startswith("/openapi")):
@@ -353,34 +201,15 @@ async def auth_middleware(request: Request, call_next):
         return RedirectResponse(url="/login", status_code=302)
 
     request.state.user = user
-    response = await call_next(request)
-
-    # 操作日志记录（异步，不阻塞响应）
-    log_key = (request.method, path)
-    action = _LOG_ACTION_MAP.get(log_key)
-    if action and 200 <= response.status_code < 400:
-        try:
-            from app.services.operation_log_service import write_log
-            asyncio.create_task(write_log(
-                action=action,
-                user_id=user.get("id"),
-                username=user.get("username"),
-                target_type="api",
-                target_id=path,
-                ip_address=get_client_ip(request),
-            ))
-        except Exception:
-            pass  # 日志记录失败不影响正常响应
-
-    return response
+    return await call_next(request)
 
 # === 标注工具 API ===
 ANNOTATE_DIR = Path(__file__).parent.parent / "fire_smoke_data" / "to_annotate"
 LABELS_DIR = Path(__file__).parent.parent / "fire_yolo" / "train"
 
 @app.get("/api/annotations/files")
-async def list_annotate_files(model_type: str = None):
-    """列出待标注的图片文件，支持按 model_type 筛选"""
+async def list_annotate_files():
+    """列出待标注的图片文件（优先从数据库读取）"""
     files = []
 
     # 从数据库读取已记录的图片
@@ -390,45 +219,33 @@ async def list_annotate_files(model_type: str = None):
         from sqlalchemy import select
 
         async with async_session() as session:
-            stmt = select(
-                AnnotationImage.filename, AnnotationImage.is_annotated,
-                AnnotationImage.box_count, AnnotationImage.model_type,
+            result = await session.execute(
+                select(AnnotationImage.filename, AnnotationImage.is_annotated, AnnotationImage.box_count)
+                .order_by(AnnotationImage.id)
             )
-            if model_type:
-                stmt = stmt.where(AnnotationImage.model_type == model_type)
-            stmt = stmt.order_by(AnnotationImage.id)
-            result = await session.execute(stmt)
-            db_files = {r[0]: {"is_annotated": r[1], "box_count": r[2], "model_type": r[3]} for r in result.all()}
+            db_files = {r[0]: {"is_annotated": r[1], "box_count": r[2]} for r in result.all()}
     except Exception:
         db_files = {}
 
-    # 扫描目录（仅在无筛选时）
-    if not model_type and ANNOTATE_DIR.exists():
+    # 扫描目录
+    if ANNOTATE_DIR.exists():
         for f in sorted(ANNOTATE_DIR.iterdir()):
             if f.suffix.lower() in ('.jpg', '.jpeg', '.png'):
                 name = f.name
                 if name in db_files:
-                    files.append({"name": name, "annotated": db_files[name]["is_annotated"], "box_count": db_files[name]["box_count"], "model_type": db_files[name]["model_type"]})
+                    files.append({"name": name, "annotated": db_files[name]["is_annotated"], "box_count": db_files[name]["box_count"]})
                 else:
+                    # Fallback: check label file
                     lbl_name = f.stem + ".txt"
                     lbl_path = LABELS_DIR / "labels" / lbl_name
-                    files.append({"name": name, "annotated": lbl_path.exists(), "box_count": 0, "model_type": None})
-    else:
-        for name, info in db_files.items():
-            files.append({"name": name, "annotated": info["is_annotated"], "box_count": info["box_count"], "model_type": info["model_type"]})
+                    files.append({"name": name, "annotated": lbl_path.exists(), "box_count": 0})
 
     return {"files": files}
 
 @app.get("/api/annotations/image/{filename}")
 async def get_annotate_image(filename: str):
     """获取待标注的图片"""
-    # Path traversal protection: reject filenames with path separators
-    if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(status_code=400, detail="Invalid filename")
-    img_path = (ANNOTATE_DIR / filename).resolve()
-    # Ensure resolved path is still within ANNOTATE_DIR
-    if not str(img_path).startswith(str(ANNOTATE_DIR.resolve())):
-        raise HTTPException(status_code=400, detail="Invalid filename")
+    img_path = ANNOTATE_DIR / filename
     if img_path.exists():
         return FileResponse(str(img_path), media_type="image/jpeg")
     raise HTTPException(status_code=404, detail="Image not found")
@@ -480,7 +297,6 @@ async def save_annotation(data: dict, request: Request = None):
     filename = data.get("filename", "")
     content = data.get("content", "")
     dataset_name = data.get("dataset_name", "default")
-    model_type = data.get("model_type")
 
     # 保存到训练集标注目录
     lbl_name = Path(filename).stem + ".txt"
@@ -531,8 +347,6 @@ async def save_annotation(data: dict, request: Request = None):
                 image.width = img_w
                 image.height = img_h
                 image.dataset_name = dataset_name
-                if model_type:
-                    image.model_type = model_type
                 image.is_annotated = True
                 image.box_count = box_count
                 image.update_by = username
@@ -541,7 +355,7 @@ async def save_annotation(data: dict, request: Request = None):
                 image = AnnotationImage(
                     filename=filename, file_path=file_path, file_size=file_size,
                     width=img_w, height=img_h, dataset_name=dataset_name,
-                    model_type=model_type, is_annotated=True, box_count=box_count, create_by=username,
+                    is_annotated=True, box_count=box_count, create_by=username,
                 )
                 session.add(image)
                 await session.flush()
@@ -552,7 +366,7 @@ async def save_annotation(data: dict, request: Request = None):
             )
 
             if content.strip():
-                class_map = {0: "fire", 1: "smoke", 2: "person", 3: "no-helmet"}
+                class_map = {0: "fire", 1: "smoke"}
                 for line in content.strip().splitlines():
                     parts = line.strip().split()
                     if len(parts) >= 5:
@@ -571,177 +385,6 @@ async def save_annotation(data: dict, request: Request = None):
         logger.error("annotation_db_save_error", filename=filename, error=str(e))
 
     return {"success": True, "message": f"Saved {filename}"}
-
-
-@app.post("/api/annotations/upload")
-async def upload_to_annotate(file: UploadFile = File(...), model_type: str = Form(None)):
-    """上传图片到待标注目录（用于检测→标注联动）"""
-    safe_name = Path(file.filename).name
-    if '..' in safe_name or '/' in safe_name or '\\' in safe_name:
-        raise HTTPException(status_code=400, detail="非法文件名")
-    dst = (ANNOTATE_DIR / safe_name).resolve()
-    if not str(dst).startswith(str(ANNOTATE_DIR.resolve())):
-        raise HTTPException(status_code=400, detail="非法文件名")
-    ANNOTATE_DIR.mkdir(parents=True, exist_ok=True)
-    content = await file.read()
-    with open(dst, "wb") as f:
-        f.write(content)
-
-    # 写入数据库，带上模型类型
-    try:
-        from app.db import async_session
-        from app.models.annotation_image import AnnotationImage
-        from sqlalchemy import select
-        async with async_session() as session:
-            result = await session.execute(
-                select(AnnotationImage).where(AnnotationImage.filename == safe_name)
-            )
-            img = result.scalar_one_or_none()
-            if img:
-                if model_type:
-                    img.model_type = model_type
-            else:
-                session.add(AnnotationImage(
-                    filename=safe_name, file_path=str(dst),
-                    file_size=len(content), model_type=model_type,
-                ))
-            await session.commit()
-    except Exception:
-        pass
-
-    return {"success": True, "filename": safe_name}
-
-
-@app.post("/api/annotations/classify")
-async def classify_annotation_image(data: dict):
-    """用三个模型检测图片，返回所属模型分类"""
-    filename = data.get("filename", "")
-    if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(status_code=400, detail="非法文件名")
-    img_path = (ANNOTATE_DIR / filename).resolve()
-    if not str(img_path).startswith(str(ANNOTATE_DIR.resolve())):
-        raise HTTPException(status_code=400, detail="非法文件名")
-    if not img_path.exists():
-        raise HTTPException(status_code=404, detail="图片不存在")
-
-    import cv2
-    frame = await asyncio.to_thread(cv2.imread, str(img_path))
-    if frame is None:
-        raise HTTPException(status_code=400, detail="无法读取图片")
-
-    result_type = "general"
-    result_classes = []
-    for model_name in ["fire_smoke", "helmet", "general"]:
-        try:
-            dets, _ = await detector.detect_with_model(frame, model_name)
-            if len(dets) > 0:
-                classes = [detector.get_class_name(model_name, int(c)) for c in dets.class_id]
-                if model_name == "fire_smoke":
-                    result_type = "fire_smoke"
-                    result_classes = classes
-                    break
-                elif model_name == "helmet":
-                    result_type = "helmet"
-                    result_classes = classes
-                    break
-                else:
-                    result_classes = classes
-        except Exception:
-            continue
-
-    # 写入数据库
-    try:
-        from app.db import async_session
-        from app.models.annotation_image import AnnotationImage
-        from sqlalchemy import select
-        async with async_session() as session:
-            result = await session.execute(
-                select(AnnotationImage).where(AnnotationImage.filename == filename)
-            )
-            image = result.scalar_one_or_none()
-            if image:
-                image.model_type = result_type
-                await session.commit()
-    except Exception as e:
-        logger.error("classify_db_error", filename=filename, error=str(e))
-
-    return {"success": True, "model_type": result_type, "classes": list(set(result_classes))}
-
-
-@app.post("/api/annotations/classify-all")
-async def classify_all_annotation_images():
-    """批量分类所有待标注图片"""
-    if not ANNOTATE_DIR.exists():
-        return {"success": True, "classified": 0}
-
-    import cv2
-    from app.db import async_session
-    from app.models.annotation_image import AnnotationImage
-    from sqlalchemy import select
-
-    classified = 0
-    for f in sorted(ANNOTATE_DIR.iterdir()):
-        if f.suffix.lower() not in ('.jpg', '.jpeg', '.png'):
-            continue
-
-        # 跳过已分类的
-        try:
-            async with async_session() as session:
-                existing = await session.execute(
-                    select(AnnotationImage).where(AnnotationImage.filename == f.name)
-                )
-                img = existing.scalar_one_or_none()
-                if img and img.model_type:
-                    continue
-        except Exception:
-            pass
-
-        frame = await asyncio.to_thread(cv2.imread, str(f))
-        if frame is None:
-            continue
-
-        model_type = "general"
-        for model_name in ["fire_smoke", "helmet", "general"]:
-            try:
-                dets, _ = await detector.detect_with_model(frame, model_name)
-                if len(dets) > 0:
-                    model_type = model_name
-                    break
-            except Exception:
-                continue
-
-        try:
-            async with async_session() as session:
-                result = await session.execute(
-                    select(AnnotationImage).where(AnnotationImage.filename == f.name)
-                )
-                img = result.scalar_one_or_none()
-                if img:
-                    img.model_type = model_type
-                else:
-                    session.add(AnnotationImage(
-                        filename=f.name, file_path=str(f),
-                        file_size=f.stat().st_size if f.exists() else 0,
-                        model_type=model_type,
-                    ))
-                await session.commit()
-                classified += 1
-        except Exception:
-            continue
-
-    return {"success": True, "classified": classified}
-
-
-@app.get("/metrics", summary="Prometheus 指标", include_in_schema=False)
-async def metrics_endpoint():
-    """Prometheus-compatible metrics endpoint."""
-    from app.core.metrics import render_metrics, set_gauge
-    from fastapi.responses import PlainTextResponse
-
-    set_gauge("argus_active_streams", stream_manager.active_streams)
-    set_gauge("argus_max_streams", settings.MAX_CONCURRENT_STREAMS)
-
-    return PlainTextResponse(content=render_metrics(), media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 @app.get("/health", summary="健康检查", description="返回系统健康状态，包括活跃流数量、队列深度、GPU可用性")
@@ -763,31 +406,11 @@ async def health_check():
     else:
         queue_depth = 0
 
-    # 每条流的健康状态
-    streams_health = []
-    for info in stream_manager.get_streams_info():
-        streams_health.append({
-            "stream_id": info.get("stream_id"),
-            "status": info.get("status"),
-            "alarm_count": info.get("alarm_count", 0),
-        })
-
-    # 数据库连接池状态
-    from app.db import get_pool_status
-    pool_status = get_pool_status()
-
-    # GPU memory status
-    from app.core.gpu_monitor import gpu_monitor
-    gpu_status = gpu_monitor.get_status_summary()
-
     return {
         "status": "正常",
         "active_streams": stream_manager.active_streams,
         "queue_depth": queue_depth,
         "gpu_available": gpu_available,
-        "gpu": gpu_status,
-        "streams": streams_health,
-        "db_pool": pool_status,
     }
 
 
