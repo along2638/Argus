@@ -318,9 +318,17 @@ class StreamProcessor:
                     await self._process_frame(img)
                     # 更新空帧计数器
                     if self._last_person_count > 0:
+                        if empty_frame_count > 0:
+                            logger.info("adaptive_sampling_reset",
+                                        stream_id=self.stream_id,
+                                        detected_persons=self._last_person_count)
                         empty_frame_count = 0
                     else:
                         empty_frame_count += 1
+                        logger.info("adaptive_sampling_interval",
+                                    stream_id=self.stream_id,
+                                    empty_frames=empty_frame_count,
+                                    interval_sec=round(detect_interval, 1))
                     if frame_count <= 3:
                         logger.info("frame_processed", stream_id=self.stream_id, frame_num=frame_count)
 
