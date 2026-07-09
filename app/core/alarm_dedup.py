@@ -16,12 +16,13 @@ class AlarmDeduplicator:
 
     @classmethod
     async def get_redis(cls) -> aioredis.Redis:
-        """Get or create Redis connection."""
+        """Get or create Redis connection with connection pool."""
         if cls._redis is None:
             cls._redis = aioredis.from_url(
                 settings.REDIS_URL,
                 encoding="utf-8",
                 decode_responses=True,
+                max_connections=20,
             )
             # Mask password in log
             safe_url = settings.REDIS_URL
