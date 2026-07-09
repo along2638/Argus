@@ -468,24 +468,6 @@ docker compose down</code></pre>
                 </div>
             </div>
 
-                <div class="card">
-                    <h3>Q: 上传图片检测卡住？</h3>
-                    <p>已修复：检测器现在强制使用 CPU，跳过 CUDA 初始化，避免挂起。如仍有问题，检查 <code>app/core/detector.py</code> 中的 Provider 配置。</p>
-                </div>
-
-                <div class="card">
-                    <h3>Q: 安全帽检测不准？</h3>
-                    <p>系统使用两阶段检测：通用模型先检测人 → 裁剪头部区域 → 安全帽模型判断。阈值已优化（helmet ≥ 0.40），6 张测试图全部通过。</p>
-                </div>
-
-                <div class="card">
-                    <h3>Q: 如何添加新的检测模型？</h3>
-                    <p>1. 在 <code>app/config.py</code> 添加模型路径和 CLASS_MAPPING<br>
-                    2. 在 <code>app/core/detector.py</code> 的 <code>_models</code> 字典中注册<br>
-                    3. 将 ONNX 模型文件放入 <code>models/onnx/</code> 目录</p>
-                </div>
-            </div>
-
             <!-- 技术栈总览 -->
             <div class="section">
                 <h2 class="section-title">技术栈总览</h2>
