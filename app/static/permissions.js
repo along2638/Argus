@@ -49,20 +49,49 @@ function initPagePermissions() {
     const role = getUserRole();
     const perms = getUserPermissions();
 
-    // 通用规则：管理员可见全部，其他人根据权限控制
-    if (role === 'admin') return; // admin 不限制
+    // 管理员不限制
+    if (role === 'admin') return;
 
-    // 隐藏/禁用需要特定权限的元素
-    applyPermissions({
-        '[data-perm]': null, // 由各元素的 data-perm 属性决定
-    });
-
-    // 根据 data-perm 属性控制
+    // 根据 data-perm 属性控制元素可见性
     document.querySelectorAll('[data-perm]').forEach(el => {
         const required = el.getAttribute('data-perm');
         if (!perms.includes(required)) {
             el.style.display = 'none';
             el.disabled = true;
+            // 如果是链接，阻止跳转
+            if (el.tagName === 'A') {
+                el.addEventListener('click', e => {
+                    e.preventDefault();
+                    showPermDenied(el.getAttribute('data-perm-label') || '此功能');
+                });
+            }
+        }
+    });
+
+    // 导航按钮权限映射
+    const navPermMap = {
+        '/static/annotate.html': 'annotate',
+        '/static/detect.html': 'view_stream',
+        '/static/dashboard.html': 'view_alarm',
+        '/static/users.html': 'manage_user',
+        '/static/logs.html': 'admin',
+        '/static/config.html': 'admin',
+        '/static/training.html': 'annotate',
+        '/static/datasets.html': 'annotate',
+    };
+
+    document.querySelectorAll('.topbar-btn[href]').forEach(el => {
+        const href = el.getAttribute('href');
+        const required = navPermMap[href];
+        if (required && !perms.includes(required)) {
+            el.style.opacity = '0.35';
+            el.style.pointerEvents = 'none';
+            el.style.cursor = 'not-allowed';
+            el.title = '权限不足';
+            el.addEventListener('click', e => {
+                e.preventDefault();
+                showPermDenied(el.textContent.trim());
+            });
         }
     });
 }
@@ -105,4 +134,11 @@ if (!document.getElementById('perm-style')) {
     s.id = 'perm-style';
     s.textContent = '@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}';
     document.head.appendChild(s);
+}
+
+// 页面加载时自动初始化权限控制
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPagePermissions);
+} else {
+    initPagePermissions();
 }
