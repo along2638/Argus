@@ -436,9 +436,13 @@ async def health_check():
     }
 
 
-@app.get("/", summary="调试面板", description="返回可视化调试面板页面")
+@app.get("/", summary="首页", description="返回系统首页")
 async def root():
-    """可视化调试面板。"""
+    """系统首页。"""
+    home_file = Path(__file__).parent / "static" / "home.html"
+    if home_file.exists():
+        return FileResponse(str(home_file), media_type="text/html")
+    # 回退到 index.html
     index_file = Path(__file__).parent / "static" / "index.html"
     if index_file.exists():
         return FileResponse(str(index_file), media_type="text/html")
