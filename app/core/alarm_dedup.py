@@ -66,44 +66,52 @@ class AlarmDeduplicator:
     ) -> bool:
         """Check if alarm should be triggered based on cooldown.
 
-        Returns:
-            True if alarm should be triggered (new track or TTL expired),
-            False if within cooldown period.
+        使用距离去重：同一位置 30 秒内不重复告警，不同位置独立告警。
         """
         if ttl is None:
             ttl = settings.ALARM_COOLDOWN_TTL
 
         redis = await cls.get_redis()
-        key = cls._make_key(stream_id, class_name, track_id, position)
 
-        try:
-            # SET NX returns True if key was set (doesn't exist), False if exists
-            was_set = await redis.set(key, "1", nx=True, ex=ttl)
-
-            if was_set:
-                logger.debug(
-                    "alarm_triggered",
-                    stream_id=stream_id,
-                    class_name=class_name,
-                    track_id=track_id,
-                )
+        # 有 track_id 时用精确跟踪去重
+        if track_id != -1:
+            key = f"alarm:{stream_id}:{class_name}:{track_id}"
+            try:
+                was_set = await redis.set(key, "1", nx=True, ex=ttl)
+                return was_set
+            except Exception:
                 return True
-            else:
-                logger.debug(
-                    "alarm_cooldown_active",
-                    stream_id=stream_id,
-                    class_name=class_name,
-                    track_id=track_id,
-                )
-                return False
-        except Exception as e:
-            logger.error(
-                "alarm_dedup_error",
-                stream_id=stream_id,
-                error=str(e),
-            )
-            # On Redis error, allow alarm to trigger (fail-open)
-            return True
+
+        # 无 track_id 时，用距离去重
+        if position is not None:
+            prefix = f"alarm:{stream_id}:{class_name}"
+            # 查找该流+类型的所有活跃告警 key
+            try:
+                keys = []
+                async for k in redis.scan_iter(match=f"{prefix}:*", count=50):
+                    keys.append(k)
+
+                # 检查是否有足够近的告警
+                for k in keys:
+                    val = await redis.get(k)
+                    if val and val.startswith("pos:"):
+                        # 解析上次告警位置
+                        try:
+                            old_x, old_y = map(int, val.split(":")[1].split(","))
+                            dist = ((position[0] - old_x) ** 2 + (position[1] - old_y) ** 2) ** 0.5
+                            if dist < 50:  # 50 像素内视为同一目标
+                                return False
+                        except (ValueError, IndexError):
+                            continue
+
+                # 没有近距离告警，触发新告警
+                pos_key = f"{prefix}:pos:{position[0]},{position[1]}"
+                await redis.set(pos_key, f"pos:{position[0]},{position[1]}", ex=ttl)
+                return True
+            except Exception:
+                return True
+
+        return True
 
     @classmethod
     async def get_queue_depth(cls) -> int:
