@@ -374,7 +374,21 @@ async def save_annotation(data: dict, request: Request = None):
             )
 
             if content.strip():
-                class_map = {0: "fire", 1: "smoke"}
+                # 从数据库读取标注类别配置
+                class_map = {0: "fire", 1: "smoke", 2: "person", 3: "no-helmet"}
+                try:
+                    from app.models.system_config import SystemConfig
+                    cfg_result = await session.execute(
+                        select(SystemConfig).where(SystemConfig.config_key == "ANNOTATION_CLASSES")
+                    )
+                    cfg = cfg_result.scalar_one_or_none()
+                    if cfg and cfg.config_value:
+                        import json
+                        classes = json.loads(cfg.config_value)
+                        class_map = {c["id"]: c["name"] for c in classes}
+                except Exception:
+                    pass  # 使用默认映射
+
                 for line in content.strip().splitlines():
                     parts = line.strip().split()
                     if len(parts) >= 5:
