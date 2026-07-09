@@ -111,6 +111,14 @@ async def lifespan(app: FastAPI):
     else:
         print_status("[WARN] GPU 不可用，使用 CPU 推理", "warning")
 
+    # 预热模型：加载到内存避免首次推理延迟
+    print_status("正在预热检测模型...", "info")
+    try:
+        detector.warmup()
+        print_status("[OK] 模型预热完成", "success")
+    except Exception as e:
+        print_status(f"[WARN] 模型预热异常: {e}", "warning")
+
     print_status("=" * 50, "info")
     print_status(f"服务已就绪: http://localhost:{settings.APP_PORT}", "success")
     print_status(f"前端面板: http://localhost:{settings.APP_PORT}", "info")

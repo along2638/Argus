@@ -16,7 +16,11 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 # Dedicated thread pool for ONNX inference (avoids blocking default executor)
-_inference_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="inference")
+# Dynamic sizing based on CPU cores
+_inference_executor = ThreadPoolExecutor(
+    max_workers=min(8, (lambda: __import__('os').cpu_count() or 4)()),
+    thread_name_prefix="inference"
+)
 
 
 class ModelSession:
@@ -114,6 +118,21 @@ class MultiModelDetector:
         self._helmet_person_model.close()
         self._helmet_fp16_model.close()
         logger.info("detector_sessions_closed")
+
+    def warmup(self) -> None:
+        """预热所有模型：加载到内存并运行一次推理，避免首次推理延迟。"""
+        import numpy as np
+        for name, model in self._models.items():
+            try:
+                session = model.get_session()
+                # 创建 640x640 假帧
+                dummy = np.random.randint(0, 255, (640, 640, 3), dtype=np.uint8)
+                blob, _ = self._preprocess(dummy, model.input_shape, name)
+                input_name = session.get_inputs()[0].name
+                session.run(None, {input_name: blob})
+                logger.info("model_warmup_ok", model=name)
+            except Exception as e:
+                logger.warning("model_warmup_failed", model=name, error=str(e))
 
     def _preprocess(self, frame: np.ndarray, input_shape: Tuple[int, int], model_name: str = "") -> Tuple[np.ndarray, Tuple[float, float]]:
         """Preprocess frame for YOLO inference.
